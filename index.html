@@ -64,6 +64,7 @@
             color: #888;
         }
     </style>
+    <script src="https://cdn.jsdelivr.net/npm/wanakana@5.3.1/wanakana.min.js"></script>
 </head>
 <body>
 
@@ -133,7 +134,8 @@
                 return {
                     // Stripping any default HTML styling brackets Anki might inject inside strings
                     kanji: fields[FIELD_KANJI]?.value.replace(/<[^>]*>/g, '') || "N/A",
-                    romaji: fields[FIELD_ROMAJI]?.value.replace(/<[^>]*>/g, '').toLowerCase().trim() || "na",
+                    //romaji: fields[FIELD_ROMAJI]?.value.replace(/<[^>]*>/g, '').toLowerCase().trim() || "na",
+                    romaji: wanakana.toRomaji(rawRomaji).toLowerCase().trim(),
                     meaning: fields[FIELD_MEANING]?.value.replace(/<[^>]*>/g, '') || "N/A"
                 };
             }).filter(word => word.romaji !== "na"); // Filter cards missing romaji strings
