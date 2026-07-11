@@ -276,7 +276,65 @@ body {
     opacity: 0;
 }
 
-/* 🌟 CRITICAL UPDATE: Force visibility changes with !important to override old theme states */
+/* ==========================================================================
+   UPDATED CLICK-TO-REVEAL MEANING ENGINE (No layout shifting)
+   ========================================================================== */
+.meaning-wrapper {
+    position: relative;
+    cursor: pointer;
+    padding: 8px;
+    border-radius: 8px;
+    transition: background-color 0.2s ease;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    
+    /* 🌟 FIX: Lock the frame height so long text never moves elements below it */
+    min-height: 40px; 
+    width: 100%;
+}
+
+.meaning-wrapper:hover {
+    background-color: rgba(255, 255, 255, 0.02);
+}
+
+/* 🌟 FIX: Pull the prompt and definitions into absolute positioning 
+   layers so they float independently of the document flow */
+.meaning-prompt {
+    font-family: var(--font-heading);
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    color: var(--accent-blue);
+    position: absolute;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    inset: 0;
+    
+    opacity: 0 !important;
+    pointer-events: none !important;
+    transition: opacity 0.2s ease;
+}
+
+.meaning-wrapper .meaning {
+    position: absolute;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    inset: 0;
+    font-size: 1.05rem;
+    font-weight: 500;
+    color: var(--text-muted);
+    
+    opacity: 1 !important;
+    pointer-events: auto !important;
+    transition: opacity 0.2s ease;
+}
+
+/* 🌟 FORCE TOGGLE STATES WITHOUT LAYOUT SHIFT */
 .hidden-meaning .meaning-prompt {
     opacity: 1 !important;
     pointer-events: auto !important;
