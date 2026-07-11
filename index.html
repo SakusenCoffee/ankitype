@@ -3,160 +3,136 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Your Name - Professional Resume</title>
+    <title>Japanese Typing Practice</title>
     <style>
-        /* Basic reset and professional typography */
         body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            color: #333;
-            line-height: 1.6;
-            margin: 0;
-            padding: 0;
-            background-color: #f8f9fa;
-        }
-        .container {
-            max-width: 800px;
-            margin: 0 auto;
-            padding: 40px 20px;
-        }
-        header {
-            text-align: center;
-            margin-bottom: 40px;
-            padding-bottom: 20px;
-            border-bottom: 2px solid #e9ecef;
-        }
-        h1 {
-            margin: 0 0 10px 0;
-            color: #212529;
-            font-size: 2.5rem;
-        }
-        .tagline {
-            font-size: 1.2rem;
-            color: #6c757d;
-            margin: 0 0 200px 0;
-        }
-        .btn {
-            display: inline-block;
-            background-color: #007bff;
-            color: white;
-            padding: 10px 20px;
-            text-decoration: none;
-            border-radius: 5px;
-            font-weight: bold;
-            margin-top: 15px;
-        }
-        .btn:hover {
-            background-color: #0056b3;
-        }
-        section {
-            background: white;
-            padding: 30px;
-            margin-bottom: 20px;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-        }
-        h2 {
-            color: #007bff;
-            margin-top: 0;
-            border-bottom: 1px solid #dee2e6;
-            padding-bottom: 8px;
-        }
-        .job {
-            margin-bottom: 25px;
-        }
-        .job-title {
-            font-weight: bold;
-            font-size: 1.1rem;
-            margin: 0;
-        }
-        .job-meta {
-            color: #6c757d;
-            font-size: 0.9rem;
-            margin: 2px 0 10px 0;
-        }
-        .skills-list {
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+            background-color: #f0f2f5;
             display: flex;
-            flex-wrap: wrap;
-            gap: 10px;
-            padding: 0;
-            list-style: none;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
         }
-        .skills-list li {
-            background: #e9ecef;
-            padding: 6px 12px;
-            border-radius: 20px;
-            font-size: 0.9rem;
-        }
-        footer {
+        .card {
+            background: white;
+            padding: 40px;
+            border-radius: 16px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.05);
             text-align: center;
-            margin-top: 40px;
-            color: #6c757d;
-            font-size: 0.9rem;
+            width: 100%;
+            max-width: 500px;
         }
-        footer a {
-            color: #007bff;
-            text-decoration: none;
-            margin: 0 10px;
+        .kanji {
+            font-size: 3.5rem;
+            font-weight: bold;
+            color: #1a1a1a;
+            margin: 0 0 10px 0;
+        }
+        .meaning {
+            font-size: 1.1rem;
+            color: #666;
+            margin-bottom: 30px;
+            font-style: italic;
+        }
+        .romaji-container {
+            font-size: 1.8rem;
+            letter-spacing: 2px;
+            font-family: monospace;
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #e9ecef;
+        }
+        .typed {
+            color: #28a745;
+            font-weight: bold;
+        }
+        .untyped {
+            color: #ccc;
+        }
+        .score {
+            margin-top: 30px;
+            font-size: 1rem;
+            color: #888;
         }
     </style>
 </head>
 <body>
 
-    <div class="container">
+    <div class="card">
+        <div class="kanji" id="display-word">日本語</div>
+        <div class="meaning" id="display-meaning">Japanese Language</div>
         
-        <!-- HEADER SECTION -->
-        <header>
-            <h1>Your Name</h1>
-            <p class="tagline">Operations & E-Commerce Professional</p>
-            <a href="mailto:your.email@email.com" class="btn">Get In Touch</a>
-        </header>
+        <div class="romaji-container">
+            <span class="typed" id="text-typed"></span><span class="untyped" id="text-untyped">nihongo</span>
+        </div>
 
-        <!-- EXPERIENCE SECTION -->
-        <section>
-            <h2>Work Experience</h2>
-            
-            <div class="job">
-                <p class="job-title">Storefront Manager / Owner</p>
-                <p class="job-meta">Chasers Cache | 2025 - Present</p>
-                <ul>
-                    <li>Manage end-to-end e-commerce operations, inventory tracking, and fulfillment for a specialized storefront.</li>
-                    <li>Optimize digital product listings and maintain high customer satisfaction metrics through prompt support.</li>
-                </ul>
-            </div>
-
-            <div class="job">
-                <p class="job-title">Your Previous Job Title</p>
-                <p class="job-meta">Company Name | 2022 - 2025</p>
-                <ul>
-                    <li>Key achievement or major responsibility that demonstrates your skills.</li>
-                    <li>Another impactful point showing growth, efficiency improvements, or leadership.</li>
-                </ul>
-            </div>
-        </section>
-
-        <!-- SKILLS SECTION -->
-        <section>
-            <h2>Skills & Expertise</h2>
-            <ul class="skills-list">
-                <li>Inventory Management</li>
-                <li>E-Commerce Operations</li>
-                <li>Customer Relations</li>
-                <li>Problem Solving</li>
-                <li>Linux OS (Fedora)</li>
-                <li>Japanese (Conversational/Learning)</li>
-            </ul>
-        </section>
-
-        <!-- FOOTER SECTION -->
-        <footer>
-            <p>&copy; 2026 Your Name. All rights reserved.</p>
-            <p>
-                <a href="mailto:your.email@email.com">Email Me</a> | 
-                <a href="https://linkedin.com/in/yourprofile" target="_blank">LinkedIn</a>
-            </p>
-        </footer>
-
+        <div class="score">Score: <span id="score-val">0</span></div>
     </div>
 
+    <script>
+        // 1. Core Vocabulary Data Array
+        const wordList = [
+            { kanji: "日本語", romaji: "nihongo", meaning: "Japanese language" },
+            { kanji: "食べる", romaji: "taberu", meaning: "To eat" },
+            { kanji: "友達", romaji: "tomodachi", meaning: "Friend" },
+            { kanji: "猫", romaji: "neko", meaning: "Cat" },
+            { kanji: "美味しい", romaji: "oishii", meaning: "Delicious" },
+            { kanji: "桜", romaji: "sakura", meaning: "Cherry blossom" },
+            { kanji: "先生", romaji: "sensei", meaning: "Teacher" }
+        ];
+
+        let currentIndex = 0;
+        let typedTargetPosition = 0;
+        let totalScore = 0;
+
+        // Elements
+        const wordEl = document.getElementById("display-word");
+        const meaningEl = document.getElementById("display-meaning");
+        const typedEl = document.getElementById("text-typed");
+        const untypedEl = document.getElementById("text-untyped");
+        const scoreEl = document.getElementById("score-val");
+
+        // 2. Load Word onto Interface
+        function loadWord() {
+            const currentWord = wordList[currentIndex];
+            wordEl.textContent = currentWord.kanji;
+            meaningEl.textContent = currentWord.meaning;
+            
+            typedTargetPosition = 0;
+            typedEl.textContent = "";
+            untypedEl.textContent = currentWord.romaji;
+        }
+
+        // 3. Keystroke Event Listener Logic
+        window.addEventListener("keydown", (e) => {
+            // Ignore system keys (Shift, CapsLock, Alt, etc)
+            if (e.key.length > 1) return; 
+
+            const currentWord = wordList[currentIndex];
+            const expectedChar = currentWord.romaji[typedTargetPosition];
+
+            if (e.key.toLowerCase() === expectedChar) {
+                // Correct match -> Advance cursor position
+                typedTargetPosition++;
+                typedEl.textContent = currentWord.romaji.substring(0, typedTargetPosition);
+                untypedEl.textContent = currentWord.romaji.substring(typedTargetPosition);
+
+                // Word Completed!
+                if (typedTargetPosition === currentWord.romaji.length) {
+                    totalScore++;
+                    scoreEl.textContent = totalScore;
+                    
+                    // Go to next word cyclically
+                    currentIndex = (currentIndex + 1) % wordList.length;
+                    loadWord();
+                }
+            }
+        });
+
+        // Initialize First Run
+        loadWord();
+    </script>
 </body>
 </html>
