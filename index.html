@@ -9,6 +9,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;700;800&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/wanakana@5.3.1/wanakana.min.js"></script>
     <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Kaisei+Tokumin:wght@700&family=Yuji+Syuku&family=DotGothic16&family=Zen+Maru+Gothic:wght@700&display=swap" rel="stylesheet">
 </head>
 <body>
 
@@ -19,6 +20,17 @@
                 <option value="">Querying local database...</option>
             </select>
         </div>
+
+        <div class="selector-container">
+    <label for="font-select">VISUAL STYLE</label>
+    <select id="font-select">
+        <option value="font-modern">Modern Gothic (Default)</option>
+        <option value="font-serif">Traditional Mincho (Kaisei)</option>
+        <option value="font-brush">Calligraphy Brush (Yuji)</option>
+        <option value="font-rounded">Rounded Pop (Zen Maru)</option>
+        <option value="font-pixel">Retro 8-Bit (DotGothic)</option>
+    </select>
+</div>
 
         <div class="card">
             <div class="status-badge" id="status">INIT CONNECTION</div>
@@ -185,6 +197,19 @@
                 [array[i], array[j]] = [array[j], array[i]];
             }
         }
+
+        // THIRD: Paste this block anywhere inside your <script> tag to power the switch
+document.getElementById("font-select").addEventListener("change", (e) => {
+    const kanjiElement = document.getElementById("display-word");
+    
+    // Clear out any old font classes
+    kanjiElement.className = "kanji"; 
+    
+    // Add the newly selected style class
+    if (e.target.value) {
+        kanjiElement.classList.add(e.target.value);
+    }
+});
 
         populateDecks();
     </script>
