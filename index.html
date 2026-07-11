@@ -68,10 +68,6 @@
 </head>
 <body>
     
-<label for="note-type-select">Choose Note Type: </label>
-<select id="note-type-select">
-    <option value="">Loading note types...</option>
-</select>
     <div style="margin-bottom: 20px; text-align: center;">
     <label for="deck-select" style="font-weight: bold; color: #444;">Select Deck: </label>
     <select id="deck-select" style="padding: 8px 12px; border-radius: 6px; border: 1px solid #ccc; font-size: 1rem;">
@@ -162,22 +158,6 @@ async function populateDecks() {
 }
 
 // --- UPDATED: Pass target deck name dynamically into the loader ---
-async function loadAnkiDeck(targetDeckName) {
-    statusEl.style.color = "#d9534f";
-    statusEl.textContent = `Loading cards from "${targetDeckName}"...`;
-    
-    // Step A: Grab Note IDs matching the dropdown choice
-    const findResult = await fetchFromAnki("findNotes", { query: `deck:"${targetDeckName}"` });
-    
-    if (!findResult || !findResult.result || findResult.result.length === 0) {
-        statusEl.textContent = `Error: No cards found in deck "${targetDeckName}".`;
-        wordEl.textContent = "--";
-        meaningEl.textContent = "";
-        typedEl.textContent = "";
-        untypedEl.textContent = "";
-        wordList = [];
-        return;
-    }
 
     // Step B: Grab note data strings using IDs
     const notesResult = await fetchFromAnki("notesInfo", { notes: findResult.result });
@@ -248,47 +228,50 @@ populateNoteTypes();
             }
         }
 
-        async function loadAnkiDeck() {
-            // Step A: Grab Note IDs matching query
-            const findResult = await fetchFromAnki("findNotes", { query: `deck:"${DECK_NAME}"` });
-            
-            if (!findResult || !findResult.result || findResult.result.length === 0) {
-                statusEl.textContent = "Error: Could not find deck or connect to Anki desktop application.";
-                return;
-            }
+        async function loadAnkiDeck(targetDeckName) {
+    statusEl.style.color = "#d9534f";
+    statusEl.textContent = `Loading cards from "${targetDeckName}"...`;
+    
+    // Step A: Grab Note IDs matching the dropdown choice
+    const findResult = await fetchFromAnki("findNotes", { query: `deck:"${targetDeckName}"` });
+    
+    if (!findResult || !findResult.result || findResult.result.length === 0) {
+        statusEl.textContent = `Error: No cards found in deck "${targetDeckName}".`;
+        wordEl.textContent = "--";
+        meaningEl.textContent = "";
+        typedEl.textContent = "";
+        untypedEl.textContent = "";
+        wordList = [];
+        return;
+    }
 
-            // Step B: Grab note data strings using IDs
-            const notesResult = await fetchFromAnki("notesInfo", { notes: findResult.result });
-            
-          // Step C: Map note data into standard javascript array object formats
-            wordList = notesResult.result.map(note => {
-                const fields = note.fields;
-                
-                // 1. Extract the raw string data safely from your Anki field
-                let originalText = fields[FIELD_ROMAJI]?.value || "";
+    // Step B: Grab note data strings using IDs
+    const notesResult = await fetchFromAnki("notesInfo", { notes: findResult.result });
+    
+    // Step C: Map note data (Running WanaKana transformation)
+    wordList = notesResult.result.map(note => {
+        const fields = note.fields;
+        let originalText = fields[FIELD_ROMAJI]?.value || "";
+        let cleanedText = originalText.replace(/<[^>]*>/g, '').trim();
+        let finalRomaji = wanakana.toRomaji(cleanedText).toLowerCase().trim();
 
-                // 2. Strip out raw HTML code brackets Anki injects (<br>, <b>, etc.)
-                let cleanedText = originalText.replace(/<[^>]*>/g, '').trim();
+        return {
+            kanji: (fields[FIELD_KANJI]?.value || "N/A").replace(/<[^>]*>/g, ''),
+            romaji: finalRomaji,
+            meaning: (fields[FIELD_MEANING]?.value || "N/A").replace(/<[^>]*>/g, '')
+        };
+    }).filter(word => word.romaji !== "");
 
-                // 3. Convert Japanese Kana (おでこ) to Romaji letters (odeko) using WanaKana
-                let finalRomaji = wanakana.toRomaji(cleanedText).toLowerCase().trim();
-
-                return {
-                    kanji: (fields[FIELD_KANJI]?.value || "N/A").replace(/<[^>]*>/g, ''),
-                    romaji: finalRomaji, // This matches your keystrokes now!
-                    meaning: (fields[FIELD_MEANING]?.value || "N/A").replace(/<[^>]*>/g, '')
-                };
-            }).filter(word => word.romaji !== "");
-
-            if (wordList.length > 0) {
-                statusEl.style.color = "#28a745";
-                statusEl.textContent = `Connected! Synchronized ${wordList.length} cards from "${DECK_NAME}"`;
-                shuffleArray(wordList); // Scramble current array order so it is random layout
-                loadWord();
-            } else {
-                statusEl.textContent = "Error: Connected, but found no usable notes with valid Romaji fields.";
-            }
-        }
+    if (wordList.length > 0) {
+        statusEl.style.color = "#28a745";
+        statusEl.textContent = `Connected! Loaded ${wordList.length} cards from "${targetDeckName}"`;
+        currentIndex = 0;
+        shuffleArray(wordList);
+        loadWord();
+    } else {
+        statusEl.textContent = "Error: Found notes, but none have valid text mappings.";
+    }
+}
 
         // --- 3. GAME RUNTIME INTERACTION ENGINE ---
         function loadWord() {
