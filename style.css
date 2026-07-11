@@ -179,3 +179,51 @@ body {
     font-family: var(--font-heading);
     text-shadow: 0 0 15px rgba(61, 180, 242, 0.3);
 }
+
+/* Add these font variable declarations to your :root tokens */
+:root {
+    /* ... your existing variables ... */
+    --font-serif: 'Kaisei Tokumin', serif;
+    --font-brush: 'Yuji Syuku', serif;
+    --font-pixel: 'DotGothic16', sans-serif;
+    --font-rounded: 'Zen Maru Gothic', sans-serif;
+}
+
+/* Update your base .kanji layout to have smooth transitions when shifting styles */
+.kanji {
+    font-family: var(--font-body); /* Modern Gothic default style */
+    font-size: 4rem;
+    font-weight: 800;
+    letter-spacing: -1px;
+    color: var(--text-main);
+    line-height: 1.2;
+    margin-bottom: 8px;
+    text-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    transition: font-family 0.2s ease-in-out; /* Smooth transition */
+}
+
+/* Font Toggle Classes injected dynamically by JavaScript */
+.kanji.font-modern {
+    font-family: var(--font-body);
+}
+
+.kanji.font-serif {
+    font-family: var(--font-serif);
+    font-weight: 700;
+}
+
+.kanji.font-brush {
+    font-family: var(--font-brush);
+    font-weight: 400;
+}
+
+.kanji.font-rounded {
+    font-family: var(--font-rounded);
+    font-weight: 700;
+}
+
+.kanji.font-pixel {
+    font-family: var(--font-pixel);
+    font-weight: 400;
+    font-size: 3.8rem; /* Pixel fonts can occasionally look small */
+}
