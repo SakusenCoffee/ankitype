@@ -1,9 +1,10 @@
-
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Anki-Powered Japanese Typing</title>
+    <title>Anki-Powered Japanese Typing Game</title>
+    <script src="https://cdn.jsdelivr.net/npm/wanakana@5.3.1/wanakana.min.js"></script>
     <style>
         body {
             font-family: 'Helvetica Neue', Arial, sans-serif;
@@ -11,8 +12,28 @@
             display: flex;
             justify-content: center;
             align-items: center;
+            flex-direction: column;
             height: 100vh;
             margin: 0;
+        }
+        .selector-container {
+            margin-bottom: 25px;
+            text-align: center;
+        }
+        .selector-container label {
+            font-weight: bold;
+            color: #444;
+            margin-right: 8px;
+        }
+        .selector-container select {
+            padding: 10px 16px;
+            border-radius: 8px;
+            border: 1px solid #ccc;
+            font-size: 1rem;
+            background: white;
+            cursor: pointer;
+            outline: none;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
         }
         .card {
             background: white;
@@ -22,11 +43,12 @@
             text-align: center;
             width: 100%;
             max-width: 500px;
+            box-sizing: border-box;
         }
         .status-message {
             font-size: 0.9rem;
             color: #d9534f;
-            margin-bottom: 15px;
+            margin-bottom: 20px;
             font-weight: bold;
         }
         .kanji {
@@ -64,21 +86,20 @@
             color: #888;
         }
     </style>
-    <script src="https://cdn.jsdelivr.net/npm/wanakana@5.3.1/wanakana.min.js"></script>
 </head>
 <body>
-    
-    <div style="margin-bottom: 20px; text-align: center;">
-    <label for="deck-select" style="font-weight: bold; color: #444;">Select Deck: </label>
-    <select id="deck-select" style="padding: 8px 12px; border-radius: 6px; border: 1px solid #ccc; font-size: 1rem;">
-        <option value="">Loading your decks...</option>
-    </select>
-</div>
-    
+
+    <div class="selector-container">
+        <label for="deck-select">Target Deck:</label>
+        <select id="deck-select">
+            <option value="">Loading Profile Decks...</option>
+        </select>
+    </div>
+
     <div class="card">
-        <div class="status-message" id="status">Connecting to Anki... Make sure Anki is open!</div>
+        <div class="status-message" id="status">Connecting to Anki... Make sure the desktop app is open!</div>
         <div class="kanji" id="display-word">--</div>
-        <div class="meaning" id="display-meaning">Loading deck data...</div>
+        <div class="meaning" id="display-meaning">Awaiting connection sync...</div>
         
         <div class="romaji-container">
             <span class="typed" id="text-typed"></span><span class="untyped" id="text-untyped"></span>
@@ -88,132 +109,27 @@
     </div>
 
     <script>
-
-        async function populateNoteTypes() {
-    const dropdown = document.getElementById("note-type-select");
-
-    // 1. Fetch all model (Note Type) names from Anki
-    const response = await fetchFromAnki("modelNames");
-
-    if (!response || !response.result) {
-        dropdown.innerHTML = '<option value="">Error loading types</option>';
-        return;
-    }
-
-    const noteTypes = response.result;
-
-    // 2. Clear out the placeholder loading option
-    dropdown.innerHTML = "";
-
-    // 3. Loop through names and build out the drop down options
-    noteTypes.forEach(typeName => {
-        const option = document.createElement("option");
-        option.value = typeName;
-        option.textContent = typeName;
-        dropdown.appendChild(option);
-    });
-
-    // 4. Handle user interactions when changing options
-    dropdown.addEventListener("change", (e) => {
-        const selectedType = e.target.value;
-        console.log("User selected note type:", selectedType);
-        
-        // Optional: You can trigger your deck loader here if needed
-        // e.g., loadAnkiDeckByModel(selectedType);
-    });
-}
-
-        // --- NEW: Fetch and populate all deck names ---
-async function populateDecks() {
-    const dropdown = document.getElementById("deck-select");
-    const response = await fetchFromAnki("deckNames");
-
-    if (!response || !response.result) {
-        dropdown.innerHTML = '<option value="">Error connecting to Anki</option>';
-        return;
-    }
-
-    const decks = response.result;
-    dropdown.innerHTML = ""; // Clear placeholder
-
-    decks.forEach(deckName => {
-        const option = document.createElement("option");
-        option.value = deckName;
-        option.textContent = deckName;
-        dropdown.appendChild(option);
-    });
-
-    // Automatically trigger the deck load whenever the user changes the dropdown selection
-    dropdown.addEventListener("change", (e) => {
-        if (e.target.value) {
-            loadAnkiDeck(e.target.value);
-        }
-    });
-
-    // Load the first deck in the list by default on startup
-    if (decks.length > 0) {
-        dropdown.value = decks[0];
-        loadAnkiDeck(decks[0]);
-    }
-}
-
-// --- UPDATED: Pass target deck name dynamically into the loader ---
-
-    // Step B: Grab note data strings using IDs
-    const notesResult = await fetchFromAnki("notesInfo", { notes: findResult.result });
-    
-    // Step C: Map note data (Running WanaKana transformation)
-    wordList = notesResult.result.map(note => {
-        const fields = note.fields;
-        let originalText = fields[FIELD_ROMAJI]?.value || "";
-        let cleanedText = originalText.replace(/<[^>]*>/g, '').trim();
-        let finalRomaji = wanakana.toRomaji(cleanedText).toLowerCase().trim();
-
-        return {
-            kanji: (fields[FIELD_KANJI]?.value || "N/A").replace(/<[^>]*>/g, ''),
-            romaji: finalRomaji,
-            meaning: (fields[FIELD_MEANING]?.value || "N/A").replace(/<[^>]*>/g, '')
-        };
-    }).filter(word => word.romaji !== "");
-
-    if (wordList.length > 0) {
-        statusEl.style.color = "#28a745";
-        statusEl.textContent = `Connected! Loaded ${wordList.length} cards from "${targetDeckName}"`;
-        currentIndex = 0;
-        shuffleArray(wordList);
-        loadWord();
-    } else {
-        statusEl.textContent = "Error: Found notes, but none have valid text mappings.";
-    }
-}
-
-// --- UPDATE THE INITIALIZATION LINE ---
-// Instead of running loadAnkiDeck() directly at the bottom of your file, fire up the deck picker
-
-// Call this function when the web application boots up!
-//populateNoteTypes();
-        const selectedType = document.getElementById("note-type-select").value;
-        // --- 1. CONFIGURATION ---
-        // Change these strings to match the exact column/field names in your Anki Deck Note Type!
-        const DECK_NAME = "Mining"; 
-        const FIELD_KANJI = "Expression";    // Or "Expression" / "Kanji"
-        const FIELD_ROMAJI = "ExpressionReading";  // The field holding your target typing syllables
-        const FIELD_MEANING = "Expression";   // Or "Meaning" / "Glossary"
+        // --- 1. CONFIGURATION LAYOUT MAPPINGS ---
+        // Change these strings to match the exact field titles inside your target Anki cards
+        const FIELD_KANJI = "Front";    // Displays the main bold character text at the top
+        const FIELD_ROMAJI = "Back";    // Triggers the typing string pointer (Converted dynamically via WanaKana)
+        const FIELD_MEANING = "Back";   // Displays the bottom translation context string definition
 
         let wordList = [];
         let currentIndex = 0;
         let typedTargetPosition = 0;
         let totalScore = 0;
 
-        // UI DOM Elements
+        // UI DOM Access Pointers
         const statusEl = document.getElementById("status");
         const wordEl = document.getElementById("display-word");
         const meaningEl = document.getElementById("display-meaning");
         const typedEl = document.getElementById("text-typed");
         const untypedEl = document.getElementById("text-untyped");
         const scoreEl = document.getElementById("score-val");
+        const deckDropdown = document.getElementById("deck-select");
 
-        // --- 2. ANKICONNECT API ENGINE ---
+        // --- 2. ANKICONNECT API BRIDGE CORE ---
         async function fetchFromAnki(action, params = {}) {
             try {
                 const response = await fetch("http://localhost:8765", {
@@ -223,57 +139,92 @@ async function populateDecks() {
                 });
                 return await response.json();
             } catch (err) {
-                console.error("AnkiConnect Communication Error:", err);
+                console.error("AnkiConnect Connection Failure:", err);
                 return null;
             }
         }
 
+        // Fetch user profile metrics and render selector elements
+        async function populateDecks() {
+            const response = await fetchFromAnki("deckNames");
+
+            if (!response || !response.result) {
+                statusEl.textContent = "Error connecting to Anki desktop client. Ensure it's running with AnkiConnect enabled!";
+                deckDropdown.innerHTML = '<option value="">Network Connection Error</option>';
+                return;
+            }
+
+            const decks = response.result;
+            deckDropdown.innerHTML = ""; // Clear out placeholder data options
+
+            decks.forEach(deckName => {
+                const option = document.createElement("option");
+                option.value = deckName;
+                option.textContent = deckName;
+                deckDropdown.appendChild(option);
+            });
+
+            // Set dynamic change monitoring interceptor hooks
+            deckDropdown.addEventListener("change", (e) => {
+                if (e.target.value) {
+                    loadAnkiDeck(e.target.value);
+                }
+            });
+
+            // Boot load index card arrays tracking the top option value position entry
+            if (decks.length > 0) {
+                deckDropdown.value = decks[0];
+                loadAnkiDeck(decks[0]);
+            }
+        }
+
+        // --- 3. WORKLOAD TRANSLATION LOADER DATA PIPELINES ---
         async function loadAnkiDeck(targetDeckName) {
-    statusEl.style.color = "#d9534f";
-    statusEl.textContent = `Loading cards from "${targetDeckName}"...`;
-    
-    // Step A: Grab Note IDs matching the dropdown choice
-    const findResult = await fetchFromAnki("findNotes", { query: `deck:"${targetDeckName}"` });
-    
-    if (!findResult || !findResult.result || findResult.result.length === 0) {
-        statusEl.textContent = `Error: No cards found in deck "${targetDeckName}".`;
-        wordEl.textContent = "--";
-        meaningEl.textContent = "";
-        typedEl.textContent = "";
-        untypedEl.textContent = "";
-        wordList = [];
-        return;
-    }
+            statusEl.style.color = "#d9534f";
+            statusEl.textContent = `Scraping content from "${targetDeckName}"...`;
+            
+            // Step A: Request Note card tracking IDs matching choice
+            const findResult = await fetchFromAnki("findNotes", { query: `deck:"${targetDeckName}"` });
+            
+            if (!findResult || !findResult.result || findResult.result.length === 0) {
+                statusEl.textContent = `Empty: Found 0 items matching deck target parameters: "${targetDeckName}"`;
+                clearDisplay();
+                return;
+            }
 
-    // Step B: Grab note data strings using IDs
-    const notesResult = await fetchFromAnki("notesInfo", { notes: findResult.result });
-    
-    // Step C: Map note data (Running WanaKana transformation)
-    wordList = notesResult.result.map(note => {
-        const fields = note.fields;
-        let originalText = fields[FIELD_ROMAJI]?.value || "";
-        let cleanedText = originalText.replace(/<[^>]*>/g, '').trim();
-        let finalRomaji = wanakana.toRomaji(cleanedText).toLowerCase().trim();
+            // Step B: Collect structural text strings data using tracking numbers
+            const notesResult = await fetchFromAnki("notesInfo", { notes: findResult.result });
+            
+            // Step C: Normalise object structures while running data cleaning loops
+            wordList = notesResult.result.map(note => {
+                const fields = note.fields;
+                
+                let originalText = fields[FIELD_ROMAJI]?.value || "";
+                let cleanedText = originalText.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').trim();
+                
+                // WanaKana safely maps native character formats ( Hiragana / Katakana / Mixed ) to clean western typing text strings
+                let finalRomaji = wanakana.toRomaji(cleanedText).toLowerCase().trim();
 
-        return {
-            kanji: (fields[FIELD_KANJI]?.value || "N/A").replace(/<[^>]*>/g, ''),
-            romaji: finalRomaji,
-            meaning: (fields[FIELD_MEANING]?.value || "N/A").replace(/<[^>]*>/g, '')
-        };
-    }).filter(word => word.romaji !== "");
+                return {
+                    kanji: (fields[FIELD_KANJI]?.value || "N/A").replace(/<[^>]*>/g, ''),
+                    romaji: finalRomaji,
+                    meaning: (fields[FIELD_MEANING]?.value || "N/A").replace(/<[^>]*>/g, '')
+                };
+            }).filter(word => word.romaji !== "");
 
-    if (wordList.length > 0) {
-        statusEl.style.color = "#28a745";
-        statusEl.textContent = `Connected! Loaded ${wordList.length} cards from "${targetDeckName}"`;
-        currentIndex = 0;
-        shuffleArray(wordList);
-        loadWord();
-    } else {
-        statusEl.textContent = "Error: Found notes, but none have valid text mappings.";
-    }
-}
+            if (wordList.length > 0) {
+                statusEl.style.color = "#28a745";
+                statusEl.textContent = `Sync Active! Loaded ${wordList.length} items from "${targetDeckName}"`;
+                currentIndex = 0;
+                shuffleArray(wordList);
+                loadWord();
+            } else {
+                statusEl.textContent = "Error: Cards parsed successfully but layout strings missing appropriate target field types.";
+                clearDisplay();
+            }
+        }
 
-        // --- 3. GAME RUNTIME INTERACTION ENGINE ---
+        // --- 4. ENGINE RUNTIME INTERACTION ---
         function loadWord() {
             if (wordList.length === 0) return;
             const currentWord = wordList[currentIndex];
@@ -286,14 +237,19 @@ async function populateDecks() {
             untypedEl.textContent = currentWord.romaji;
         }
 
+        function clearDisplay() {
+            wordEl.textContent = "--";
+            meaningEl.textContent = "Please select another deck list container option.";
+            typedEl.textContent = "";
+            untypedEl.textContent = "";
+            wordList = [];
+        }
+
         window.addEventListener("keydown", (e) => {
             if (e.key.length > 1 || wordList.length === 0) return; 
 
             const currentWord = wordList[currentIndex];
             const expectedChar = currentWord.romaji[typedTargetPosition];
-
-            console.log("You pressed:", e.key.toLowerCase());
-    console.log("Expected char:", expectedChar);
 
             if (e.key.toLowerCase() === expectedChar) {
                 typedTargetPosition++;
@@ -310,7 +266,6 @@ async function populateDecks() {
             }
         });
 
-        // Helper helper function to mix card array index values cleanly
         function shuffleArray(array) {
             for (let i = array.length - 1; i > 0; i--) {
                 const j = Math.floor(Math.random() * (i + 1));
@@ -318,8 +273,7 @@ async function populateDecks() {
             }
         }
 
-        // Boot Init run
-//        loadAnkiDeck();
+        // Initialize execution setup loops on boot run
         populateDecks();
     </script>
 </body>
