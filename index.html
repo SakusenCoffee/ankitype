@@ -51,9 +51,13 @@
             <div class="status-badge" id="status">INIT CONNECTION</div>
             
             <div class="word-showcase">
-                <div class="kanji" id="display-word">--</div>
-                <div class="meaning" id="display-meaning">Awaiting connection sync...</div>
-            </div>
+    <div class="kanji" id="display-word">--</div>
+    
+    <div class="meaning-wrapper hidden-meaning" id="meaning-box">
+        <div class="meaning-prompt">CLICK TO REVEAL DEFINITION</div>
+        <div class="meaning" id="display-meaning">Awaiting connection sync...</div>
+    </div>
+</div>
             
             <!-- UPDATE THIS WORK CONTAINER IN YOUR HTML -->
 <div class="romaji-wrapper hidden-romaji" id="romaji-box">
@@ -262,6 +266,11 @@ window.addEventListener("keydown", (e) => {
             loadWord();
         }
     }
+});
+        // Click anywhere on top of the definition container to toggle visibility
+document.getElementById("meaning-box").addEventListener("click", () => {
+    const meaningBox = document.getElementById("meaning-box");
+    meaningBox.classList.toggle("hidden-meaning");
 });
 
         populateDecks();
