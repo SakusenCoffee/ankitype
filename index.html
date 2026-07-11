@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Japanese Typing Practice</title>
+    <title>Anki-Powered Japanese Typing</title>
     <style>
         body {
             font-family: 'Helvetica Neue', Arial, sans-serif;
@@ -22,6 +22,12 @@
             text-align: center;
             width: 100%;
             max-width: 500px;
+        }
+        .status-message {
+            font-size: 0.9rem;
+            color: #d9534f;
+            margin-bottom: 15px;
+            font-weight: bold;
         }
         .kanji {
             font-size: 3.5rem;
@@ -43,6 +49,7 @@
             padding: 15px;
             border-radius: 8px;
             border: 1px solid #e9ecef;
+            min-height: 40px;
         }
         .typed {
             color: #28a745;
@@ -61,42 +68,91 @@
 <body>
 
     <div class="card">
-        <div class="kanji" id="display-word">日本語</div>
-        <div class="meaning" id="display-meaning">Japanese Language</div>
+        <div class="status-message" id="status">Connecting to Anki... Make sure Anki is open!</div>
+        <div class="kanji" id="display-word">--</div>
+        <div class="meaning" id="display-meaning">Loading deck data...</div>
         
         <div class="romaji-container">
-            <span class="typed" id="text-typed"></span><span class="untyped" id="text-untyped">nihongo</span>
+            <span class="typed" id="text-typed"></span><span class="untyped" id="text-untyped"></span>
         </div>
 
         <div class="score">Score: <span id="score-val">0</span></div>
     </div>
 
     <script>
-        // 1. Core Vocabulary Data Array
-        const wordList = [
-            { kanji: "日本語", romaji: "nihongo", meaning: "Japanese language" },
-            { kanji: "食べる", romaji: "taberu", meaning: "To eat" },
-            { kanji: "友達", romaji: "tomodachi", meaning: "Friend" },
-            { kanji: "猫", romaji: "neko", meaning: "Cat" },
-            { kanji: "美味しい", romaji: "oishii", meaning: "Delicious" },
-            { kanji: "桜", romaji: "sakura", meaning: "Cherry blossom" },
-            { kanji: "先生", romaji: "sensei", meaning: "Teacher" }
-        ];
+        // --- 1. CONFIGURATION ---
+        // Change these strings to match the exact column/field names in your Anki Deck Note Type!
+        const DECK_NAME = "Japanese Vocabulary"; 
+        const FIELD_KANJI = "Front";    // Or "Expression" / "Kanji"
+        const FIELD_ROMAJI = "Romaji";  // The field holding your target typing syllables
+        const FIELD_MEANING = "Back";   // Or "Meaning" / "Glossary"
 
+        let wordList = [];
         let currentIndex = 0;
         let typedTargetPosition = 0;
         let totalScore = 0;
 
-        // Elements
+        // UI DOM Elements
+        const statusEl = document.getElementById("status");
         const wordEl = document.getElementById("display-word");
         const meaningEl = document.getElementById("display-meaning");
         const typedEl = document.getElementById("text-typed");
         const untypedEl = document.getElementById("text-untyped");
         const scoreEl = document.getElementById("score-val");
 
-        // 2. Load Word onto Interface
+        // --- 2. ANKICONNECT API ENGINE ---
+        async function fetchFromAnki(action, params = {}) {
+            try {
+                const response = await fetch("http://localhost:8765", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ action, version: 6, params })
+                });
+                return await response.json();
+            } catch (err) {
+                console.error("AnkiConnect Communication Error:", err);
+                return null;
+            }
+        }
+
+        async function loadAnkiDeck() {
+            // Step A: Grab Note IDs matching query
+            const findResult = await fetchFromAnki("findNotes", { query: `deck:"${DECK_NAME}"` });
+            
+            if (!findResult || !findResult.result || findResult.result.length === 0) {
+                statusEl.textContent = "Error: Could not find deck or connect to Anki desktop application.";
+                return;
+            }
+
+            // Step B: Grab note data strings using IDs
+            const notesResult = await fetchFromAnki("notesInfo", { notes: findResult.result });
+            
+            // Step C: Map note data into standard javascript array object formats
+            wordList = notesResult.result.map(note => {
+                const fields = note.fields;
+                return {
+                    // Stripping any default HTML styling brackets Anki might inject inside strings
+                    kanji: fields[FIELD_KANJI]?.value.replace(/<[^>]*>/g, '') || "N/A",
+                    romaji: fields[FIELD_ROMAJI]?.value.replace(/<[^>]*>/g, '').toLowerCase().trim() || "na",
+                    meaning: fields[FIELD_MEANING]?.value.replace(/<[^>]*>/g, '') || "N/A"
+                };
+            }).filter(word => word.romaji !== "na"); // Filter cards missing romaji strings
+
+            if (wordList.length > 0) {
+                statusEl.style.color = "#28a745";
+                statusEl.textContent = `Connected! Synchronized ${wordList.length} cards from "${DECK_NAME}"`;
+                shuffleArray(wordList); // Scramble current array order so it is random layout
+                loadWord();
+            } else {
+                statusEl.textContent = "Error: Connected, but found no usable notes with valid Romaji fields.";
+            }
+        }
+
+        // --- 3. GAME RUNTIME INTERACTION ENGINE ---
         function loadWord() {
+            if (wordList.length === 0) return;
             const currentWord = wordList[currentIndex];
+            
             wordEl.textContent = currentWord.kanji;
             meaningEl.textContent = currentWord.meaning;
             
@@ -105,34 +161,37 @@
             untypedEl.textContent = currentWord.romaji;
         }
 
-        // 3. Keystroke Event Listener Logic
         window.addEventListener("keydown", (e) => {
-            // Ignore system keys (Shift, CapsLock, Alt, etc)
-            if (e.key.length > 1) return; 
+            if (e.key.length > 1 || wordList.length === 0) return; 
 
             const currentWord = wordList[currentIndex];
             const expectedChar = currentWord.romaji[typedTargetPosition];
 
             if (e.key.toLowerCase() === expectedChar) {
-                // Correct match -> Advance cursor position
                 typedTargetPosition++;
                 typedEl.textContent = currentWord.romaji.substring(0, typedTargetPosition);
                 untypedEl.textContent = currentWord.romaji.substring(typedTargetPosition);
 
-                // Word Completed!
                 if (typedTargetPosition === currentWord.romaji.length) {
                     totalScore++;
                     scoreEl.textContent = totalScore;
                     
-                    // Go to next word cyclically
                     currentIndex = (currentIndex + 1) % wordList.length;
                     loadWord();
                 }
             }
         });
 
-        // Initialize First Run
-        loadWord();
+        // Helper helper function to mix card array index values cleanly
+        function shuffleArray(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+        }
+
+        // Boot Init run
+        loadAnkiDeck();
     </script>
 </body>
 </html>
