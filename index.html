@@ -16,14 +16,14 @@
 
     <div class="app-layout">
         <div class="selector-container">
-            <label for="deck-select">DATABASE DECK</label>
+            <label for="deck-select">ANKI DECK</label>
             <select id="deck-select">
                 <option value="">Querying local database...</option>
             </select>
         </div>
 
         <div class="selector-container">
-    <label for="font-select">TYPOGRAPHY TYPOLOGY</label>
+    <label for="font-select">FONT</label>
 <select id="font-select">
     <optgroup label="Standard Styles">
         <option value="font-modern">Modern Gothic (Default)</option>
@@ -73,7 +73,18 @@
             </div>
         </div>
     </div>
-
+<div class="footer-actions">
+    <a href="https://ko-fi.com/mojikazu" target="_blank" rel="noopener noreferrer" class="kofi-btn">
+        <svg class="kofi-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M18 8h1a4 4 0 0 1 0 8h-1"></path>
+            <path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"></path>
+            <line x1="6" y1="1" x2="6" y2="4"></line>
+            <line x1="10" y1="1" x2="10" y2="4"></line>
+            <line x1="14" y1="1" x2="14" y2="4"></line>
+        </svg>
+        SUPPORT VIA KO-FI
+    </a>
+</div>
     <script>
         // --- CONFIGURATION MAPPINGS ---
         const FIELD_KANJI = "Expression";    
@@ -276,5 +287,7 @@ document.getElementById("meaning-box").addEventListener("click", () => {
 
         populateDecks();
     </script>
+
+    
 </body>
 </html>
