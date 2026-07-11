@@ -9,8 +9,9 @@
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;700;800&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/wanakana@5.3.1/wanakana.min.js"></script>
     <link rel="stylesheet" href="style.css">
-    <link href="https://fonts.googleapis.com/css2?family=Kaisei+Tokumin:wght@700&family=Yuji+Syuku&family=DotGothic16&family=Zen+Maru+Gothic:wght@700&display=swap" rel="stylesheet">
-</head>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Kaisei+Tokumin:wght@700&family=Yuji+Syuku&family=DotGothic16&family=Zen+Maru+Gothic:wght@700&family=Yomogi&family=Hachi+Maru+Pop&family=Mochiy+Pop+One&family=Chokokutai&family=Cherry+Bomb+One&family=Zen+Tokyo+Zoo&family=Noto+Sans+JP:wght@400;700&family=Hina+Mincho&display=swap" rel="stylesheet"></head>
 <body>
 
     <div class="app-layout">
@@ -22,14 +23,28 @@
         </div>
 
         <div class="selector-container">
-    <label for="font-select">VISUAL STYLE</label>
-    <select id="font-select">
+    <label for="font-select">TYPOGRAPHY TYPOLOGY</label>
+<select id="font-select">
+    <optgroup label="Standard Styles">
         <option value="font-modern">Modern Gothic (Default)</option>
+        <option value="font-noto">Noto Sans (Ultra Clean)</option>
         <option value="font-serif">Traditional Mincho (Kaisei)</option>
+        <option value="font-hina">Delicate Mincho (Hina)</option>
+    </optgroup>
+    <optgroup label="Handwriting & Pop">
         <option value="font-brush">Calligraphy Brush (Yuji)</option>
+        <option value="font-yomogi">Thin Handwriting (Yomogi)</option>
+        <option value="font-hachi">80s Gyaru Pop (Hachi Maru)</option>
+        <option value="font-mochiy">Comic Pop Art (Mochiy)</option>
         <option value="font-rounded">Rounded Pop (Zen Maru)</option>
+    </optgroup>
+    <optgroup label="Experimental & Retro">
         <option value="font-pixel">Retro 8-Bit (DotGothic)</option>
-    </select>
+        <option value="font-carved">Wood Carved (Chokokutai)</option>
+        <option value="font-bomb">Bubble Graffiti (Cherry Bomb)</option>
+        <option value="font-zoo">Abstract Grill (Zen Tokyo Zoo)</option>
+    </optgroup>
+</select>
 </div>
 
         <div class="card">
@@ -200,14 +215,14 @@
 
         // THIRD: Paste this block anywhere inside your <script> tag to power the switch
 document.getElementById("font-select").addEventListener("change", (e) => {
-    const kanjiElement = document.getElementById("display-word");
+    const wordEl = document.getElementById("display-word");
     
-    // Clear out any old font classes
-    kanjiElement.className = "kanji"; 
+    // Reset to base styling class, stripping old font assignments
+    wordEl.className = "kanji"; 
     
-    // Add the newly selected style class
+    // Append the newly selected modifier class string rules
     if (e.target.value) {
-        kanjiElement.classList.add(e.target.value);
+        wordEl.classList.add(e.target.value);
     }
 });
 
