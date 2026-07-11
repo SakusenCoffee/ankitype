@@ -1,15 +1,18 @@
 /* --- MODERN ANIME-DATABASE DESIGN TOKENS --- */
 :root {
-    --bg-dark: #0b1622;
-    --bg-card: #152232;
-    --bg-input: #1f2d3d;
-    --text-main: #edf1f5;
-    --text-muted: #8ba0b2;
-    --accent-blue: #3db4f2;
-    --accent-green: #00ffaa;
-    --accent-red: #ff4a6a;
-    --font-heading: 'Space Grotesk', sans-serif;
-    --font-body: 'Plus Jakarta Sans', sans-serif;
+    /* --- FONT TOKENS MAP --- */
+    --font-noto: 'Noto Sans JP', sans-serif;
+    --font-serif: 'Kaisei Tokumin', serif;
+    --font-hina: 'Hina Mincho', serif;
+    --font-brush: 'Yuji Syuku', serif;
+    --font-yomogi: 'Yomogi', sans-serif;
+    --font-hachi: 'Hachi Maru Pop', sans-serif;
+    --font-mochiy: 'Mochiy Pop One', sans-serif;
+    --font-rounded: 'Zen Maru Gothic', sans-serif;
+    --font-pixel: 'DotGothic16', sans-serif;
+    --font-carved: 'Chokokutai', sans-serif;
+    --font-bomb: 'Cherry Bomb One', sans-serif;
+    --font-zoo: 'Zen Tokyo Zoo', sans-serif;
 }
 
 /* Global Reset & Ambient Background Layout */
@@ -202,28 +205,17 @@ body {
     transition: font-family 0.2s ease-in-out; /* Smooth transition */
 }
 
-/* Font Toggle Classes injected dynamically by JavaScript */
-.kanji.font-modern {
-    font-family: var(--font-body);
-}
-
-.kanji.font-serif {
-    font-family: var(--font-serif);
-    font-weight: 700;
-}
-
-.kanji.font-brush {
-    font-family: var(--font-brush);
-    font-weight: 400;
-}
-
-.kanji.font-rounded {
-    font-family: var(--font-rounded);
-    font-weight: 700;
-}
-
-.kanji.font-pixel {
-    font-family: var(--font-pixel);
-    font-weight: 400;
-    font-size: 3.8rem; /* Pixel fonts can occasionally look small */
-}
+/* --- SYSTEM STYLE MODIFIERS --- */
+.kanji.font-modern  { font-family: inherit; font-weight: 800; }
+.kanji.font-noto    { font-family: var(--font-noto); font-weight: 700; }
+.kanji.font-serif   { font-family: var(--font-serif); font-weight: 700; }
+.kanji.font-hina    { font-family: var(--font-hina); font-weight: 400; }
+.kanji.font-brush   { font-family: var(--font-brush); font-weight: 400; }
+.kanji.font-yomogi  { font-family: var(--font-yomogi); font-weight: 400; }
+.kanji.font-hachi   { font-family: var(--font-hachi); font-weight: 400; }
+.kanji.font-mochiy  { font-family: var(--font-mochiy); font-weight: 400; }
+.kanji.font-rounded { font-family: var(--font-rounded); font-weight: 700; }
+.kanji.font-pixel   { font-family: var(--font-pixel); font-weight: 400; font-size: 3.8rem; }
+.kanji.font-carved  { font-family: var(--font-carved); font-weight: 400; }
+.kanji.font-bomb    { font-family: var(--font-bomb); font-weight: 400; }
+.kanji.font-zoo     { font-family: var(--font-zoo); font-weight: 400; font-size: 3.5rem; }
