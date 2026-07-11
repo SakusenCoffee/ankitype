@@ -275,3 +275,14 @@ body {
 .hidden-romaji .romaji-text-container {
     opacity: 0;
 }
+
+/* 🌟 CRITICAL UPDATE: Force visibility changes with !important to override old theme states */
+.hidden-meaning .meaning-prompt {
+    opacity: 1 !important;
+    pointer-events: auto !important;
+}
+
+.hidden-meaning .meaning {
+    opacity: 0 !important;
+    pointer-events: none !important;
+}
