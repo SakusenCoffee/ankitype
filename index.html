@@ -167,6 +167,9 @@
             const currentWord = wordList[currentIndex];
             const expectedChar = currentWord.romaji[typedTargetPosition];
 
+            console.log("You pressed:", e.key.toLowerCase());
+    console.log("Expected char:", expectedChar);
+
             if (e.key.toLowerCase() === expectedChar) {
                 typedTargetPosition++;
                 typedEl.textContent = currentWord.romaji.substring(0, typedTargetPosition);
