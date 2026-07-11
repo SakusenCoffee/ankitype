@@ -67,7 +67,18 @@
     <script src="https://cdn.jsdelivr.net/npm/wanakana@5.3.1/wanakana.min.js"></script>
 </head>
 <body>
-
+    
+<label for="note-type-select">Choose Note Type: </label>
+<select id="note-type-select">
+    <option value="">Loading note types...</option>
+</select>
+    <div style="margin-bottom: 20px; text-align: center;">
+    <label for="deck-select" style="font-weight: bold; color: #444;">Select Deck: </label>
+    <select id="deck-select" style="padding: 8px 12px; border-radius: 6px; border: 1px solid #ccc; font-size: 1rem;">
+        <option value="">Loading your decks...</option>
+    </select>
+</div>
+    
     <div class="card">
         <div class="status-message" id="status">Connecting to Anki... Make sure Anki is open!</div>
         <div class="kanji" id="display-word">--</div>
@@ -81,6 +92,127 @@
     </div>
 
     <script>
+
+        async function populateNoteTypes() {
+    const dropdown = document.getElementById("note-type-select");
+
+    // 1. Fetch all model (Note Type) names from Anki
+    const response = await fetchFromAnki("modelNames");
+
+    if (!response || !response.result) {
+        dropdown.innerHTML = '<option value="">Error loading types</option>';
+        return;
+    }
+
+    const noteTypes = response.result;
+
+    // 2. Clear out the placeholder loading option
+    dropdown.innerHTML = "";
+
+    // 3. Loop through names and build out the drop down options
+    noteTypes.forEach(typeName => {
+        const option = document.createElement("option");
+        option.value = typeName;
+        option.textContent = typeName;
+        dropdown.appendChild(option);
+    });
+
+    // 4. Handle user interactions when changing options
+    dropdown.addEventListener("change", (e) => {
+        const selectedType = e.target.value;
+        console.log("User selected note type:", selectedType);
+        
+        // Optional: You can trigger your deck loader here if needed
+        // e.g., loadAnkiDeckByModel(selectedType);
+    });
+}
+
+        // --- NEW: Fetch and populate all deck names ---
+async function populateDecks() {
+    const dropdown = document.getElementById("deck-select");
+    const response = await fetchFromAnki("deckNames");
+
+    if (!response || !response.result) {
+        dropdown.innerHTML = '<option value="">Error connecting to Anki</option>';
+        return;
+    }
+
+    const decks = response.result;
+    dropdown.innerHTML = ""; // Clear placeholder
+
+    decks.forEach(deckName => {
+        const option = document.createElement("option");
+        option.value = deckName;
+        option.textContent = deckName;
+        dropdown.appendChild(option);
+    });
+
+    // Automatically trigger the deck load whenever the user changes the dropdown selection
+    dropdown.addEventListener("change", (e) => {
+        if (e.target.value) {
+            loadAnkiDeck(e.target.value);
+        }
+    });
+
+    // Load the first deck in the list by default on startup
+    if (decks.length > 0) {
+        dropdown.value = decks[0];
+        loadAnkiDeck(decks[0]);
+    }
+}
+
+// --- UPDATED: Pass target deck name dynamically into the loader ---
+async function loadAnkiDeck(targetDeckName) {
+    statusEl.style.color = "#d9534f";
+    statusEl.textContent = `Loading cards from "${targetDeckName}"...`;
+    
+    // Step A: Grab Note IDs matching the dropdown choice
+    const findResult = await fetchFromAnki("findNotes", { query: `deck:"${targetDeckName}"` });
+    
+    if (!findResult || !findResult.result || findResult.result.length === 0) {
+        statusEl.textContent = `Error: No cards found in deck "${targetDeckName}".`;
+        wordEl.textContent = "--";
+        meaningEl.textContent = "";
+        typedEl.textContent = "";
+        untypedEl.textContent = "";
+        wordList = [];
+        return;
+    }
+
+    // Step B: Grab note data strings using IDs
+    const notesResult = await fetchFromAnki("notesInfo", { notes: findResult.result });
+    
+    // Step C: Map note data (Running WanaKana transformation)
+    wordList = notesResult.result.map(note => {
+        const fields = note.fields;
+        let originalText = fields[FIELD_ROMAJI]?.value || "";
+        let cleanedText = originalText.replace(/<[^>]*>/g, '').trim();
+        let finalRomaji = wanakana.toRomaji(cleanedText).toLowerCase().trim();
+
+        return {
+            kanji: (fields[FIELD_KANJI]?.value || "N/A").replace(/<[^>]*>/g, ''),
+            romaji: finalRomaji,
+            meaning: (fields[FIELD_MEANING]?.value || "N/A").replace(/<[^>]*>/g, '')
+        };
+    }).filter(word => word.romaji !== "");
+
+    if (wordList.length > 0) {
+        statusEl.style.color = "#28a745";
+        statusEl.textContent = `Connected! Loaded ${wordList.length} cards from "${targetDeckName}"`;
+        currentIndex = 0;
+        shuffleArray(wordList);
+        loadWord();
+    } else {
+        statusEl.textContent = "Error: Found notes, but none have valid text mappings.";
+    }
+}
+
+// --- UPDATE THE INITIALIZATION LINE ---
+// Instead of running loadAnkiDeck() directly at the bottom of your file, fire up the deck picker
+
+// Call this function when the web application boots up!
+populateNoteTypes();
+        const selectedType = document.getElementById("note-type-select").value;
         // --- 1. CONFIGURATION ---
         // Change these strings to match the exact column/field names in your Anki Deck Note Type!
         const DECK_NAME = "Mining"; 
@@ -204,7 +336,8 @@
         }
 
         // Boot Init run
-        loadAnkiDeck();
+//        loadAnkiDeck();
+        populateDecks();
     </script>
 </body>
 </html>
