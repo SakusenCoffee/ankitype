@@ -1,6 +1,19 @@
-/* --- MODERN ANIME-DATABASE DESIGN TOKENS --- */
+/* ==========================================================================
+   ANIME-DATABASE MODERN DESIGN TOKENS (style.css)
+   ========================================================================== */
 :root {
-    /* --- FONT TOKENS MAP --- */
+    --bg-dark: #0b1622;
+    --bg-card: #152232;
+    --bg-input: #1f2d3d;
+    --text-main: #edf1f5;
+    --text-muted: #8ba0b2;
+    --accent-blue: #3db4f2;
+    --accent-green: #00ffaa;
+    --accent-red: #ff4a6a;
+    --font-heading: 'Space Grotesk', sans-serif;
+    --font-body: 'Plus Jakarta Sans', sans-serif;
+
+    /* --- GLOBAL JAPANESE FONT MAP --- */
     --font-noto: 'Noto Sans JP', sans-serif;
     --font-serif: 'Kaisei Tokumin', serif;
     --font-hina: 'Hina Mincho', serif;
@@ -15,7 +28,7 @@
     --font-zoo: 'Zen Tokyo Zoo', sans-serif;
 }
 
-/* Global Reset & Ambient Background Layout */
+/* Base Layout & Ambient Glow */
 body {
     background-color: var(--bg-dark);
     color: var(--text-main);
@@ -27,7 +40,6 @@ body {
     margin: 0;
     padding: 20px;
     box-sizing: border-box;
-    /* Subtle background graphic glow effect common on database listings */
     background-image: radial-gradient(circle at 50% -20%, #1e375a 0%, var(--bg-dark) 60%);
 }
 
@@ -39,7 +51,14 @@ body {
     gap: 20px;
 }
 
-/* Custom Database Dropdown Menu Styling */
+/* Controls Grid Row Layout */
+.controls-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 15px;
+}
+
+/* Custom Dropdown Menus */
 .selector-container {
     display: flex;
     flex-direction: column;
@@ -67,6 +86,7 @@ body {
     cursor: pointer;
     transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+    width: 100%;
 }
 
 .selector-container select:hover {
@@ -74,7 +94,18 @@ body {
     border-color: rgba(61, 180, 242, 0.4);
 }
 
-/* The Main Dashboard Interface Container Card */
+.selector-container optgroup {
+    background: var(--bg-card);
+    color: var(--accent-blue);
+    font-weight: bold;
+}
+
+.selector-container option {
+    color: var(--text-main);
+    font-weight: normal;
+}
+
+/* Main UI Frame */
 .card {
     background-color: var(--bg-card);
     border: 1px solid rgba(255, 255, 255, 0.03);
@@ -86,9 +117,11 @@ body {
     display: flex;
     flex-direction: column;
     align-items: center;
+    width: 100%;
+    box-sizing: border-box;
 }
 
-/* Dynamic State Badges */
+/* Status Indicators */
 .status-badge {
     position: absolute;
     top: 0;
@@ -106,7 +139,7 @@ body {
 .status-loading { background: rgba(61, 180, 242, 0.15); color: var(--accent-blue); }
 .status-offline { background: rgba(255, 74, 106, 0.15); color: var(--accent-red); }
 
-/* Showcase Presentation Area */
+/* Center Display Text */
 .word-showcase {
     text-align: center;
     margin-bottom: 35px;
@@ -119,9 +152,14 @@ body {
     font-weight: 800;
     letter-spacing: -1px;
     color: var(--text-main);
-    line-height: 1.2;
+    line-height: 1.3;
     margin-bottom: 8px;
     text-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    transition: all 0.2s ease-in-out;
+    min-height: 5.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .meaning {
@@ -130,7 +168,7 @@ body {
     color: var(--text-muted);
 }
 
-/* Monospace Neon Typography Styling Elements */
+/* Input Typing Box Display */
 .romaji-wrapper {
     width: 100%;
     background-color: var(--bg-input);
@@ -155,7 +193,7 @@ body {
     color: rgba(237, 241, 245, 0.15);
 }
 
-/* Bottom Scoring Interface Bar Elements */
+/* Score Footers */
 .score-panel {
     margin-top: 35px;
     display: flex;
@@ -183,30 +221,8 @@ body {
     text-shadow: 0 0 15px rgba(61, 180, 242, 0.3);
 }
 
-/* Add these font variable declarations to your :root tokens */
-:root {
-    /* ... your existing variables ... */
-    --font-serif: 'Kaisei Tokumin', serif;
-    --font-brush: 'Yuji Syuku', serif;
-    --font-pixel: 'DotGothic16', sans-serif;
-    --font-rounded: 'Zen Maru Gothic', sans-serif;
-}
-
-/* Update your base .kanji layout to have smooth transitions when shifting styles */
-.kanji {
-    font-family: var(--font-body); /* Modern Gothic default style */
-    font-size: 4rem;
-    font-weight: 800;
-    letter-spacing: -1px;
-    color: var(--text-main);
-    line-height: 1.2;
-    margin-bottom: 8px;
-    text-shadow: 0 4px 12px rgba(0,0,0,0.3);
-    transition: font-family 0.2s ease-in-out; /* Smooth transition */
-}
-
-/* --- SYSTEM STYLE MODIFIERS --- */
-.kanji.font-modern  { font-family: inherit; font-weight: 800; }
+/* --- DYNAMIC CLASS OVERRIDES FOR FONTS --- */
+.kanji.font-modern  { font-family: var(--font-body); font-weight: 800; }
 .kanji.font-noto    { font-family: var(--font-noto); font-weight: 700; }
 .kanji.font-serif   { font-family: var(--font-serif); font-weight: 700; }
 .kanji.font-hina    { font-family: var(--font-hina); font-weight: 400; }
