@@ -88,6 +88,9 @@
     </div>
 
     <script>
+
+        // Add this right beneath your other global variables (around line 77)
+let isMeaningRevealed = false;
         // --- CONFIGURATION MAPPINGS ---
         const FIELD_KANJI = "Expression";    
         const FIELD_ROMAJI = "ExpressionReading";    
@@ -190,18 +193,23 @@
         }
 
         function loadWord() {
-            if (wordList.length === 0) return;
-            const currentWord = wordList[currentIndex];
-            wordEl.textContent = currentWord.kanji;
-            meaningEl.textContent = currentWord.meaning;
-            
-            // Re-hide definition box automatically when shifting to a new card
-            document.getElementById("meaning-box").classList.add("hidden-meaning");
-            
-            typedTargetPosition = 0;
-            typedEl.textContent = "";
-            untypedEl.textContent = currentWord.romaji;
-        }
+    if (wordList.length === 0) return;
+    const currentWord = wordList[currentIndex];
+    wordEl.textContent = currentWord.kanji;
+    meaningEl.textContent = currentWord.meaning;
+    
+    // 🌟 RESPECT PREVIOUS SELECTION: Keep it hidden or revealed based on state
+    const meaningBox = document.getElementById("meaning-box");
+    if (isMeaningRevealed) {
+        meaningBox.classList.remove("hidden-meaning");
+    } else {
+        meaningBox.classList.add("hidden-meaning");
+    }
+    
+    typedTargetPosition = 0;
+    typedEl.textContent = "";
+    untypedEl.textContent = currentWord.romaji;
+}
 
         function clearDisplay() {
             wordEl.textContent = "--";
@@ -259,8 +267,15 @@
         // Meaning overlay panel toggle click event
         document.getElementById("meaning-box").addEventListener("click", () => {
             const meaningBox = document.getElementById("meaning-box");
-            meaningBox.classList.toggle("hidden-meaning");
-        });
+// Toggle our tracking state
+    isMeaningRevealed = !isMeaningRevealed;
+    
+    // Apply the correct visual class based on your preference
+    if (isMeaningRevealed) {
+        meaningBox.classList.remove("hidden-meaning");
+    } else {
+        meaningBox.classList.add("hidden-meaning");
+    }        });
 
         populateDecks();
     </script>
