@@ -3,124 +3,53 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Anki-Powered Japanese Typing Game</title>
+    <title>Anki Type // Tracker</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;700;800&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/wanakana@5.3.1/wanakana.min.js"></script>
-    <style>
-        body {
-            font-family: 'Helvetica Neue', Arial, sans-serif;
-            background-color: #f0f2f5;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            flex-direction: column;
-            height: 100vh;
-            margin: 0;
-        }
-        .selector-container {
-            margin-bottom: 25px;
-            text-align: center;
-        }
-        .selector-container label {
-            font-weight: bold;
-            color: #444;
-            margin-right: 8px;
-        }
-        .selector-container select {
-            padding: 10px 16px;
-            border-radius: 8px;
-            border: 1px solid #ccc;
-            font-size: 1rem;
-            background: white;
-            cursor: pointer;
-            outline: none;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
-        }
-        .card {
-            background: white;
-            padding: 40px;
-            border-radius: 16px;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.05);
-            text-align: center;
-            width: 100%;
-            max-width: 500px;
-            box-sizing: border-box;
-        }
-        .status-message {
-            font-size: 0.9rem;
-            color: #d9534f;
-            margin-bottom: 20px;
-            font-weight: bold;
-        }
-        .kanji {
-            font-size: 3.5rem;
-            font-weight: bold;
-            color: #1a1a1a;
-            margin: 0 0 10px 0;
-        }
-        .meaning {
-            font-size: 1.1rem;
-            color: #666;
-            margin-bottom: 30px;
-            font-style: italic;
-        }
-        .romaji-container {
-            font-size: 1.8rem;
-            letter-spacing: 2px;
-            font-family: monospace;
-            background: #f8f9fa;
-            padding: 15px;
-            border-radius: 8px;
-            border: 1px solid #e9ecef;
-            min-height: 40px;
-        }
-        .typed {
-            color: #28a745;
-            font-weight: bold;
-        }
-        .untyped {
-            color: #ccc;
-        }
-        .score {
-            margin-top: 30px;
-            font-size: 1rem;
-            color: #888;
-        }
-    </style>
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-    <div class="selector-container">
-        <label for="deck-select">Target Deck:</label>
-        <select id="deck-select">
-            <option value="">Loading Profile Decks...</option>
-        </select>
-    </div>
-
-    <div class="card">
-        <div class="status-message" id="status">Connecting to Anki... Make sure the desktop app is open!</div>
-        <div class="kanji" id="display-word">--</div>
-        <div class="meaning" id="display-meaning">Awaiting connection sync...</div>
-        
-        <div class="romaji-container">
-            <span class="typed" id="text-typed"></span><span class="untyped" id="text-untyped"></span>
+    <div class="app-layout">
+        <div class="selector-container">
+            <label for="deck-select">DATABASE DECK</label>
+            <select id="deck-select">
+                <option value="">Querying local database...</option>
+            </select>
         </div>
 
-        <div class="score">Score: <span id="score-val">0</span></div>
+        <div class="card">
+            <div class="status-badge" id="status">INIT CONNECTION</div>
+            
+            <div class="word-showcase">
+                <div class="kanji" id="display-word">--</div>
+                <div class="meaning" id="display-meaning">Awaiting connection sync...</div>
+            </div>
+            
+            <div class="romaji-wrapper">
+                <span class="typed" id="text-typed"></span><span class="untyped" id="text-untyped"></span>
+            </div>
+
+            <div class="score-panel">
+                <span class="label">COMPLETED OBJECTIVES</span>
+                <span class="value" id="score-val">0</span>
+            </div>
+        </div>
     </div>
 
     <script>
-        // --- 1. CONFIGURATION LAYOUT MAPPINGS ---
-        // Change these strings to match the exact field titles inside your target Anki cards
-        const FIELD_KANJI = "Expression";    // Displays the main bold character text at the top
-        const FIELD_ROMAJI = "ExpressionReading";    // Triggers the typing string pointer (Converted dynamically via WanaKana)
-        const FIELD_MEANING = "ExpressionReading";   // Displays the bottom translation context string definition
+        // --- CONFIGURATION MAPPINGS ---
+        const FIELD_KANJI = "Front";    
+        const FIELD_ROMAJI = "Back";    
+        const FIELD_MEANING = "Back";   
 
         let wordList = [];
         let currentIndex = 0;
         let typedTargetPosition = 0;
         let totalScore = 0;
 
-        // UI DOM Access Pointers
         const statusEl = document.getElementById("status");
         const wordEl = document.getElementById("display-word");
         const meaningEl = document.getElementById("display-meaning");
@@ -129,7 +58,6 @@
         const scoreEl = document.getElementById("score-val");
         const deckDropdown = document.getElementById("deck-select");
 
-        // --- 2. ANKICONNECT API BRIDGE CORE ---
         async function fetchFromAnki(action, params = {}) {
             try {
                 const response = await fetch("http://localhost:8765", {
@@ -139,70 +67,58 @@
                 });
                 return await response.json();
             } catch (err) {
-                console.error("AnkiConnect Connection Failure:", err);
+                console.error("AnkiConnect Failure:", err);
                 return null;
             }
         }
 
-        // Fetch user profile metrics and render selector elements
         async function populateDecks() {
             const response = await fetchFromAnki("deckNames");
-
             if (!response || !response.result) {
-                statusEl.textContent = "Error connecting to Anki desktop client. Ensure it's running with AnkiConnect enabled!";
-                deckDropdown.innerHTML = '<option value="">Network Connection Error</option>';
+                statusEl.textContent = "OFFLINE - START ANKI";
+                statusEl.className = "status-badge status-offline";
+                deckDropdown.innerHTML = '<option value="">Network Error</option>';
                 return;
             }
 
             const decks = response.result;
-            deckDropdown.innerHTML = ""; // Clear out placeholder data options
+            deckDropdown.innerHTML = ""; 
 
             decks.forEach(deckName => {
                 const option = document.createElement("option");
                 option.value = deckName;
-                option.textContent = deckName;
+                option.textContent = deckName.toUpperCase();
                 deckDropdown.appendChild(option);
             });
 
-            // Set dynamic change monitoring interceptor hooks
             deckDropdown.addEventListener("change", (e) => {
-                if (e.target.value) {
-                    loadAnkiDeck(e.target.value);
-                }
+                if (e.target.value) loadAnkiDeck(e.target.value);
             });
 
-            // Boot load index card arrays tracking the top option value position entry
             if (decks.length > 0) {
                 deckDropdown.value = decks[0];
                 loadAnkiDeck(decks[0]);
             }
         }
 
-        // --- 3. WORKLOAD TRANSLATION LOADER DATA PIPELINES ---
         async function loadAnkiDeck(targetDeckName) {
-            statusEl.style.color = "#d9534f";
-            statusEl.textContent = `Scraping content from "${targetDeckName}"...`;
+            statusEl.className = "status-badge status-loading";
+            statusEl.textContent = "LOADING QUEUE";
             
-            // Step A: Request Note card tracking IDs matching choice
             const findResult = await fetchFromAnki("findNotes", { query: `deck:"${targetDeckName}"` });
-            
             if (!findResult || !findResult.result || findResult.result.length === 0) {
-                statusEl.textContent = `Empty: Found 0 items matching deck target parameters: "${targetDeckName}"`;
+                statusEl.textContent = "DECK EMPTY";
+                statusEl.className = "status-badge status-offline";
                 clearDisplay();
                 return;
             }
 
-            // Step B: Collect structural text strings data using tracking numbers
             const notesResult = await fetchFromAnki("notesInfo", { notes: findResult.result });
             
-            // Step C: Normalise object structures while running data cleaning loops
             wordList = notesResult.result.map(note => {
                 const fields = note.fields;
-                
                 let originalText = fields[FIELD_ROMAJI]?.value || "";
                 let cleanedText = originalText.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').trim();
-                
-                // WanaKana safely maps native character formats ( Hiragana / Katakana / Mixed ) to clean western typing text strings
                 let finalRomaji = wanakana.toRomaji(cleanedText).toLowerCase().trim();
 
                 return {
@@ -213,25 +129,23 @@
             }).filter(word => word.romaji !== "");
 
             if (wordList.length > 0) {
-                statusEl.style.color = "#28a745";
-                statusEl.textContent = `Sync Active! Loaded ${wordList.length} items from "${targetDeckName}"`;
+                statusEl.className = "status-badge status-online";
+                statusEl.textContent = `${wordList.length} TRACKS SYNCED`;
                 currentIndex = 0;
                 shuffleArray(wordList);
                 loadWord();
             } else {
-                statusEl.textContent = "Error: Cards parsed successfully but layout strings missing appropriate target field types.";
+                statusEl.textContent = "PARSE ERROR";
+                statusEl.className = "status-badge status-offline";
                 clearDisplay();
             }
         }
 
-        // --- 4. ENGINE RUNTIME INTERACTION ---
         function loadWord() {
             if (wordList.length === 0) return;
             const currentWord = wordList[currentIndex];
-            
             wordEl.textContent = currentWord.kanji;
             meaningEl.textContent = currentWord.meaning;
-            
             typedTargetPosition = 0;
             typedEl.textContent = "";
             untypedEl.textContent = currentWord.romaji;
@@ -239,7 +153,7 @@
 
         function clearDisplay() {
             wordEl.textContent = "--";
-            meaningEl.textContent = "Please select another deck list container option.";
+            meaningEl.textContent = "Select an alternate database track entry.";
             typedEl.textContent = "";
             untypedEl.textContent = "";
             wordList = [];
@@ -259,7 +173,6 @@
                 if (typedTargetPosition === currentWord.romaji.length) {
                     totalScore++;
                     scoreEl.textContent = totalScore;
-                    
                     currentIndex = (currentIndex + 1) % wordList.length;
                     loadWord();
                 }
@@ -273,7 +186,6 @@
             }
         }
 
-        // Initialize execution setup loops on boot run
         populateDecks();
     </script>
 </body>
