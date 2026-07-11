@@ -128,17 +128,25 @@
             // Step B: Grab note data strings using IDs
             const notesResult = await fetchFromAnki("notesInfo", { notes: findResult.result });
             
-            // Step C: Map note data into standard javascript array object formats
+          // Step C: Map note data into standard javascript array object formats
             wordList = notesResult.result.map(note => {
                 const fields = note.fields;
+                
+                // 1. Extract the raw string data safely from your Anki field
+                let originalText = fields[FIELD_ROMAJI]?.value || "";
+
+                // 2. Strip out raw HTML code brackets Anki injects (<br>, <b>, etc.)
+                let cleanedText = originalText.replace(/<[^>]*>/g, '').trim();
+
+                // 3. Convert Japanese Kana (おでこ) to Romaji letters (odeko) using WanaKana
+                let finalRomaji = wanakana.toRomaji(cleanedText).toLowerCase().trim();
+
                 return {
-                    // Stripping any default HTML styling brackets Anki might inject inside strings
-                    kanji: fields[FIELD_KANJI]?.value.replace(/<[^>]*>/g, '') || "N/A",
-                    //romaji: fields[FIELD_ROMAJI]?.value.replace(/<[^>]*>/g, '').toLowerCase().trim() || "na",
-                    romaji: wanakana.toRomaji(rawRomaji).toLowerCase().trim(),
-                    meaning: fields[FIELD_MEANING]?.value.replace(/<[^>]*>/g, '') || "N/A"
+                    kanji: (fields[FIELD_KANJI]?.value || "N/A").replace(/<[^>]*>/g, ''),
+                    romaji: finalRomaji, // This matches your keystrokes now!
+                    meaning: (fields[FIELD_MEANING]?.value || "N/A").replace(/<[^>]*>/g, '')
                 };
-            }).filter(word => word.romaji !== "na"); // Filter cards missing romaji strings
+            }).filter(word => word.romaji !== "");
 
             if (wordList.length > 0) {
                 statusEl.style.color = "#28a745";
