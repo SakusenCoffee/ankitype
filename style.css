@@ -344,3 +344,50 @@ body {
     opacity: 0 !important;
     pointer-events: none !important;
 }
+
+/* ==========================================================================
+   FOOTER ACTIONS & KO-FI INTEGRATION
+   ========================================================================== */
+.footer-actions {
+    margin-top: 15px;
+    display: flex;
+    justify-content: center;
+    width: 100%;
+}
+
+.kofi-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    background-color: var(--bg-card);
+    color: var(--text-muted);
+    border: 1px solid rgba(255, 255, 255, 0.03);
+    padding: 12px 24px;
+    border-radius: 12px;
+    font-family: var(--font-heading);
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-decoration: none;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Micro-interaction signature color shift on hover */
+.kofi-btn:hover {
+    background-color: #ff5e5b; /* Ko-fi Brand Red/Coral */
+    color: var(--text-main);
+    border-color: #ff5e5b;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(255, 94, 91, 0.3);
+}
+
+.kofi-icon {
+    width: 16px;
+    height: 16px;
+    transition: transform 0.2s ease;
+}
+
+.kofi-btn:hover .kofi-icon {
+    transform: rotate(-5deg) scale(1.1);
+}
