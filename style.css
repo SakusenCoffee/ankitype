@@ -235,3 +235,43 @@ body {
 .kanji.font-carved  { font-family: var(--font-carved); font-weight: 400; }
 .kanji.font-bomb    { font-family: var(--font-bomb); font-weight: 400; }
 .kanji.font-zoo     { font-family: var(--font-zoo); font-weight: 400; font-size: 3.5rem; }
+
+/* ==========================================================================
+   DYNAMIC ROMAJI HINT TOGGLE UTILITIES
+   ========================================================================== */
+.romaji-wrapper {
+    position: relative;
+    min-height: 76px; /* Prevents card bouncing when toggling contents */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+/* Prompt Layout */
+.romaji-prompt {
+    font-family: var(--font-heading);
+    font-size: 1rem;
+    font-weight: 700;
+    letter-spacing: 2px;
+    color: var(--text-muted);
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Actual Typing Containers */
+.romaji-text-container {
+    opacity: 1;
+    transition: opacity 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    display: inline-block;
+}
+
+/* 🌟 DYNAMIC HIDDEN TOGGLE STATE CLASSES */
+.hidden-romaji .romaji-prompt {
+    opacity: 1;
+}
+
+.hidden-romaji .romaji-text-container {
+    opacity: 0;
+}
