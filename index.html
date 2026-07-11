@@ -9,9 +9,10 @@
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;700;800&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/wanakana@5.3.1/wanakana.min.js"></script>
     <link rel="stylesheet" href="style.css">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Kaisei+Tokumin:wght@700&family=Yuji+Syuku&family=DotGothic16&family=Zen+Maru+Gothic:wght@700&family=Yomogi&family=Hachi+Maru+Pop&family=Mochiy+Pop+One&family=Chokokutai&family=Cherry+Bomb+One&family=Zen+Tokyo+Zoo&family=Noto+Sans+JP:wght@400;700&family=Hina+Mincho&display=swap" rel="stylesheet"></head>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Kaisei+Tokumin:wght@700&family=Yuji+Syuku&family=DotGothic16&family=Zen+Maru+Gothic:wght@700&family=Yomogi&family=Hachi+Maru+Pop&family=Mochiy+Pop+One&family=Chokokutai&family=Cherry+Bomb+One&family=Zen+Tokyo+Zoo&family=Noto+Sans+JP:wght@400;700&family=Hina+Mincho&display=swap" rel="stylesheet">
+</head>
 <body>
 
     <div class="app-layout">
@@ -23,68 +24,69 @@
         </div>
 
         <div class="selector-container">
-    <label for="font-select">FONT</label>
-<select id="font-select">
-    <optgroup label="Standard Styles">
-        <option value="font-modern">Modern Gothic (Default)</option>
-        <option value="font-noto">Noto Sans (Ultra Clean)</option>
-        <option value="font-serif">Traditional Mincho (Kaisei)</option>
-        <option value="font-hina">Delicate Mincho (Hina)</option>
-    </optgroup>
-    <optgroup label="Handwriting & Pop">
-        <option value="font-brush">Calligraphy Brush (Yuji)</option>
-        <option value="font-yomogi">Thin Handwriting (Yomogi)</option>
-        <option value="font-hachi">80s Gyaru Pop (Hachi Maru)</option>
-        <option value="font-mochiy">Comic Pop Art (Mochiy)</option>
-        <option value="font-rounded">Rounded Pop (Zen Maru)</option>
-    </optgroup>
-    <optgroup label="Experimental & Retro">
-        <option value="font-pixel">Retro 8-Bit (DotGothic)</option>
-        <option value="font-carved">Wood Carved (Chokokutai)</option>
-        <option value="font-bomb">Bubble Graffiti (Cherry Bomb)</option>
-        <option value="font-zoo">Abstract Grill (Zen Tokyo Zoo)</option>
-    </optgroup>
-</select>
-</div>
+            <label for="font-select">FONT</label>
+            <select id="font-select">
+                <optgroup label="Standard Styles">
+                    <option value="font-modern">Modern Gothic (Default)</option>
+                    <option value="font-noto">Noto Sans (Ultra Clean)</option>
+                    <option value="font-serif">Traditional Mincho (Kaisei)</option>
+                    <option value="font-hina">Delicate Mincho (Hina)</option>
+                </optgroup>
+                <optgroup label="Handwriting & Pop">
+                    <option value="font-brush">Calligraphy Brush (Yuji)</option>
+                    <option value="font-yomogi">Thin Handwriting (Yomogi)</option>
+                    <option value="font-hachi">80s Gyaru Pop (Hachi Maru)</option>
+                    <option value="font-mochiy">Comic Pop Art (Mochiy)</option>
+                    <option value="font-rounded">Rounded Pop (Zen Maru)</option>
+                </optgroup>
+                <optgroup label="Experimental & Retro">
+                    <option value="font-pixel">Retro 8-Bit (DotGothic)</option>
+                    <option value="font-carved">Wood Carved (Chokokutai)</option>
+                    <option value="font-bomb">Bubble Graffiti (Cherry Bomb)</option>
+                    <option value="font-zoo">Abstract Grill (Zen Tokyo Zoo)</option>
+                </optgroup>
+            </select>
+        </div>
 
         <div class="card">
             <div class="status-badge" id="status">INIT CONNECTION</div>
             
             <div class="word-showcase">
-    <div class="kanji" id="display-word">--</div>
-    
-    <div class="meaning-wrapper hidden-meaning" id="meaning-box">
-        <div class="meaning-prompt">CLICK TO REVEAL DEFINITION</div>
-        <div class="meaning" id="display-meaning">Awaiting connection sync...</div>
-    </div>
-</div>
+                <div class="kanji" id="display-word">--</div>
+                
+                <div class="meaning-wrapper hidden-meaning" id="meaning-box">
+                    <div class="meaning-prompt">CLICK TO REVEAL DEFINITION</div>
+                    <div class="meaning" id="display-meaning">Awaiting connection sync...</div>
+                </div>
+            </div>
             
-            <!-- UPDATE THIS WORK CONTAINER IN YOUR HTML -->
-<div class="romaji-wrapper hidden-romaji" id="romaji-box">
-    <div class="romaji-prompt" id="romaji-hint">PRESS [TAB] TO SHOW ROMAJI</div>
-    <div class="romaji-text-container">
-        <span class="typed" id="text-typed"></span><span class="untyped" id="text-untyped"></span>
-    </div>
-</div>
+            <div class="romaji-wrapper hidden-romaji" id="romaji-box">
+                <div class="romaji-prompt" id="romaji-hint">PRESS [TAB] TO SHOW ROMAJI</div>
+                <div class="romaji-text-container">
+                    <span class="typed" id="text-typed"></span><span class="untyped" id="text-untyped"></span>
+                </div>
+            </div>
 
             <div class="score-panel">
                 <span class="label">TYPED: </span>
                 <span class="value" id="score-val">0</span>
             </div>
         </div>
+
+        <div class="footer-actions">
+            <a href="https://ko-fi.com/YOUR_USERNAME_HERE" target="_blank" rel="noopener noreferrer" class="kofi-btn">
+                <svg class="kofi-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M18 8h1a4 4 0 0 1 0 8h-1"></path>
+                    <path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"></path>
+                    <line x1="6" y1="1" x2="6" y2="4"></line>
+                    <line x1="10" y1="1" x2="10" y2="4"></line>
+                    <line x1="14" y1="1" x2="14" y2="4"></line>
+                </svg>
+                SUPPORT VIA KO-FI
+            </a>
+        </div>
     </div>
-<div class="footer-actions">
-    <a href="https://ko-fi.com/mojikazu" target="_blank" rel="noopener noreferrer" class="kofi-btn">
-        <svg class="kofi-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M18 8h1a4 4 0 0 1 0 8h-1"></path>
-            <path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"></path>
-            <line x1="6" y1="1" x2="6" y2="4"></line>
-            <line x1="10" y1="1" x2="10" y2="4"></line>
-            <line x1="14" y1="1" x2="14" y2="4"></line>
-        </svg>
-        SUPPORT VIA KO-FI
-    </a>
-</div>
+
     <script>
         // --- CONFIGURATION MAPPINGS ---
         const FIELD_KANJI = "Expression";    
@@ -192,6 +194,10 @@
             const currentWord = wordList[currentIndex];
             wordEl.textContent = currentWord.kanji;
             meaningEl.textContent = currentWord.meaning;
+            
+            // Re-hide definition box automatically when shifting to a new card
+            document.getElementById("meaning-box").classList.add("hidden-meaning");
+            
             typedTargetPosition = 0;
             typedEl.textContent = "";
             untypedEl.textContent = currentWord.romaji;
@@ -205,7 +211,17 @@
             wordList = [];
         }
 
+        // 🌟 COMBINED MASTER KEY DOWN LISTENER
         window.addEventListener("keydown", (e) => {
+            // A. Intercept Tab key
+            if (e.key === "Tab") {
+                e.preventDefault(); 
+                const romajiBox = document.getElementById("romaji-box");
+                romajiBox.classList.toggle("hidden-romaji");
+                return; 
+            }
+
+            // B. Run normal typing engine logic
             if (e.key.length > 1 || wordList.length === 0) return; 
 
             const currentWord = wordList[currentIndex];
@@ -232,62 +248,21 @@
             }
         }
 
-        // THIRD: Paste this block anywhere inside your <script> tag to power the switch
-document.getElementById("font-select").addEventListener("change", (e) => {
-    const wordEl = document.getElementById("display-word");
-    
-    // Reset to base styling class, stripping old font assignments
-    wordEl.className = "kanji"; 
-    
-    // Append the newly selected modifier class string rules
-    if (e.target.value) {
-        wordEl.classList.add(e.target.value);
-    }
-});
-        // --- ADD THIS TO HANDLING KEYDOWN EVENTS ---
-window.addEventListener("keydown", (e) => {
-    // 1. Intercept Tab key explicitly to toggle visibility layout states
-    if (e.key === "Tab") {
-        e.preventDefault(); // Prevents the browser from jumping focus to dropdown menus
-        
-        const romajiBox = document.getElementById("romaji-box");
-        romajiBox.classList.toggle("hidden-romaji");
-        return; // Exit out early so 'Tab' isn't checked as a game typing character
-    }
+        // Font selection handler
+        document.getElementById("font-select").addEventListener("change", (e) => {
+            wordEl.className = "kanji"; 
+            if (e.target.value) {
+                wordEl.classList.add(e.target.value);
+            }
+        });
 
-    // Existing text game processing rule logic constraints...
-    if (e.key.length > 1 || wordList.length === 0) return; 
-
-    const currentWord = wordList[currentIndex];
-    const expectedChar = currentWord.romaji[typedTargetPosition];
-
-    if (e.key.toLowerCase() === expectedChar) {
-        typedTargetPosition++;
-        typedEl.textContent = currentWord.romaji.substring(0, typedTargetPosition);
-        untypedEl.textContent = currentWord.romaji.substring(typedTargetPosition);
-
-        if (typedTargetPosition === currentWord.romaji.length) {
-            totalScore++;
-            scoreEl.textContent = totalScore;
-            
-            // 🌟 OPTIONAL QUALITY OF LIFE: Re-hide the hint box automatically on card transition completion
-            // document.getElementById("romaji-box").classList.add("hidden-romaji");
-
-            currentIndex = (currentIndex + 1) % wordList.length;
-            loadWord();
-        }
-    }
-});
-        // Click anywhere on top of the definition container to toggle visibility
-document.getElementById("meaning-box").addEventListener("click", () => {
-    const meaningBox = document.getElementById("meaning-box");
-    meaningBox.classList.toggle("hidden-meaning");
-    
-});
+        // Meaning overlay panel toggle click event
+        document.getElementById("meaning-box").addEventListener("click", () => {
+            const meaningBox = document.getElementById("meaning-box");
+            meaningBox.classList.toggle("hidden-meaning");
+        });
 
         populateDecks();
     </script>
-
-    
 </body>
 </html>
