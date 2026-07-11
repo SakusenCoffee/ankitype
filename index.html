@@ -271,6 +271,7 @@ window.addEventListener("keydown", (e) => {
 document.getElementById("meaning-box").addEventListener("click", () => {
     const meaningBox = document.getElementById("meaning-box");
     meaningBox.classList.toggle("hidden-meaning");
+    meaningBox.disable=True;
 });
 
         populateDecks();
