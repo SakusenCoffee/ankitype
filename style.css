@@ -1,0 +1,181 @@
+/* --- MODERN ANIME-DATABASE DESIGN TOKENS --- */
+:root {
+    --bg-dark: #0b1622;
+    --bg-card: #152232;
+    --bg-input: #1f2d3d;
+    --text-main: #edf1f5;
+    --text-muted: #8ba0b2;
+    --accent-blue: #3db4f2;
+    --accent-green: #00ffaa;
+    --accent-red: #ff4a6a;
+    --font-heading: 'Space Grotesk', sans-serif;
+    --font-body: 'Plus Jakarta Sans', sans-serif;
+}
+
+/* Global Reset & Ambient Background Layout */
+body {
+    background-color: var(--bg-dark);
+    color: var(--text-main);
+    font-family: var(--font-body);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    margin: 0;
+    padding: 20px;
+    box-sizing: border-box;
+    /* Subtle background graphic glow effect common on database listings */
+    background-image: radial-gradient(circle at 50% -20%, #1e375a 0%, var(--bg-dark) 60%);
+}
+
+.app-layout {
+    width: 100%;
+    max-width: 560px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+/* Custom Database Dropdown Menu Styling */
+.selector-container {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.selector-container label {
+    font-family: var(--font-heading);
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 2px;
+    color: var(--accent-blue);
+}
+
+.selector-container select {
+    background-color: var(--bg-card);
+    color: var(--text-main);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    padding: 14px 20px;
+    border-radius: 12px;
+    font-family: var(--font-body);
+    font-size: 0.95rem;
+    font-weight: 500;
+    outline: none;
+    cursor: pointer;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+}
+
+.selector-container select:hover {
+    background-color: var(--bg-input);
+    border-color: rgba(61, 180, 242, 0.4);
+}
+
+/* The Main Dashboard Interface Container Card */
+.card {
+    background-color: var(--bg-card);
+    border: 1px solid rgba(255, 255, 255, 0.03);
+    border-radius: 20px;
+    padding: 40px;
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.4);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+/* Dynamic State Badges */
+.status-badge {
+    position: absolute;
+    top: 0;
+    right: 0;
+    font-family: var(--font-heading);
+    font-weight: 700;
+    font-size: 0.7rem;
+    letter-spacing: 1px;
+    padding: 6px 16px;
+    border-bottom-left-radius: 12px;
+    background: #2b3a4a;
+    color: var(--text-muted);
+}
+.status-online { background: rgba(0, 255, 170, 0.15); color: var(--accent-green); }
+.status-loading { background: rgba(61, 180, 242, 0.15); color: var(--accent-blue); }
+.status-offline { background: rgba(255, 74, 106, 0.15); color: var(--accent-red); }
+
+/* Showcase Presentation Area */
+.word-showcase {
+    text-align: center;
+    margin-bottom: 35px;
+    width: 100%;
+}
+
+.kanji {
+    font-family: var(--font-body);
+    font-size: 4rem;
+    font-weight: 800;
+    letter-spacing: -1px;
+    color: var(--text-main);
+    line-height: 1.2;
+    margin-bottom: 8px;
+    text-shadow: 0 4px 12px rgba(0,0,0,0.3);
+}
+
+.meaning {
+    font-size: 1.05rem;
+    font-weight: 500;
+    color: var(--text-muted);
+}
+
+/* Monospace Neon Typography Styling Elements */
+.romaji-wrapper {
+    width: 100%;
+    background-color: var(--bg-input);
+    border: 1px solid rgba(255, 255, 255, 0.04);
+    padding: 18px;
+    border-radius: 14px;
+    font-family: 'Space Grotesk', monospace;
+    font-size: 2rem;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-align: center;
+    box-sizing: border-box;
+    box-shadow: inset 0 2px 8px rgba(0,0,0,0.2);
+}
+
+.typed {
+    color: var(--accent-green);
+    text-shadow: 0 0 12px rgba(0, 255, 170, 0.4);
+}
+
+.untyped {
+    color: rgba(237, 241, 245, 0.15);
+}
+
+/* Bottom Scoring Interface Bar Elements */
+.score-panel {
+    margin-top: 35px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    width: 100%;
+    border-top: 1px solid rgba(255,255,255,0.05);
+    padding-top: 25px;
+}
+
+.score-panel .label {
+    font-family: var(--font-heading);
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    letter-spacing: 1.5px;
+}
+
+.score-panel .value {
+    font-size: 2.2rem;
+    font-weight: 800;
+    color: var(--accent-blue);
+    font-family: var(--font-heading);
+    text-shadow: 0 0 15px rgba(61, 180, 242, 0.3);
+}
