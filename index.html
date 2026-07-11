@@ -55,12 +55,16 @@
                 <div class="meaning" id="display-meaning">Awaiting connection sync...</div>
             </div>
             
-            <div class="romaji-wrapper">
-                <span class="typed" id="text-typed"></span><span class="untyped" id="text-untyped"></span>
-            </div>
+            <!-- UPDATE THIS WORK CONTAINER IN YOUR HTML -->
+<div class="romaji-wrapper hidden-romaji" id="romaji-box">
+    <div class="romaji-prompt" id="romaji-hint">PRESS [TAB] TO SHOW ROMAJI</div>
+    <div class="romaji-text-container">
+        <span class="typed" id="text-typed"></span><span class="untyped" id="text-untyped"></span>
+    </div>
+</div>
 
             <div class="score-panel">
-                <span class="label">COMPLETED OBJECTIVES</span>
+                <span class="label">TYPED: </span>
                 <span class="value" id="score-val">0</span>
             </div>
         </div>
@@ -223,6 +227,40 @@ document.getElementById("font-select").addEventListener("change", (e) => {
     // Append the newly selected modifier class string rules
     if (e.target.value) {
         wordEl.classList.add(e.target.value);
+    }
+});
+        // --- ADD THIS TO HANDLING KEYDOWN EVENTS ---
+window.addEventListener("keydown", (e) => {
+    // 1. Intercept Tab key explicitly to toggle visibility layout states
+    if (e.key === "Tab") {
+        e.preventDefault(); // Prevents the browser from jumping focus to dropdown menus
+        
+        const romajiBox = document.getElementById("romaji-box");
+        romajiBox.classList.toggle("hidden-romaji");
+        return; // Exit out early so 'Tab' isn't checked as a game typing character
+    }
+
+    // Existing text game processing rule logic constraints...
+    if (e.key.length > 1 || wordList.length === 0) return; 
+
+    const currentWord = wordList[currentIndex];
+    const expectedChar = currentWord.romaji[typedTargetPosition];
+
+    if (e.key.toLowerCase() === expectedChar) {
+        typedTargetPosition++;
+        typedEl.textContent = currentWord.romaji.substring(0, typedTargetPosition);
+        untypedEl.textContent = currentWord.romaji.substring(typedTargetPosition);
+
+        if (typedTargetPosition === currentWord.romaji.length) {
+            totalScore++;
+            scoreEl.textContent = totalScore;
+            
+            // 🌟 OPTIONAL QUALITY OF LIFE: Re-hide the hint box automatically on card transition completion
+            // document.getElementById("romaji-box").classList.add("hidden-romaji");
+
+            currentIndex = (currentIndex + 1) % wordList.length;
+            loadWord();
+        }
     }
 });
 
