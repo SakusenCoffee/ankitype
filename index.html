@@ -62,6 +62,21 @@
                 <span>[TAB] TOGGLE ROMAJI READINGS</span> • <span>[CLICK CARD] SHOW MEANING</span>
             </div>
 
+            <!-- LIVE TYPING INPUT DISPLAY BOX WITH ERROR TOGGLE -->
+            <div class="live-input-container">
+                <div class="live-input-box" id="live-input-box">
+                    <span class="placeholder-text" id="input-placeholder">Type active word...</span>
+                    <span id="live-input-text"></span>
+                </div>
+                <div class="error-toggle-wrapper">
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="error-toggle" checked>
+                        <span class="toggle-slider"></span>
+                    </label>
+                    <span class="toggle-label">SHOW RED ERRORS</span>
+                </div>
+            </div>
+
             <div class="score-panel">
                 <span class="label">CARDS TYPED</span>
                 <span class="value" id="score-val">0</span>
@@ -89,10 +104,14 @@
 
         let wordList = [];
         let currentIndex = 0;
-        let currentCharIndex = 0;
+        let typedInput = []; // Array of { char: string, isCorrect: boolean }
+        let incorrectCount = 0;
+        const MAX_INCORRECT = 10;
+
         let totalScore = 0;
         let showRomaji = true;
         let showMeaning = false;
+        let showErrorColors = true;
         let currentFontClass = "font-modern";
 
         const statusEl = document.getElementById("status");
@@ -100,6 +119,9 @@
         const scoreEl = document.getElementById("score-val");
         const deckDropdown = document.getElementById("deck-select");
         const fontDropdown = document.getElementById("font-select");
+        const liveInputText = document.getElementById("live-input-text");
+        const inputPlaceholder = document.getElementById("input-placeholder");
+        const errorToggle = document.getElementById("error-toggle");
 
         async function fetchFromAnki(action, params = {}) {
             try {
@@ -175,7 +197,8 @@
                 statusEl.className = "status-badge status-online";
                 statusEl.textContent = `${wordList.length} TRACKS SYNCED`;
                 currentIndex = 0;
-                currentCharIndex = 0;
+                typedInput = [];
+                incorrectCount = 0;
                 totalScore = 0;
                 scoreEl.textContent = totalScore;
                 shuffleArray(wordList);
@@ -196,12 +219,10 @@
                 wordNode.className = "word-item";
                 if (idx === currentIndex) wordNode.classList.add("active");
 
-                // Kanji Target
                 const kanjiNode = document.createElement("div");
                 kanjiNode.className = `kanji-text ${currentFontClass}`;
                 kanjiNode.textContent = wordObj.kanji;
 
-                // Romaji Subtext Character Blocks
                 const romajiNode = document.createElement("div");
                 romajiNode.className = `romaji-text ${!showRomaji ? 'hidden' : ''}`;
                 
@@ -212,7 +233,6 @@
                     romajiNode.appendChild(charSpan);
                 }
 
-                // Meaning Subtext
                 const meaningNode = document.createElement("div");
                 meaningNode.className = `meaning-text ${!showMeaning ? 'hidden' : ''}`;
                 meaningNode.textContent = wordObj.meaning;
@@ -229,31 +249,58 @@
                 wordsContainer.appendChild(wordNode);
             });
 
-            updateActiveCharHighlight();
+            updateDisplay();
         }
 
-        function updateActiveCharHighlight() {
+        function updateDisplay() {
             const currentWordNode = wordsContainer.children[currentIndex];
             if (!currentWordNode) return;
 
+            // 1. Update Card Romaji Highlights
             const romajiNode = currentWordNode.querySelector(".romaji-text");
             const charSpans = romajiNode.querySelectorAll(".char");
 
+            // Calculate correct prefix length
+            let correctCount = 0;
+            for (let i = 0; i < typedInput.length; i++) {
+                if (typedInput[i].isCorrect) correctCount++;
+                else break; 
+            }
+
             charSpans.forEach((span, idx) => {
-                span.classList.remove("correct", "current");
-                if (idx < currentCharIndex) {
+                span.classList.remove("correct", "current", "incorrect");
+                if (idx < correctCount) {
                     span.classList.add("correct");
-                } else if (idx === currentCharIndex) {
+                } else if (idx === correctCount && incorrectCount === 0) {
                     span.classList.add("current");
+                } else if (idx === correctCount && incorrectCount > 0) {
+                    span.classList.add("incorrect");
                 }
             });
 
-            // Smooth Scroll active row into view
+            // 2. Update Bottom Live Typing Box
+            liveInputText.innerHTML = "";
+            if (typedInput.length > 0) {
+                inputPlaceholder.style.display = "none";
+                typedInput.forEach(entry => {
+                    const charSpan = document.createElement("span");
+                    charSpan.textContent = entry.char;
+                    if (!entry.isCorrect && showErrorColors) {
+                        charSpan.className = "typed-char-wrong";
+                    } else if (entry.isCorrect) {
+                        charSpan.className = "typed-char-correct";
+                    }
+                    liveInputText.appendChild(charSpan);
+                });
+            } else {
+                inputPlaceholder.style.display = "inline";
+            }
+
+            // 3. Smooth Scroll active row into view
             const containerTop = wordsContainer.getBoundingClientRect().top;
             const wordTop = currentWordNode.getBoundingClientRect().top;
             const lineOffset = wordTop - containerTop;
 
-            // Shift container in row steps (~90px steps)
             if (lineOffset > 100) {
                 const shiftY = Math.floor(lineOffset / 90) * 90;
                 wordsContainer.style.transform = `translateY(-${shiftY}px)`;
@@ -268,7 +315,7 @@
             allMeaning.forEach(el => showMeaning ? el.classList.remove("hidden") : el.classList.add("hidden"));
         }
 
-        // Global Typing Listener Engine
+        // Global Typing Listener Engine with Backspace and Max 10 Mistakes
         window.addEventListener("keydown", (e) => {
             if (e.key === "Tab") {
                 e.preventDefault();
@@ -277,37 +324,75 @@
                 return;
             }
 
-            if (e.key.length > 1 || wordList.length === 0) return;
-
+            if (wordList.length === 0) return;
             const currentWord = wordList[currentIndex];
-            const expectedChar = currentWord.romaji[currentCharIndex];
 
-            if (e.key.toLowerCase() === expectedChar) {
-                currentCharIndex++;
-                
-                // Finished Current Word
-                if (currentCharIndex >= currentWord.romaji.length) {
-                    const finishedWordNode = wordsContainer.children[currentIndex];
-                    finishedWordNode.classList.remove("active");
-                    finishedWordNode.classList.add("completed");
-
-                    totalScore++;
-                    scoreEl.textContent = totalScore;
-
-                    currentIndex++;
-                    currentCharIndex = 0;
-
-                    if (currentIndex < wordList.length) {
-                        wordsContainer.children[currentIndex].classList.add("active");
-                    } else {
-                        // Loop back or complete
-                        currentIndex = 0;
-                        renderWordBlock();
+            // Handle Backspace
+            if (e.key === "Backspace") {
+                if (typedInput.length > 0) {
+                    const removed = typedInput.pop();
+                    if (!removed.isCorrect) {
+                        incorrectCount = Math.max(0, incorrectCount - 1);
                     }
+                    updateDisplay();
                 }
-                
-                updateActiveCharHighlight();
+                return;
             }
+
+            if (e.key.length > 1) return; // Ignore modifier keys (Shift, Ctrl, etc.)
+
+            // Process printable character input
+            const keyTyped = e.key.toLowerCase();
+
+            // Calculate current target position
+            let correctCount = 0;
+            for (let i = 0; i < typedInput.length; i++) {
+                if (typedInput[i].isCorrect) correctCount++;
+                else break;
+            }
+
+            const expectedChar = currentWord.romaji[correctCount];
+
+            if (incorrectCount === 0 && keyTyped === expectedChar) {
+                typedInput.push({ char: keyTyped, isCorrect: true });
+            } else {
+                // If incorrect, block if we reached max 10 errors
+                if (incorrectCount >= MAX_INCORRECT) {
+                    return; 
+                }
+                typedInput.push({ char: keyTyped, isCorrect: false });
+                incorrectCount++;
+            }
+
+            // Check if full word typed correctly
+            let currentCorrectCount = typedInput.filter(t => t.isCorrect).length;
+            if (incorrectCount === 0 && currentCorrectCount === currentWord.romaji.length) {
+                const finishedWordNode = wordsContainer.children[currentIndex];
+                finishedWordNode.classList.remove("active");
+                finishedWordNode.classList.add("completed");
+
+                totalScore++;
+                scoreEl.textContent = totalScore;
+
+                currentIndex++;
+                typedInput = [];
+                incorrectCount = 0;
+
+                if (currentIndex < wordList.length) {
+                    wordsContainer.children[currentIndex].classList.add("active");
+                } else {
+                    currentIndex = 0;
+                    renderWordBlock();
+                }
+            }
+
+            updateDisplay();
+        });
+
+        // Red Error Toggle Switch
+        errorToggle.addEventListener("change", (e) => {
+            showErrorColors = e.target.checked;
+            updateDisplay();
         });
 
         fontDropdown.addEventListener("change", (e) => {
