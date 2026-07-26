@@ -295,6 +295,11 @@ body {
     width: 110px;
 }
 
+#copy-seed-btn {
+font-size: 1.1rem; /* Adjust this value (e.g., 1rem to 1.3rem) to get your desired size */
+padding: 6px 12px; /* Optional: adjusts padding to fit the larger text comfortably */
+}
+
 .drawer-header {
     display: flex;
     align-items: center;
