@@ -21,13 +21,14 @@
             </div>
 
             <div class="nav-actions">
-            <button class="nav-btn" id="profile-tab-btn" title="Profile & Stats">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-        <circle cx="12" cy="7" r="4"></circle>
-    </svg>
-    <span>PROFILE</span>
-</button>
+                <button class="nav-btn" id="profile-tab-btn" title="Profile & Stats">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                        <circle cx="12" cy="7" r="4"></circle>
+                    </svg>
+                    <span>PROFILE</span>
+                </button>
+
                 <button class="nav-btn active" id="test-options-tab-btn" title="Test Options">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <line x1="4" y1="21" x2="4" y2="14"></line>
@@ -66,12 +67,14 @@
             </div>
         </div>
 
-        <!-- EXPANDABLE DRAWER: TEST OPTIONS -->
+        <!-- EXPANDABLE DRAWER: PROFILE -->
         <div class="nav-drawer hidden" id="profile-drawer">
-    <div class="drawer-inner" id="profile-container">
-        <!-- Dynamically rendered (Login/Register or User Profile Stats) -->
-    </div>
-</div>
+            <div class="drawer-inner" id="profile-container">
+                <!-- Dynamically rendered (Login/Register or User Profile Stats) -->
+            </div>
+        </div>
+
+        <!-- EXPANDABLE DRAWER: TEST OPTIONS -->
         <div class="nav-drawer" id="test-options-drawer">
             <div class="drawer-inner word-count-nav">
                 <!-- Mode Switcher -->
@@ -391,11 +394,13 @@
         const hideBoxBtn = document.getElementById("hide-box-btn");
         const restoreBoxBtn = document.getElementById("restore-box-btn");
 
+        const profileTabBtn = document.getElementById("profile-tab-btn");
         const testOptionsTabBtn = document.getElementById("test-options-tab-btn");
         const ankiTabBtn = document.getElementById("anki-tab-btn");
         const appearanceTabBtn = document.getElementById("appearance-tab-btn");
         const seedTabBtn = document.getElementById("seed-tab-btn");
 
+        const profileDrawer = document.getElementById("profile-drawer");
         const testOptionsDrawer = document.getElementById("test-options-drawer");
         const ankiDrawer = document.getElementById("anki-drawer");
         const appearanceDrawer = document.getElementById("appearance-drawer");
@@ -467,16 +472,25 @@
         }
 
         function openTab(tabName) {
+            // Hide all drawers
+            profileDrawer.classList.add("hidden");
             testOptionsDrawer.classList.add("hidden");
-            testOptionsTabBtn.classList.remove("active");
             ankiDrawer.classList.add("hidden");
-            ankiTabBtn.classList.remove("active");
             appearanceDrawer.classList.add("hidden");
-            appearanceTabBtn.classList.remove("active");
             seedDrawer.classList.add("hidden");
+
+            // Deactivate all tab buttons
+            profileTabBtn.classList.remove("active");
+            testOptionsTabBtn.classList.remove("active");
+            ankiTabBtn.classList.remove("active");
+            appearanceTabBtn.classList.remove("active");
             seedTabBtn.classList.remove("active");
 
-            if (tabName === "test-options") {
+            if (tabName === "profile") {
+                profileDrawer.classList.remove("hidden");
+                profileTabBtn.classList.add("active");
+                loadProfileUI();
+            } else if (tabName === "test-options") {
                 testOptionsDrawer.classList.remove("hidden");
                 testOptionsTabBtn.classList.add("active");
             } else if (tabName === "anki") {
@@ -529,7 +543,6 @@
                 statusEl.className = "status-badge status-online";
                 statusEl.textContent = `CUSTOM SEED (${activeWordList.length} WORDS)`;
 
-                // Switch to Custom Words tab on successful seed load
                 openTab("anki");
 
             } catch (err) {
@@ -1058,6 +1071,7 @@
             updateDisplay();
         });
 
+        profileTabBtn.addEventListener("click", () => openTab("profile"));
         testOptionsTabBtn.addEventListener("click", () => openTab("test-options"));
         ankiTabBtn.addEventListener("click", () => openTab("anki"));
         appearanceTabBtn.addEventListener("click", () => openTab("appearance"));
@@ -1218,137 +1232,127 @@
             }
         }
 
-
         // Profile JavaScript Logic
-let currentUserToken = localStorage.getItem('anki_jwt');
+        let currentUserToken = localStorage.getItem('anki_jwt');
 
-async function loadProfileUI() {
-    const container = document.getElementById('profile-container');
-    if (!container) return;
+        async function loadProfileUI() {
+            const container = document.getElementById('profile-container');
+            if (!container) return;
 
-    if (!currentUserToken) {
-        container.innerHTML = `
-            <div class="auth-form-container">
-                <span class="drawer-title" style="text-align:center;">CREATE ACCOUNT / LOGIN</span>
-                <input type="text" id="reg-username" placeholder="Username" />
-                <input type="password" id="reg-password" placeholder="Password" />
-                <input type="password" id="reg-confirm" placeholder="Confirm Password (if registering)" />
-                <div class="auth-error" id="auth-err-msg"></div>
-                <button class="auth-btn" id="auth-submit-btn">REGISTER / LOGIN</button>
-            </div>
-        `;
-
-        document.getElementById('auth-submit-btn').onclick = async () => {
-            const user = document.getElementById('reg-username').value;
-            const pass = document.getElementById('reg-password').value;
-            const confirm = document.getElementById('reg-confirm').value;
-            const errEl = document.getElementById('auth-err-msg');
-
-            if (confirm && pass !== confirm) {
-                errEl.textContent = "Passwords do not match!";
-                return;
-            }
-
-            const endpoint = confirm ? '/api/register' : '/api/login';
-            try {
-                const res = await fetch(endpoint, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ username: user, password: pass })
-                });
-                const data = await res.json();
-
-                if (data.error) {
-                    errEl.textContent = data.error;
-                } else {
-                    localStorage.setItem('anki_jwt', data.token);
-                    currentUserToken = data.token;
-                    loadProfileUI();
-                }
-            } catch (err) {
-                errEl.textContent = "Server error. Please try again.";
-            }
-        };
-    } else {
-        try {
-            const res = await fetch('/api/profile', {
-                headers: { 'Authorization': `Bearer ${currentUserToken}` }
-            });
-
-            if (res.status === 401 || res.status === 403) {
-                // Token expired or invalid
-                localStorage.removeItem('anki_jwt');
-                currentUserToken = null;
-                loadProfileUI();
-                return;
-            }
-
-            const data = await res.json();
-
-            container.innerHTML = `
-                <div class="profile-card">
-                    <div class="avatar-wrapper" onclick="document.getElementById('avatar-input').click()">
-                        <img src="${data.avatar}" id="profile-avatar-img" alt="Avatar"/>
-                        <div class="avatar-overlay">EDIT</div>
+            if (!currentUserToken) {
+                container.innerHTML = `
+                    <div class="auth-form-container">
+                        <span class="drawer-title" style="text-align:center;">USER ACCOUNT</span>
+                        <div class="auth-field">
+                            <label for="reg-username">USERNAME</label>
+                            <input type="text" id="reg-username" placeholder="Enter username..." />
+                        </div>
+                        <div class="auth-field">
+                            <label for="reg-password">PASSWORD</label>
+                            <input type="password" id="reg-password" placeholder="Enter password..." />
+                        </div>
+                        <div class="auth-field">
+                            <label for="reg-confirm">CONFIRM PASSWORD <span class="field-opt">(register only)</span></label>
+                            <input type="password" id="reg-confirm" placeholder="Re-type password to register..." />
+                        </div>
+                        <div class="auth-error" id="auth-err-msg"></div>
+                        <button class="auth-btn" id="auth-submit-btn">LOGIN / REGISTER</button>
                     </div>
-                    <input type="file" id="avatar-input" class="hidden" accept="image/*" />
-                    <h3>${data.username}</h3>
-                    <div class="profile-stats-grid">
-                        <div class="stat-box"><span class="stat-value">${Math.floor((data.playtime || 0) / 60)}m</span><span class="stat-label">PLAYTIME</span></div>
-                        <div class="stat-box"><span class="stat-value">${data.highest_cpm || 0}</span><span class="stat-label">HIGHEST CPM</span></div>
-                        <div class="stat-box"><span class="stat-value">${data.avg_cpm || 0}</span><span class="stat-label">AVG CPM</span></div>
-                        <div class="stat-box"><span class="stat-value">${data.stats?.kanji_count || 0}</span><span class="stat-label">KANJI</span></div>
-                        <div class="stat-box"><span class="stat-value">${data.stats?.hiragana_count || 0}</span><span class="stat-label">HIRAGANA</span></div>
-                        <div class="stat-box"><span class="stat-value">${data.stats?.katakana_count || 0}</span><span class="stat-label">KATAKANA</span></div>
-                    </div>
-                    <button id="logout-btn" class="auth-btn" style="background: var(--accent-red); margin-top: 10px;">LOGOUT</button>
-                </div>
-            `;
+                `;
 
-            // Avatar Upload Listener
-            document.getElementById('avatar-input').onchange = async (e) => {
-                if (!e.target.files[0]) return;
-                const formData = new FormData();
-                formData.append('avatar', e.target.files[0]);
+                document.getElementById('auth-submit-btn').onclick = async () => {
+                    const user = document.getElementById('reg-username').value;
+                    const pass = document.getElementById('reg-password').value;
+                    const confirm = document.getElementById('reg-confirm').value;
+                    const errEl = document.getElementById('auth-err-msg');
 
-                const uploadRes = await fetch('/api/profile/avatar', {
-                    method: 'POST',
-                    headers: { 'Authorization': `Bearer ${currentUserToken}` },
-                    body: formData
-                });
-                const uploadData = await uploadRes.json();
-                if (uploadData.avatar) {
-                    document.getElementById('profile-avatar-img').src = uploadData.avatar;
+                    if (confirm && pass !== confirm) {
+                        errEl.textContent = "Passwords do not match!";
+                        return;
+                    }
+
+                    const endpoint = confirm ? '/api/register' : '/api/login';
+                    try {
+                        const res = await fetch(endpoint, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ username: user, password: pass })
+                        });
+                        const data = await res.json();
+
+                        if (data.error) {
+                            errEl.textContent = data.error;
+                        } else {
+                            localStorage.setItem('anki_jwt', data.token);
+                            currentUserToken = data.token;
+                            loadProfileUI();
+                        }
+                    } catch (err) {
+                        errEl.textContent = "Server error. Please try again.";
+                    }
+                };
+            } else {
+                try {
+                    const res = await fetch('/api/profile', {
+                        headers: { 'Authorization': `Bearer ${currentUserToken}` }
+                    });
+
+                    if (res.status === 401 || res.status === 403) {
+                        localStorage.removeItem('anki_jwt');
+                        currentUserToken = null;
+                        loadProfileUI();
+                        return;
+                    }
+
+                    const data = await res.json();
+
+                    container.innerHTML = `
+                        <div class="profile-card">
+                            <div class="avatar-wrapper" onclick="document.getElementById('avatar-input').click()">
+                                <img src="${data.avatar}" id="profile-avatar-img" alt="Avatar"/>
+                                <div class="avatar-overlay">EDIT</div>
+                            </div>
+                            <input type="file" id="avatar-input" class="hidden" accept="image/*" />
+                            <h3 class="profile-username">${data.username}</h3>
+                            <div class="profile-stats-grid">
+                                <div class="stat-box"><span class="stat-value">${Math.floor((data.playtime || 0) / 60)}m</span><span class="stat-label">PLAYTIME</span></div>
+                                <div class="stat-box"><span class="stat-value">${data.highest_cpm || 0}</span><span class="stat-label">HIGHEST CPM</span></div>
+                                <div class="stat-box"><span class="stat-value">${data.avg_cpm || 0}</span><span class="stat-label">AVG CPM</span></div>
+                                <div class="stat-box"><span class="stat-value">${data.stats?.kanji_count || 0}</span><span class="stat-label">KANJI</span></div>
+                                <div class="stat-box"><span class="stat-value">${data.stats?.hiragana_count || 0}</span><span class="stat-label">HIRAGANA</span></div>
+                                <div class="stat-box"><span class="stat-value">${data.stats?.katakana_count || 0}</span><span class="stat-label">KATAKANA</span></div>
+                            </div>
+                            <button id="logout-btn" class="auth-btn logout-btn">LOGOUT</button>
+                        </div>
+                    `;
+
+                    document.getElementById('avatar-input').onchange = async (e) => {
+                        if (!e.target.files[0]) return;
+                        const formData = new FormData();
+                        formData.append('avatar', e.target.files[0]);
+
+                        const uploadRes = await fetch('/api/profile/avatar', {
+                            method: 'POST',
+                            headers: { 'Authorization': `Bearer ${currentUserToken}` },
+                            body: formData
+                        });
+                        const uploadData = await uploadRes.json();
+                        if (uploadData.avatar) {
+                            document.getElementById('profile-avatar-img').src = uploadData.avatar;
+                        }
+                    };
+
+                    document.getElementById('logout-btn').onclick = () => {
+                        localStorage.removeItem('anki_jwt');
+                        currentUserToken = null;
+                        loadProfileUI();
+                    };
+
+                } catch (err) {
+                    console.error('Failed to fetch profile:', err);
                 }
-            };
-
-            // Logout Listener
-            document.getElementById('logout-btn').onclick = () => {
-                localStorage.removeItem('anki_jwt');
-                currentUserToken = null;
-                loadProfileUI();
-            };
-
-        } catch (err) {
-            console.error('Failed to fetch profile:', err);
+            }
         }
-    }
-}
-
-// Drawer Toggle Logic
-document.getElementById('profile-tab-btn')?.addEventListener('click', () => {
-    const drawer = document.getElementById('profile-drawer');
-    const isHidden = drawer.classList.contains('hidden');
-
-    // Hide any other active drawers first if applicable
-    document.querySelectorAll('.nav-drawer').forEach(d => d.classList.add('hidden'));
-
-    if (isHidden) {
-        drawer.classList.remove('hidden');
-        loadProfileUI();
-    }
-});
-
 
         setSource(activeSource);
         populateDecks();
