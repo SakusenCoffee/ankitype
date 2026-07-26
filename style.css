@@ -73,7 +73,6 @@
     --font-bomb: 'Cherry Bomb One', sans-serif;
     --font-zoo: 'Zen Tokyo Zoo', sans-serif;
 }
-
 body {
     background-color: var(--bg-dark);
     color: var(--text-main);
@@ -84,11 +83,10 @@ body {
     align-items: center;
     min-height: 100vh;
     margin: 0;
-    padding: 90px 20px 40px 20px;
+    padding: 30px 20px 40px 20px; /* Changed top padding from 90px to 30px */
     box-sizing: border-box;
     transition: background-color 0.3s ease, color 0.3s ease;
 }
-
 .app-layout {
     width: 100%;
     max-width: 900px;
@@ -102,19 +100,28 @@ body {
 /* ==========================================================================
  *  ROUNDED FLOATING TOP NAVBAR & DRAWERS
  *  ========================================================================== */
+/* Ensure navbar uses normal positioning inside app-layout or relative flow if desired */
 .top-navbar {
-    position: fixed;
-    top: 20px;
-    left: 50%;
-    transform: translateX(-50%);
-    width: calc(100% - 40px);
+    position: relative; /* Removes fixed position floating whitespace overhead */
+    top: 0;
+    left: 0;
+    transform: none;
+    width: 100%;
     max-width: 860px;
     background: var(--bg-card);
     border: 1px solid rgba(255, 255, 255, 0.08);
     border-radius: 20px;
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
     z-index: 100;
+    margin-bottom: 20px;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Divider inside count selector group */
+.selector-divider {
+    width: 1px;
+    background: rgba(255, 255, 255, 0.1);
+    margin: 0 4px;
 }
 
 .nav-content {
