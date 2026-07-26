@@ -769,7 +769,7 @@ const wordsWrapper = document.getElementById("words-wrapper");
         }
         function applyRowCount() {
     // Each row averages roughly 90px depending on main font size
-    const rowHeight = 90 * (parseFloat(mainFontSize) / 2.5);
+    const rowHeight = 90 * (parseFloat(mainFontSize) / 2);
     const newHeight = Math.round(rowHeight * parseInt(rowCountSetting, 10));
 
     wordsWrapper.style.height = `${newHeight}px`;
