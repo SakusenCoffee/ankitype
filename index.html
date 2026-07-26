@@ -9,6 +9,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;700;800&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Kaisei+Tokumin:wght@700&family=Yuji+Syuku&family=DotGothic16&family=Zen+Maru+Gothic:wght@700&family=Yomogi&family=Hachi+Maru+Pop&family=Mochiy+Pop+One&family=Chokokutai&family=Cherry+Bomb+One&family=Zen+Tokyo+Zoo&family=Noto+Sans+JP:wght@400;700&family=Hina+Mincho&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/wanakana@5.3.1/wanakana.min.js"></script>
+    <script type="module" src="https://pyscript.net/releases/2024.3.1/core.js"></script>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -16,8 +17,17 @@
     <!-- ROUNDED FLOATING NAVBAR -->
     <nav class="top-navbar">
         <div class="nav-content">
-            <div class="nav-brand">
-                <span class="logo-dot"></span> ANKI TYPE
+            <div class="nav-left-group">
+                <button class="nav-btn" id="zen-tab-btn" title="Zen Character Counter">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 3a9 9 0 1 0 9 9 9.75 9.75 0 0 0-.68-3.62A8.91 8.91 0 0 0 12 3z"></path>
+                        <path d="M12 12m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0"></path>
+                    </svg>
+                    <span>ZEN</span>
+                </button>
+                <div class="nav-brand">
+                    <span class="logo-dot"></span> ANKI TYPE
+                </div>
             </div>
 
             <div class="nav-actions">
@@ -69,42 +79,31 @@
 
         <!-- EXPANDABLE DRAWER: PROFILE -->
         <div class="nav-drawer hidden" id="profile-drawer">
-            <div class="drawer-inner" id="profile-container">
-                <!-- Dynamically rendered -->
-            </div>
+            <div class="drawer-inner" id="profile-container"></div>
         </div>
 
         <!-- EXPANDABLE DRAWER: TEST OPTIONS -->
         <div class="nav-drawer" id="test-options-drawer">
             <div class="drawer-inner word-count-nav">
-                <!-- Mode Switcher -->
                 <div class="count-selector-group">
                     <button class="mode-btn active" id="mode-words-btn">words</button>
                     <button class="mode-btn" id="mode-time-btn">time</button>
                 </div>
-
                 <div class="selector-divider"></div>
-
-                <!-- Source Switcher (Hiragana / Katakana / Anki) -->
                 <div class="count-selector-group">
                     <button class="source-btn" id="source-hiragana-btn">hiragana</button>
                     <button class="source-btn" id="source-katakana-btn">katakana</button>
                     <button class="source-btn active" id="source-anki-btn">anki</button>
                 </div>
-
                 <div class="selector-divider"></div>
-
-               <!-- Word Options -->
-<div class="count-selector-group" id="word-options-group">
-    <button class="count-btn" data-count="10">10w</button>
-    <button class="count-btn" data-count="25">25w</button>
-    <button class="count-btn" data-count="50">50w</button>
-    <button class="count-btn" data-count="100">100w</button>
-    <button class="count-btn active" data-count="max">max</button>
-    <button class="count-btn" data-count="custom" id="custom-count-btn">custom</button>
-</div>
-
-                <!-- Time Options -->
+                <div class="count-selector-group" id="word-options-group">
+                    <button class="count-btn" data-count="10">10w</button>
+                    <button class="count-btn" data-count="25">25w</button>
+                    <button class="count-btn" data-count="50">50w</button>
+                    <button class="count-btn" data-count="100">100w</button>
+                    <button class="count-btn active" data-count="max">max</button>
+                    <button class="count-btn" data-count="custom" id="custom-count-btn">custom</button>
+                </div>
                 <div class="count-selector-group hidden" id="time-options-group">
                     <button class="time-btn" data-time="15">15s</button>
                     <button class="time-btn active" data-time="30">30s</button>
@@ -113,14 +112,10 @@
                     <button class="time-btn hidden" data-time="infinite" id="infinite-time-btn">infinite</button>
                     <button class="time-btn" data-time="custom" id="custom-time-btn">custom</button>
                 </div>
-
-                <!-- Custom Time Input Box -->
                 <div class="custom-input-wrapper hidden" id="custom-time-input-wrapper">
                     <input type="number" id="custom-time-input" min="1" placeholder="Secs..." />
                     <button id="custom-time-submit">Set</button>
                 </div>
-
-                <!-- Kana Char Count Bar (Shown when Hiragana/Katakana active) -->
                 <div class="count-selector-group hidden" id="kana-count-group">
                     <button class="kana-count-btn" data-kana-count="10">10c</button>
                     <button class="kana-count-btn" data-kana-count="25">25c</button>
@@ -128,8 +123,6 @@
                     <button class="kana-count-btn" data-kana-count="100">100c</button>
                     <button class="kana-count-btn" data-kana-count="custom" id="custom-kana-btn">custom</button>
                 </div>
-
-                <!-- Custom Count/Kana Input Box -->
                 <div class="custom-input-wrapper hidden" id="custom-count-input-wrapper">
                     <input type="number" id="custom-count-input" min="1" placeholder="Qty..." />
                     <button id="custom-count-submit">Set</button>
@@ -166,7 +159,6 @@
                         <option value="dracula">Dracula</option>
                     </select>
                 </div>
-
                 <div class="selector-container">
                     <label for="font-select">JAPANESE FONT</label>
                     <select id="font-select">
@@ -191,7 +183,6 @@
                         </optgroup>
                     </select>
                 </div>
-
                 <div class="selector-container full-width">
                     <div class="slider-label-row">
                         <label for="main-font-slider">MAIN EXPRESSION FONT SIZE</label>
@@ -199,7 +190,6 @@
                     </div>
                     <input type="range" id="main-font-slider" min="1.2" max="4.0" step="0.1" value="2.2" class="font-slider" />
                 </div>
-
                 <div class="selector-container full-width">
                     <div class="slider-label-row">
                         <label for="sub-font-slider">ROMAJI / DEFINITION FONT SIZE</label>
@@ -208,7 +198,6 @@
                     <input type="range" id="sub-font-slider" min="0.6" max="2.0" step="0.05" value="1.0" class="font-slider" />
                 </div>
             </div>
-
             <div class="selector-container full-width">
                 <div class="slider-label-row">
                     <label for="row-count-slider">VISIBLE ROWS</label>
@@ -234,7 +223,8 @@
         </div>
     </nav>
 
-    <div class="app-layout">
+    <!-- MAIN TYPING APP CONTAINER -->
+    <div class="app-layout" id="typing-app-layout">
         <div class="words-wrapper" id="words-wrapper">
             <div class="words-container" id="words-container"></div>
         </div>
@@ -298,6 +288,57 @@
         </button>
     </div>
 
+    <!-- ZEN MODE LAYOUT (MOJIKAZU COUNTER) -->
+    <div class="zen-layout hidden" id="zen-layout">
+        <div class="zen-container">
+            <div id="app-wrapper">
+                <textarea id="jptext" class="loading-state" disabled placeholder="Loading Python Engine..."></textarea>
+                <div id="loader-overlay">
+                    <div id="loader-content">
+                        <div class="sakura-wrapper">
+                            <div class="sakura">🌸</div>
+                        </div>
+                        <div class="progress-container">
+                            <div class="progress-bar"></div>
+                        </div>
+                        <p>Waking up the Python engine...</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="counter-container">
+                <div id="total" class="counter-card">
+                    <div class="label-group">
+                        <div class="jp-label">合計</div>
+                        <div class="en-label">Total</div>
+                    </div>
+                    <span>0</span>
+                </div>
+                <div id="kanji" class="counter-card">
+                    <div class="label-group">
+                        <div class="jp-label">漢字</div>
+                        <div class="en-label">Kanji</div>
+                    </div>
+                    <span>0</span>
+                </div>
+                <div id="hiragana" class="counter-card">
+                    <div class="label-group">
+                        <div class="jp-label">平仮名</div>
+                        <div class="en-label">Hiragana</div>
+                    </div>
+                    <span>0</span>
+                </div>
+                <div id="katakana" class="counter-card">
+                    <div class="label-group">
+                        <div class="jp-label">片仮名</div>
+                        <div class="en-label">Katakana</div>
+                    </div>
+                    <span>0</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- RESULT MODAL SCREEN -->
     <div class="modal-overlay hidden" id="result-modal">
         <div class="modal-card">
@@ -324,7 +365,45 @@
         </div>
     </div>
 
+    <script type="py" src="./countjp.py"></script>
+
     <script>
+        let isZenMode = false;
+
+        const zenTabBtn = document.getElementById("zen-tab-btn");
+        const typingAppLayout = document.getElementById("typing-app-layout");
+        const zenLayout = document.getElementById("zen-layout");
+
+        function toggleZenMode() {
+            isZenMode = !isZenMode;
+
+            if (isZenMode) {
+                typingAppLayout.classList.add("hidden");
+                zenLayout.classList.remove("hidden");
+                zenTabBtn.classList.add("active");
+
+                profileDrawer.classList.add("hidden");
+                testOptionsDrawer.classList.add("hidden");
+                ankiDrawer.classList.add("hidden");
+                appearanceDrawer.classList.add("hidden");
+                seedDrawer.classList.add("hidden");
+
+                profileTabBtn.classList.remove("active");
+                testOptionsTabBtn.classList.remove("active");
+                ankiTabBtn.classList.remove("active");
+                appearanceTabBtn.classList.remove("active");
+                seedTabBtn.classList.remove("active");
+            } else {
+                zenLayout.classList.add("hidden");
+                typingAppLayout.classList.remove("hidden");
+                zenTabBtn.classList.remove("active");
+                testOptionsTabBtn.classList.add("active");
+                testOptionsDrawer.classList.remove("hidden");
+            }
+        }
+
+        zenTabBtn.addEventListener("click", toggleZenMode);
+
         let rowCountSetting = localStorage.getItem("anki_type_row_count") || "3";
 
         const rowCountSlider = document.getElementById("row-count-slider");
@@ -363,9 +442,8 @@
         let showRomaji = false;
         let showMeaning = false;
 
-        // Active Modes & Settings
-        let activeMode = localStorage.getItem("anki_type_mode") || "words"; // 'words' | 'time'
-        let activeSource = localStorage.getItem("anki_type_source") || "anki"; // 'anki' | 'hiragana' | 'katakana'
+        let activeMode = localStorage.getItem("anki_type_mode") || "words";
+        let activeSource = localStorage.getItem("anki_type_source") || "anki";
         let wordCountSetting = localStorage.getItem("anki_type_word_count") || "max";
         let testTimeSetting = localStorage.getItem("anki_type_time_setting") || "30";
         let kanaCountSetting = localStorage.getItem("anki_type_kana_count") || "25";
@@ -380,7 +458,6 @@
         let totalTypedChars = 0;
         let completedItemsSession = [];
 
-        // Global Play Time Tracker
         let activePlayTimeMs = parseInt(localStorage.getItem("anki_type_play_time") || "0", 10);
         let lastTypingTimestamp = 0;
 
@@ -497,6 +574,8 @@
         }
 
         function openTab(tabName) {
+            if (isZenMode) toggleZenMode();
+
             profileDrawer.classList.add("hidden");
             testOptionsDrawer.classList.add("hidden");
             ankiDrawer.classList.add("hidden");
@@ -1052,7 +1131,8 @@
         }
 
         window.addEventListener("keydown", (e) => {
-            if (e.target.tagName === "INPUT" || e.target.tagName === "SELECT") return;
+            if (isZenMode) return;
+            if (e.target.tagName === "INPUT" || e.target.tagName === "SELECT" || e.target.tagName === "TEXTAREA") return;
 
             if (e.ctrlKey && e.key === "Enter") {
                 e.preventDefault();
@@ -1137,23 +1217,23 @@
         sourceAnkiBtn.addEventListener("click", () => setSource("anki"));
 
         countBtns.forEach(btn => {
-    btn.addEventListener("click", () => {
-        const value = btn.dataset.count;
-        if (value === "custom") {
-            countBtns.forEach(b => b.classList.remove("active"));
-            btn.classList.add("active");
-            customCountInputWrapper.classList.remove("hidden");
-            customCountInput.value = (wordCountSetting !== "max" && !["10","25","50","100"].includes(wordCountSetting)) ? wordCountSetting : "";
-            customCountInput.focus();
-        } else {
-            customCountInputWrapper.classList.add("hidden");
-            wordCountSetting = value;
-            localStorage.setItem("anki_type_word_count", wordCountSetting);
-            updateCountNavUI();
-            applyWordCountFilter();
-        }
-    });
-});
+            btn.addEventListener("click", () => {
+                const value = btn.dataset.count;
+                if (value === "custom") {
+                    countBtns.forEach(b => b.classList.remove("active"));
+                    btn.classList.add("active");
+                    customCountInputWrapper.classList.remove("hidden");
+                    customCountInput.value = (wordCountSetting !== "max" && !["10","25","50","100"].includes(wordCountSetting)) ? wordCountSetting : "";
+                    customCountInput.focus();
+                } else {
+                    customCountInputWrapper.classList.add("hidden");
+                    wordCountSetting = value;
+                    localStorage.setItem("anki_type_word_count", wordCountSetting);
+                    updateCountNavUI();
+                    applyWordCountFilter();
+                }
+            });
+        });
 
         timeBtns.forEach(btn => {
             btn.addEventListener("click", () => {
