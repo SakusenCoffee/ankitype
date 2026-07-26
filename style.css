@@ -99,9 +99,7 @@ body {
     position: relative;
 }
 
-/* ==========================================================================
- *  ROUNDED FLOATING TOP NAVBAR & DRAWERS
- *  ========================================================================== */
+/* NAVBAR & DRAWERS */
 .top-navbar {
     position: relative;
     top: 0;
@@ -204,7 +202,6 @@ body {
     to { opacity: 1; transform: translateY(0); }
 }
 
-/* Selector Group & Button Styles */
 .word-count-nav {
     display: flex;
     align-items: center;
@@ -225,7 +222,7 @@ body {
     display: none !important;
 }
 
-.count-btn, .time-btn, .mode-btn {
+.count-btn, .time-btn, .mode-btn, .source-btn {
     background: transparent;
     border: none;
     color: var(--text-muted);
@@ -238,14 +235,19 @@ body {
     transition: all 0.2s ease;
 }
 
-.count-btn:hover, .time-btn:hover, .mode-btn:hover {
+.count-btn:hover, .time-btn:hover, .mode-btn:hover, .source-btn:hover {
     color: var(--text-main);
 }
 
-.count-btn.active, .time-btn.active, .mode-btn.active {
+.count-btn.active, .time-btn.active, .mode-btn.active, .source-btn.active {
     background: var(--bg-card);
     color: var(--accent-blue);
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.count-btn:disabled, .time-btn:disabled, .mode-btn:disabled, .source-btn:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
 }
 
 .custom-input-wrapper {
@@ -283,7 +285,6 @@ body {
     cursor: pointer;
 }
 
-/* Test Seed Controls UI */
 .seed-controls-group {
     display: flex;
     align-items: center;
@@ -315,7 +316,6 @@ body {
     gap: 15px;
 }
 
-/* Status Badges */
 .status-badge {
     font-family: var(--font-heading);
     font-weight: 700;
@@ -363,9 +363,7 @@ body {
     border-color: rgba(255, 255, 255, 0.2);
 }
 
-/* ==========================================================================
- *  MONKEYTYPE SCROLLING WORD CONTAINER
- *  ========================================================================== */
+/* MONKEYTYPE SCROLLING WORD CONTAINER */
 .words-wrapper {
     width: 100%;
     height: 270px;
@@ -491,9 +489,7 @@ body {
 .kanji-text.font-bomb    { font-family: var(--font-bomb); }
 .kanji-text.font-zoo     { font-family: var(--font-zoo); }
 
-/* ==========================================================================
- *  LIVE TYPING INPUT DISPLAY BOX & TOGGLES
- *  ========================================================================== */
+/* LIVE INPUT BOX */
 .live-input-container {
     width: 100%;
     display: flex;
@@ -663,4 +659,129 @@ body {
 
 .restore-box-btn.hidden {
     display: none !important;
+}
+
+/* RESULTS MODAL STYLES */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(11, 22, 34, 0.85);
+    backdrop-filter: blur(8px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+.modal-overlay.hidden {
+    display: none !important;
+}
+
+.modal-card {
+    background: var(--bg-card);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 20px;
+    padding: 30px;
+    width: 90%;
+    max-width: 500px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.modal-title {
+    font-family: var(--font-heading);
+    font-size: 1.2rem;
+    font-weight: 800;
+    color: var(--text-main);
+    margin: 0;
+    letter-spacing: 2px;
+}
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+}
+
+.stat-box {
+    background: var(--bg-input);
+    border-radius: 12px;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+.stat-value {
+    font-family: var(--font-heading);
+    font-size: 1.4rem;
+    font-weight: 800;
+    color: var(--accent-blue);
+}
+
+.stat-label {
+    font-family: var(--font-heading);
+    font-size: 0.65rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    letter-spacing: 1px;
+    margin-top: 4px;
+}
+
+.typed-words-section {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.section-title {
+    font-family: var(--font-heading);
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    letter-spacing: 1px;
+}
+
+.typed-words-list {
+    background: var(--bg-input);
+    border-radius: 12px;
+    padding: 12px;
+    max-height: 120px;
+    overflow-y: auto;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.completed-word-tag {
+    background: var(--bg-card);
+    color: var(--text-main);
+    padding: 4px 8px;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.close-modal-btn {
+    background: var(--accent-blue);
+    color: var(--bg-dark);
+    border: none;
+    border-radius: 10px;
+    padding: 12px;
+    font-family: var(--font-heading);
+    font-size: 0.85rem;
+    font-weight: 800;
+    letter-spacing: 1px;
+    cursor: pointer;
+    transition: opacity 0.2s ease;
+}
+
+.close-modal-btn:hover {
+    opacity: 0.9;
 }
