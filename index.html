@@ -90,6 +90,19 @@
                     <input type="number" id="custom-count-input" min="1" placeholder="Qty..." />
                     <button id="custom-count-submit">Set</button>
                 </div>
+
+                <div class="selector-divider"></div>
+
+                <!-- Test Seed Controls -->
+                <div class="seed-controls-group">
+                    <button class="nav-btn" id="copy-seed-btn" title="Copy Shareable Seed">
+                        <span>COPY SEED</span>
+                    </button>
+                    <div class="custom-input-wrapper">
+                        <input type="text" id="paste-seed-input" placeholder="Paste seed..." />
+                        <button id="load-seed-btn">Load</button>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -296,6 +309,10 @@
         const customCountInput = document.getElementById("custom-count-input");
         const customCountSubmit = document.getElementById("custom-count-submit");
 
+        const copySeedBtn = document.getElementById("copy-seed-btn");
+        const pasteSeedInput = document.getElementById("paste-seed-input");
+        const loadSeedBtn = document.getElementById("load-seed-btn");
+
         const timerDisplayPanel = document.getElementById("timer-display-panel");
         const timeLeftVal = document.getElementById("time-left-val");
         const playTimeVal = document.getElementById("play-time-val");
@@ -307,6 +324,48 @@
         if (isInputBoxHidden) {
             liveInputBox.classList.add("hidden");
             restoreBoxBtn.classList.remove("hidden");
+        }
+
+        // --- Seed Encoding & Decoding Logic ---
+        function generateSeed() {
+            if (!activeWordList || activeWordList.length === 0) return null;
+            const seedData = activeWordList.map(w => [w.kanji, w.romaji, w.meaning]);
+            const jsonStr = JSON.stringify(seedData);
+            return btoa(encodeURIComponent(jsonStr));
+        }
+
+        function loadFromSeed(seedString) {
+            try {
+                const jsonStr = decodeURIComponent(atob(seedString.trim()));
+                const seedData = JSON.parse(jsonStr);
+
+                if (!Array.isArray(seedData) || seedData.length === 0) {
+                    alert("Invalid seed format.");
+                    return;
+                }
+
+                activeWordList = seedData.map(([kanji, romaji, meaning]) => ({
+                    kanji,
+                    romaji,
+                    meaning
+                }));
+
+                currentIndex = 0;
+                typedInput = [];
+                totalScore = 0;
+                scoreEl.textContent = totalScore;
+
+                clearInterval(testTimerInterval);
+                isTestActive = false;
+
+                renderWordBlock();
+                statusEl.className = "status-badge status-online";
+                statusEl.textContent = `CUSTOM SEED (${activeWordList.length} WORDS)`;
+
+            } catch (err) {
+                console.error("Seed parsing error:", err);
+                alert("Failed to load test seed. The code may be corrupted.");
+            }
         }
 
         function updatePlayTimeDisplay() {
@@ -522,7 +581,15 @@
             if (masterDeckList.length > 0) {
                 statusEl.className = "status-badge status-online";
                 statusEl.textContent = `${masterDeckList.length} TRACKS SYNCED`;
-                applyWordCountFilter();
+
+                // URL Seed auto-check on startup
+                const urlParams = new URLSearchParams(window.location.search);
+                const seedParam = urlParams.get("seed");
+                if (seedParam) {
+                    loadFromSeed(seedParam);
+                } else {
+                    applyWordCountFilter();
+                }
             } else {
                 statusEl.textContent = "PARSE ERROR";
                 statusEl.className = "status-badge status-offline";
@@ -658,6 +725,9 @@
         }
 
         window.addEventListener("keydown", (e) => {
+            // Ignore keystrokes when user is typing inside input elements (e.g. seed input)
+            if (e.target.tagName === "INPUT" || e.target.tagName === "SELECT") return;
+
             if (e.key === "Tab") {
                 e.preventDefault();
                 showRomaji = !showRomaji;
@@ -795,6 +865,28 @@
                     localStorage.setItem("anki_type_time_setting", testTimeSetting.toString());
                 }
                 applyWordCountFilter();
+            }
+        });
+
+        // Seed Event Listeners
+        copySeedBtn.addEventListener("click", () => {
+            const seed = generateSeed();
+            if (!seed) return;
+
+            navigator.clipboard.writeText(seed).then(() => {
+                const originalText = copySeedBtn.querySelector("span").textContent;
+                copySeedBtn.querySelector("span").textContent = "COPIED!";
+                setTimeout(() => {
+                    copySeedBtn.querySelector("span").textContent = originalText;
+                }, 1500);
+            });
+        });
+
+        loadSeedBtn.addEventListener("click", () => {
+            const val = pasteSeedInput.value;
+            if (val) {
+                loadFromSeed(val);
+                pasteSeedInput.value = "";
             }
         });
 

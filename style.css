@@ -283,6 +283,17 @@ body {
     cursor: pointer;
 }
 
+/* Test Seed Controls UI */
+.seed-controls-group {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.seed-controls-group #paste-seed-input {
+    width: 110px;
+}
+
 .drawer-header {
     display: flex;
     align-items: center;
