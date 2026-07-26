@@ -546,19 +546,19 @@ select:focus {
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    padding: 12px 20px;
+    padding: 8px 12px;
     border-radius: 12px;
     opacity: 0.35;
     transition: all 0.2s ease;
     cursor: pointer;
     user-select: none;
+    border: 1px solid transparent; /* Keeps layout dimensions stable without showing a border */
 }
-
 .word-item.active {
     opacity: 1;
-    background-color: var(--card-bg);
-    border: 1px solid var(--border-color);
-    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    background-color: transparent; /* Removes square background */
+    border-color: transparent;     /* Removes border */
+    box-shadow: none;              /* Removes drop shadow */
 }
 
 .word-item.completed {
