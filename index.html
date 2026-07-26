@@ -60,12 +60,30 @@
         <!-- EXPANDABLE DRAWER: TEST OPTIONS -->
         <div class="nav-drawer" id="test-options-drawer">
             <div class="drawer-inner word-count-nav">
+                <!-- Mode Switcher -->
                 <div class="count-selector-group">
+                    <button class="mode-btn active" id="mode-words-btn">words</button>
+                    <button class="mode-btn" id="mode-time-btn">time</button>
+                </div>
+
+                <div class="selector-divider"></div>
+
+                <!-- Word Options -->
+                <div class="count-selector-group" id="word-options-group">
                     <button class="count-btn" data-count="10">10w</button>
                     <button class="count-btn" data-count="25">25w</button>
                     <button class="count-btn" data-count="50">50w</button>
                     <button class="count-btn" data-count="custom" id="custom-count-btn">Custom</button>
                     <button class="count-btn active" data-count="max">Max</button>
+                </div>
+
+                <!-- Time Options -->
+                <div class="count-selector-group hidden" id="time-options-group">
+                    <button class="time-btn" data-time="15">15s</button>
+                    <button class="time-btn active" data-time="30">30s</button>
+                    <button class="time-btn" data-time="60">60s</button>
+                    <button class="time-btn" data-time="120">120s</button>
+                    <button class="time-btn" data-time="custom" id="custom-time-btn">Custom</button>
                 </div>
 
                 <div class="custom-input-wrapper hidden" id="custom-input-wrapper">
@@ -164,8 +182,18 @@
 
             <div class="toggles-row">
                 <div class="score-panel-inline">
-                    <span class="label">CARDS TYPED</span>
+                    <span class="label">WORDS TYPED</span>
                     <span class="value" id="score-val">0</span>
+                </div>
+
+                <div class="score-panel-inline" id="timer-display-panel" style="display: none;">
+                    <span class="label">TIME LEFT</span>
+                    <span class="value" id="time-left-val">30s</span>
+                </div>
+
+                <div class="score-panel-inline">
+                    <span class="label">PLAY TIME</span>
+                    <span class="value" id="play-time-val">0s</span>
                 </div>
 
                 <a href="https://ko-fi.com/mojikazu" target="_blank" rel="noopener noreferrer" class="kofi-btn-icon" title="Support via Ko-fi">
@@ -204,12 +232,38 @@
         let totalScore = 0;
         let showRomaji = true;
         let showMeaning = false;
+
+        // Active Modes & Settings
+        let activeMode = localStorage.getItem("anki_type_mode") || "words"; // 'words' | 'time'
         let wordCountSetting = localStorage.getItem("anki_type_word_count") || "max";
+        let testTimeSetting = parseInt(localStorage.getItem("anki_type_time_setting") || "30", 10);
+
+        let timeRemaining = testTimeSetting;
+        let testTimerInterval = null;
+        let isTestActive = false;
+
+        // Global Play Time Tracker
+        let activePlayTimeMs = parseInt(localStorage.getItem("anki_type_play_time") || "0", 10);
+        let lastTypingTimestamp = 0;
+
+        // Character & Stats Counters
+        let stats = JSON.parse(localStorage.getItem("anki_type_stats") || JSON.stringify({
+            kanjiCount: 0,
+            hiraganaCount: 0,
+            katakanaCount: 0,
+            totalChars: 0,
+            wordsTyped: 0
+        }));
 
         let isInputBoxHidden = localStorage.getItem("anki_type_hide_box") === "true";
         let currentFontClass = localStorage.getItem("anki_type_font") || "font-modern";
         let currentTheme = localStorage.getItem("anki_type_theme") || "dark-slate";
         let savedSelectedDeck = localStorage.getItem("anki_type_deck") || "";
+
+        // Regex Character Helpers
+        function isKanji(ch) { return /[\u4e00-\u9faf\u3400-\u4dbf]/.test(ch); }
+        function isHiragana(ch) { return /[\u3040-\u309f]/.test(ch); }
+        function isKatakana(ch) { return /[\u30a0-\u30ff]/.test(ch); }
 
         const statusEl = document.getElementById("status");
         const wordsContainer = document.getElementById("words-container");
@@ -231,10 +285,20 @@
         const ankiDrawer = document.getElementById("anki-drawer");
         const appearanceDrawer = document.getElementById("appearance-drawer");
 
+        const modeWordsBtn = document.getElementById("mode-words-btn");
+        const modeTimeBtn = document.getElementById("mode-time-btn");
+        const wordOptionsGroup = document.getElementById("word-options-group");
+        const timeOptionsGroup = document.getElementById("time-options-group");
+
         const countBtns = document.querySelectorAll(".count-btn");
+        const timeBtns = document.querySelectorAll(".time-btn");
         const customInputWrapper = document.getElementById("custom-input-wrapper");
         const customCountInput = document.getElementById("custom-count-input");
         const customCountSubmit = document.getElementById("custom-count-submit");
+
+        const timerDisplayPanel = document.getElementById("timer-display-panel");
+        const timeLeftVal = document.getElementById("time-left-val");
+        const playTimeVal = document.getElementById("play-time-val");
 
         document.documentElement.setAttribute("data-theme", currentTheme);
         themeDropdown.value = currentTheme;
@@ -245,16 +309,115 @@
             restoreBoxBtn.classList.remove("hidden");
         }
 
-        function updateCountNavUI() {
-            countBtns.forEach(btn => btn.classList.remove("active"));
-            const matchBtn = Array.from(countBtns).find(b => b.dataset.count === wordCountSetting);
-            if (matchBtn) {
-                matchBtn.classList.add("active");
-                customInputWrapper.classList.add("hidden");
+        function updatePlayTimeDisplay() {
+            const totalSecs = Math.floor(activePlayTimeMs / 1000);
+            const hrs = Math.floor(totalSecs / 3600);
+            const mins = Math.floor((totalSecs % 3600) / 60);
+            const secs = totalSecs % 60;
+
+            if (hrs > 0) {
+                playTimeVal.textContent = `${hrs}h ${mins}m ${secs}s`;
+            } else if (mins > 0) {
+                playTimeVal.textContent = `${mins}m ${secs}s`;
             } else {
-                document.getElementById("custom-count-btn").classList.add("active");
-                customInputWrapper.classList.remove("hidden");
-                customCountInput.value = wordCountSetting;
+                playTimeVal.textContent = `${secs}s`;
+            }
+        }
+        updatePlayTimeDisplay();
+
+        // Global Active Play Time Heartbeat Loop
+        setInterval(() => {
+            const now = Date.now();
+            if (now - lastTypingTimestamp <= 2000 && lastTypingTimestamp !== 0) {
+                activePlayTimeMs += 100;
+                localStorage.setItem("anki_type_play_time", activePlayTimeMs.toString());
+                updatePlayTimeDisplay();
+            }
+        }, 100);
+
+        function onUserActiveTyping() {
+            lastTypingTimestamp = Date.now();
+            if (activeMode === "time" && !isTestActive) {
+                startTimedMode();
+            }
+        }
+
+        function startTimedMode() {
+            isTestActive = true;
+            timeRemaining = testTimeSetting;
+            timeLeftVal.textContent = `${timeRemaining}s`;
+
+            clearInterval(testTimerInterval);
+            testTimerInterval = setInterval(() => {
+                timeRemaining--;
+                timeLeftVal.textContent = `${timeRemaining}s`;
+                if (timeRemaining <= 0) {
+                    clearInterval(testTimerInterval);
+                    isTestActive = false;
+                    alert(`Time's up! Total words completed: ${totalScore}`);
+                    applyWordCountFilter();
+                }
+            }, 1000);
+        }
+
+        function logCompletedWord(wordObj) {
+            stats.wordsTyped++;
+            for (const char of wordObj.kanji) {
+                stats.totalChars++;
+                if (isKanji(char)) stats.kanjiCount++;
+                else if (isHiragana(char)) stats.hiraganaCount++;
+                else if (isKatakana(char)) stats.katakanaCount++;
+            }
+            localStorage.setItem("anki_type_stats", JSON.stringify(stats));
+        }
+
+        function setMode(mode) {
+            activeMode = mode;
+            localStorage.setItem("anki_type_mode", activeMode);
+
+            if (mode === "words") {
+                modeWordsBtn.classList.add("active");
+                modeTimeBtn.classList.remove("active");
+                wordOptionsGroup.classList.remove("hidden");
+                timeOptionsGroup.classList.add("hidden");
+                timerDisplayPanel.style.display = "none";
+                clearInterval(testTimerInterval);
+                isTestActive = false;
+            } else {
+                modeTimeBtn.classList.add("active");
+                modeWordsBtn.classList.remove("active");
+                timeOptionsGroup.classList.remove("hidden");
+                wordOptionsGroup.classList.add("hidden");
+                timerDisplayPanel.style.display = "flex";
+                timeLeftVal.textContent = `${testTimeSetting}s`;
+            }
+            updateCountNavUI();
+            applyWordCountFilter();
+        }
+
+        function updateCountNavUI() {
+            customInputWrapper.classList.add("hidden");
+
+            if (activeMode === "words") {
+                countBtns.forEach(btn => btn.classList.remove("active"));
+                const matchBtn = Array.from(countBtns).find(b => b.dataset.count === wordCountSetting);
+                if (matchBtn) {
+                    matchBtn.classList.add("active");
+                } else {
+                    document.getElementById("custom-count-btn").classList.add("active");
+                    customInputWrapper.classList.remove("hidden");
+                    customCountInput.value = wordCountSetting;
+                }
+            } else {
+                timeBtns.forEach(btn => btn.classList.remove("active"));
+                const matchBtn = Array.from(timeBtns).find(b => parseInt(b.dataset.time, 10) === testTimeSetting);
+                if (matchBtn) {
+                    matchBtn.classList.add("active");
+                } else {
+                    document.getElementById("custom-time-btn").classList.add("active");
+                    customInputWrapper.classList.remove("hidden");
+                    customCountInput.value = testTimeSetting;
+                }
             }
         }
 
@@ -372,17 +535,27 @@
             let listCopy = [...masterDeckList];
             shuffleArray(listCopy);
 
-            if (wordCountSetting === "max") {
+            if (activeMode === "time") {
                 activeWordList = listCopy;
             } else {
-                let qty = parseInt(wordCountSetting, 10);
-                activeWordList = isNaN(qty) ? listCopy : listCopy.slice(0, qty);
+                if (wordCountSetting === "max") {
+                    activeWordList = listCopy;
+                } else {
+                    let qty = parseInt(wordCountSetting, 10);
+                    activeWordList = isNaN(qty) ? listCopy : listCopy.slice(0, qty);
+                }
             }
 
             currentIndex = 0;
             typedInput = [];
             totalScore = 0;
             scoreEl.textContent = totalScore;
+
+            clearInterval(testTimerInterval);
+            isTestActive = false;
+            timeRemaining = testTimeSetting;
+            timeLeftVal.textContent = `${timeRemaining}s`;
+
             renderWordBlock();
         }
 
@@ -505,6 +678,8 @@
 
             if (e.key.length > 1 || e.ctrlKey || e.metaKey || e.altKey) return;
 
+            onUserActiveTyping();
+
             const keyTyped = e.key.toLowerCase();
             const expectedChar = currentWord.romaji[typedInput.length];
 
@@ -519,6 +694,8 @@
                     totalScore++;
                     scoreEl.textContent = totalScore;
 
+                    logCompletedWord(currentWord);
+
                     currentIndex++;
                     typedInput = [];
 
@@ -529,7 +706,6 @@
                     }
                 }
             } else {
-                // Flash error highlight on active card and instantly wipe text
                 const activeCard = wordsContainer.children[currentIndex];
                 activeCard.classList.add("error-wipe");
                 setTimeout(() => activeCard.classList.remove("error-wipe"), 250);
@@ -569,6 +745,9 @@
             appearanceTabBtn.classList.toggle("active");
         });
 
+        modeWordsBtn.addEventListener("click", () => setMode("words"));
+        modeTimeBtn.addEventListener("click", () => setMode("time"));
+
         countBtns.forEach(btn => {
             btn.addEventListener("click", () => {
                 const value = btn.dataset.count;
@@ -587,11 +766,34 @@
             });
         });
 
+        timeBtns.forEach(btn => {
+            btn.addEventListener("click", () => {
+                const value = btn.dataset.time;
+                if (value === "custom") {
+                    customInputWrapper.classList.remove("hidden");
+                    timeBtns.forEach(b => b.classList.remove("active"));
+                    btn.classList.add("active");
+                    customCountInput.focus();
+                } else {
+                    customInputWrapper.classList.add("hidden");
+                    testTimeSetting = parseInt(value, 10);
+                    localStorage.setItem("anki_type_time_setting", testTimeSetting.toString());
+                    updateCountNavUI();
+                    applyWordCountFilter();
+                }
+            });
+        });
+
         customCountSubmit.addEventListener("click", () => {
             const val = parseInt(customCountInput.value, 10);
             if (val && val > 0) {
-                wordCountSetting = val.toString();
-                localStorage.setItem("anki_type_word_count", wordCountSetting);
+                if (activeMode === "words") {
+                    wordCountSetting = val.toString();
+                    localStorage.setItem("anki_type_word_count", wordCountSetting);
+                } else {
+                    testTimeSetting = val;
+                    localStorage.setItem("anki_type_time_setting", testTimeSetting.toString());
+                }
                 applyWordCountFilter();
             }
         });
@@ -634,7 +836,7 @@
             }
         }
 
-        updateCountNavUI();
+        setMode(activeMode);
         populateDecks();
     </script>
 </body>

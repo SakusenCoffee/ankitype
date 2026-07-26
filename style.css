@@ -73,6 +73,7 @@
     --font-bomb: 'Cherry Bomb One', sans-serif;
     --font-zoo: 'Zen Tokyo Zoo', sans-serif;
 }
+
 body {
     background-color: var(--bg-dark);
     color: var(--text-main);
@@ -83,10 +84,11 @@ body {
     align-items: center;
     min-height: 100vh;
     margin: 0;
-    padding: 30px 20px 40px 20px; /* Changed top padding from 90px to 30px */
+    padding: 30px 20px 40px 20px;
     box-sizing: border-box;
     transition: background-color 0.3s ease, color 0.3s ease;
 }
+
 .app-layout {
     width: 100%;
     max-width: 900px;
@@ -100,9 +102,8 @@ body {
 /* ==========================================================================
  *  ROUNDED FLOATING TOP NAVBAR & DRAWERS
  *  ========================================================================== */
-/* Ensure navbar uses normal positioning inside app-layout or relative flow if desired */
 .top-navbar {
-    position: relative; /* Removes fixed position floating whitespace overhead */
+    position: relative;
     top: 0;
     left: 0;
     transform: none;
@@ -117,9 +118,9 @@ body {
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* Divider inside count selector group */
 .selector-divider {
     width: 1px;
+    height: 20px;
     background: rgba(255, 255, 255, 0.1);
     margin: 0 4px;
 }
@@ -203,12 +204,12 @@ body {
     to { opacity: 1; transform: translateY(0); }
 }
 
-/* Word Count Selector Styles */
+/* Selector Group & Button Styles */
 .word-count-nav {
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 15px;
+    gap: 12px;
     flex-wrap: wrap;
 }
 
@@ -220,7 +221,11 @@ body {
     border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
-.count-btn {
+.count-selector-group.hidden {
+    display: none !important;
+}
+
+.count-btn, .time-btn, .mode-btn {
     background: transparent;
     border: none;
     color: var(--text-muted);
@@ -233,11 +238,11 @@ body {
     transition: all 0.2s ease;
 }
 
-.count-btn:hover {
+.count-btn:hover, .time-btn:hover, .mode-btn:hover {
     color: var(--text-main);
 }
 
-.count-btn.active {
+.count-btn.active, .time-btn.active, .mode-btn.active {
     background: var(--bg-card);
     color: var(--accent-blue);
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
@@ -247,6 +252,10 @@ body {
     display: flex;
     align-items: center;
     gap: 6px;
+}
+
+.custom-input-wrapper.hidden {
+    display: none !important;
 }
 
 .custom-input-wrapper input {
