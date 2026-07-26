@@ -694,7 +694,7 @@
             applyWordCountFilter();
         }
 
-        function updateCountNavUI() {
+       function updateCountNavUI() {
             let activeCustomVal = "";
 
             if (activeSource === "hiragana" || activeSource === "katakana") {
@@ -727,6 +727,14 @@
                     activeCustomVal = testTimeSetting;
                 }
             }
+
+            if (activeCustomVal !== "") {
+                customInputWrapper.classList.remove("hidden");
+                customCountInput.value = activeCustomVal;
+            } else {
+                customInputWrapper.classList.add("hidden");
+            }
+        }
 
             if (activeCustomVal !== "") {
                 customInputWrapper.classList.remove("hidden");
@@ -1089,8 +1097,10 @@
             btn.addEventListener("click", () => {
                 const value = btn.dataset.count;
                 if (value === "custom") {
-                    updateCountNavUI();
-                    customCountInput.value = wordCountSetting;
+                    countBtns.forEach(b => b.classList.remove("active"));
+                    btn.classList.add("active");
+                    customInputWrapper.classList.remove("hidden");
+                    customCountInput.value = (wordCountSetting !== "max" && !["10","25","50"].includes(wordCountSetting)) ? wordCountSetting : "";
                     customCountInput.focus();
                 } else {
                     customInputWrapper.classList.add("hidden");
@@ -1106,8 +1116,10 @@
             btn.addEventListener("click", () => {
                 const value = btn.dataset.time;
                 if (value === "custom") {
-                    updateCountNavUI();
-                    customCountInput.value = testTimeSetting;
+                    timeBtns.forEach(b => b.classList.remove("active"));
+                    btn.classList.add("active");
+                    customInputWrapper.classList.remove("hidden");
+                    customCountInput.value = (!["15","30","60","120","infinite"].includes(testTimeSetting)) ? testTimeSetting : "";
                     customCountInput.focus();
                 } else {
                     customInputWrapper.classList.add("hidden");
@@ -1115,7 +1127,6 @@
                     localStorage.setItem("anki_type_time_setting", testTimeSetting);
                     updateCountNavUI();
 
-                    // Keep existing loaded test text, only update time limits
                     clearInterval(testTimerInterval);
                     isTestActive = false;
                     timeRemaining = (testTimeSetting === "infinite") ? "∞" : testTimeSetting;
@@ -1128,8 +1139,10 @@
             btn.addEventListener("click", () => {
                 const value = btn.dataset.kanaCount;
                 if (value === "custom") {
-                    updateCountNavUI();
-                    customCountInput.value = kanaCountSetting;
+                    kanaCountBtns.forEach(b => b.classList.remove("active"));
+                    btn.classList.add("active");
+                    customInputWrapper.classList.remove("hidden");
+                    customCountInput.value = (!["10","25","50","100"].includes(kanaCountSetting)) ? kanaCountSetting : "";
                     customCountInput.focus();
                 } else {
                     customInputWrapper.classList.add("hidden");
@@ -1144,17 +1157,15 @@
         customCountSubmit.addEventListener("click", () => {
             const val = parseInt(customCountInput.value, 10);
             if (val && val > 0) {
-                const activeCustomBtn = document.querySelector('.count-btn.active, .time-btn.active, .kana-count-btn.active');
-
-                if (activeCustomBtn && activeCustomBtn.id === "custom-kana-btn") {
+                if (activeSource === "hiragana" || activeSource === "katakana") {
                     kanaCountSetting = val.toString();
                     localStorage.setItem("anki_type_kana_count", kanaCountSetting);
                     applyWordCountFilter();
-                } else if (activeCustomBtn && activeCustomBtn.id === "custom-count-btn") {
+                } else if (activeMode === "words") {
                     wordCountSetting = val.toString();
                     localStorage.setItem("anki_type_word_count", wordCountSetting);
                     applyWordCountFilter();
-                } else if (activeCustomBtn && activeCustomBtn.id === "custom-time-btn") {
+                } else if (activeMode === "time") {
                     testTimeSetting = val.toString();
                     localStorage.setItem("anki_type_time_setting", testTimeSetting);
 
@@ -1163,6 +1174,7 @@
                     timeRemaining = testTimeSetting;
                     timeLeftVal.textContent = `${timeRemaining}s`;
                 }
+                updateCountNavUI();
             }
         });
 
