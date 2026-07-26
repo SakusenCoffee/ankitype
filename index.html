@@ -21,6 +21,22 @@
             </div>
 
             <div class="nav-actions">
+                <!-- Test Options Tab Button (Default Open) -->
+                <button class="nav-btn active" id="test-options-tab-btn" title="Test Options">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="4" y1="21" x2="4" y2="14"></line>
+                        <line x1="4" y1="10" x2="4" y2="3"></line>
+                        <line x1="12" y1="21" x2="12" y2="12"></line>
+                        <line x1="12" y1="8" x2="12" y2="3"></line>
+                        <line x1="20" y1="21" x2="20" y2="16"></line>
+                        <line x1="20" y1="12" x2="20" y2="3"></line>
+                        <line x1="1" y1="14" x2="7" y2="14"></line>
+                        <line x1="9" y1="8" x2="15" y2="8"></line>
+                        <line x1="17" y1="16" x2="23" y2="16"></line>
+                    </svg>
+                    <span>TEST OPTIONS</span>
+                </button>
+
                 <!-- Anki Settings Tab Button -->
                 <button class="nav-btn" id="anki-tab-btn" title="Anki Deck Settings">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -38,6 +54,27 @@
                     </svg>
                     <span>THEME & FONT</span>
                 </button>
+            </div>
+        </div>
+
+        <!-- EXPANDABLE DRAWER: TEST OPTIONS (Active by default) -->
+        <div class="nav-drawer" id="test-options-drawer">
+            <div class="drawer-inner grid-2">
+                <div class="error-toggle-wrapper">
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="space-toggle" checked>
+                        <span class="toggle-slider"></span>
+                    </label>
+                    <span class="toggle-label">NO SPACES</span>
+                </div>
+
+                <div class="error-toggle-wrapper">
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="error-toggle" checked>
+                        <span class="toggle-slider"></span>
+                    </label>
+                    <span class="toggle-label">SHOW CORRECTNESS HIGHLIGHTS</span>
+                </div>
             </div>
         </div>
 
@@ -102,7 +139,8 @@
     <div class="app-layout">
         <!-- MONKEYTYPE SCROLLING CONTAINER FRAME -->
         <div class="words-wrapper" id="words-wrapper">
-            <div class="words-container" id="words-container">
+            <!-- Initialized with 'no-spaces' class by default -->
+            <div class="words-container no-spaces" id="words-container">
                 <!-- Dynamic Word Nodes Render Here -->
             </div>
         </div>
@@ -129,22 +167,6 @@
             </div>
 
             <div class="toggles-row">
-                <div class="error-toggle-wrapper">
-                    <label class="toggle-switch">
-                        <input type="checkbox" id="error-toggle" checked>
-                        <span class="toggle-slider"></span>
-                    </label>
-                    <span class="toggle-label">SHOW RED ERRORS</span>
-                </div>
-
-                <div class="error-toggle-wrapper">
-                    <label class="toggle-switch">
-                        <input type="checkbox" id="space-toggle">
-                        <span class="toggle-slider"></span>
-                    </label>
-                    <span class="toggle-label">NO SPACES</span>
-                </div>
-
                 <div class="score-panel-inline">
                     <span class="label">CARDS TYPED</span>
                     <span class="value" id="score-val">0</span>
@@ -188,7 +210,7 @@
         let showRomaji = true;
         let showMeaning = false;
         let showErrorColors = true;
-        let removeSpaces = false;
+        let removeSpaces = true; // Default to true
         let isInputBoxHidden = false;
         let currentFontClass = "font-modern";
 
@@ -206,9 +228,12 @@
         const hideBoxBtn = document.getElementById("hide-box-btn");
         const restoreBoxBtn = document.getElementById("restore-box-btn");
 
-        // Navbar drawers
+        // Navbar drawers & buttons
+        const testOptionsTabBtn = document.getElementById("test-options-tab-btn");
         const ankiTabBtn = document.getElementById("anki-tab-btn");
         const appearanceTabBtn = document.getElementById("appearance-tab-btn");
+        
+        const testOptionsDrawer = document.getElementById("test-options-drawer");
         const ankiDrawer = document.getElementById("anki-drawer");
         const appearanceDrawer = document.getElementById("appearance-drawer");
 
@@ -349,7 +374,9 @@
                 wordNode.appendChild(romajiNode);
                 wordNode.appendChild(meaningNode);
 
+                // Word Click Handler - Disabled if "No Spaces" is enabled
                 wordNode.addEventListener("click", () => {
+                    if (removeSpaces) return; // Prevent meaning toggle when No Spaces is active
                     showMeaning = !showMeaning;
                     updateVisibility();
                 });
@@ -543,7 +570,19 @@
         });
 
         // Navbar Drawer Toggle Event Listeners
+        testOptionsTabBtn.addEventListener("click", () => {
+            ankiDrawer.classList.add("hidden");
+            ankiTabBtn.classList.remove("active");
+            appearanceDrawer.classList.add("hidden");
+            appearanceTabBtn.classList.remove("active");
+
+            testOptionsDrawer.classList.toggle("hidden");
+            testOptionsTabBtn.classList.toggle("active");
+        });
+
         ankiTabBtn.addEventListener("click", () => {
+            testOptionsDrawer.classList.add("hidden");
+            testOptionsTabBtn.classList.remove("active");
             appearanceDrawer.classList.add("hidden");
             appearanceTabBtn.classList.remove("active");
             
@@ -552,6 +591,8 @@
         });
 
         appearanceTabBtn.addEventListener("click", () => {
+            testOptionsDrawer.classList.add("hidden");
+            testOptionsTabBtn.classList.remove("active");
             ankiDrawer.classList.add("hidden");
             ankiTabBtn.classList.remove("active");
             
@@ -570,10 +611,11 @@
             removeSpaces = e.target.checked;
             if (removeSpaces) {
                 wordsContainer.classList.add("no-spaces");
+                showMeaning = false; // Hide meanings if opening no spaces
             } else {
                 wordsContainer.classList.remove("no-spaces");
             }
-            updateDisplay();
+            updateVisibility();
         });
 
         // Theme Switcher
