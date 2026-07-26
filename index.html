@@ -57,7 +57,7 @@
             </div>
         </div>
 
-        <!-- EXPANDABLE DRAWER: TEST OPTIONS (Active by default) -->
+        <!-- EXPANDABLE DRAWER: TEST OPTIONS -->
         <div class="nav-drawer" id="test-options-drawer">
             <div class="drawer-inner grid-2">
                 <div class="error-toggle-wrapper">
@@ -73,7 +73,7 @@
                         <input type="checkbox" id="error-toggle" checked>
                         <span class="toggle-slider"></span>
                     </label>
-                    <span class="toggle-label">SHOW CORRECTNESS HIGHLIGHTS</span>
+                    <span class="toggle-label">ERROR HIGHLIGHT</span>
                 </div>
             </div>
         </div>
@@ -139,7 +139,6 @@
     <div class="app-layout">
         <!-- MONKEYTYPE SCROLLING CONTAINER FRAME -->
         <div class="words-wrapper" id="words-wrapper">
-            <!-- Initialized with 'no-spaces' class by default -->
             <div class="words-container no-spaces" id="words-container">
                 <!-- Dynamic Word Nodes Render Here -->
             </div>
@@ -196,9 +195,10 @@
     </div>
 
     <script>
-        const FIELD_KANJI = "Expression";    
-        const FIELD_ROMAJI = "ExpressionReading";    
-        const FIELD_MEANING = "MainDefinition";   
+        // Fallback target lists for extracting note content across different deck templates
+        const KANJI_FIELDS = ["Expression", "Kanji", "Word", "Japanese", "Vocabulary-Kanji", "Front"];
+        const READING_FIELDS = ["ExpressionReading", "Reading", "Furigana", "Kana", "Pronunciation", "Romaji", "Vocabulary-Kana"];
+        const MEANING_FIELDS = ["MainDefinition", "Meaning", "Definition", "English", "Glossary", "Vocabulary-English", "Back"];
 
         let wordList = [];
         let currentIndex = 0;
@@ -209,10 +209,20 @@
         let totalScore = 0;
         let showRomaji = true;
         let showMeaning = false;
-        let showErrorColors = true;
-        let removeSpaces = true; // Default to true
-        let isInputBoxHidden = false;
-        let currentFontClass = "font-modern";
+        
+        // Persistent State Defaults
+        let showErrorColors = localStorage.getItem("anki_type_show_errors") !== null 
+            ? localStorage.getItem("anki_type_show_errors") === "true" 
+            : true;
+            
+        let removeSpaces = localStorage.getItem("anki_type_no_spaces") !== null 
+            ? localStorage.getItem("anki_type_no_spaces") === "true" 
+            : true;
+
+        let isInputBoxHidden = localStorage.getItem("anki_type_hide_box") === "true";
+        let currentFontClass = localStorage.getItem("anki_type_font") || "font-modern";
+        let currentTheme = localStorage.getItem("anki_type_theme") || "dark-slate";
+        let savedSelectedDeck = localStorage.getItem("anki_type_deck") || "";
 
         const statusEl = document.getElementById("status");
         const wordsContainer = document.getElementById("words-container");
@@ -237,11 +247,41 @@
         const ankiDrawer = document.getElementById("anki-drawer");
         const appearanceDrawer = document.getElementById("appearance-drawer");
 
+        // Initialize UI from Saved State
+        document.documentElement.setAttribute("data-theme", currentTheme);
+        themeDropdown.value = currentTheme;
+        fontDropdown.value = currentFontClass;
+        errorToggle.checked = showErrorColors;
+        spaceToggle.checked = removeSpaces;
+
+        if (removeSpaces) {
+            wordsContainer.classList.add("no-spaces");
+        } else {
+            wordsContainer.classList.remove("no-spaces");
+        }
+
+        if (isInputBoxHidden) {
+            liveInputBox.classList.add("hidden");
+            restoreBoxBtn.classList.remove("hidden");
+        }
+
         function cleanHtmlText(rawHtml) {
             if (!rawHtml) return "";
             const parser = new DOMParser();
             const doc = parser.parseFromString(rawHtml, 'text/html');
             return doc.body.textContent || "";
+        }
+
+        function getFieldValue(fields, targetKeys) {
+            for (const key of targetKeys) {
+                const match = Object.keys(fields).find(
+                    fKey => fKey.toLowerCase() === key.toLowerCase()
+                );
+                if (match && fields[match]?.value) {
+                    return fields[match].value;
+                }
+            }
+            return "";
         }
 
         async function fetchFromAnki(action, params = {}) {
@@ -278,12 +318,18 @@
             });
 
             deckDropdown.addEventListener("change", (e) => {
-                if (e.target.value) loadAnkiDeck(e.target.value);
+                if (e.target.value) {
+                    localStorage.setItem("anki_type_deck", e.target.value);
+                    loadAnkiDeck(e.target.value);
+                }
             });
 
             if (decks.length > 0) {
-                deckDropdown.value = decks[0];
-                loadAnkiDeck(decks[0]);
+                const targetDeck = (savedSelectedDeck && decks.includes(savedSelectedDeck)) 
+                    ? savedSelectedDeck 
+                    : decks[0];
+                deckDropdown.value = targetDeck;
+                loadAnkiDeck(targetDeck);
             }
         }
 
@@ -303,14 +349,17 @@
             
             wordList = notesResult.result.map(note => {
                 const fields = note.fields;
-                let rawRomaji = fields[FIELD_ROMAJI]?.value || "";
+                let rawKanji = getFieldValue(fields, KANJI_FIELDS);
+                let rawRomaji = getFieldValue(fields, READING_FIELDS);
+                let rawMeaning = getFieldValue(fields, MEANING_FIELDS);
+
                 let cleanedRomajiText = cleanHtmlText(rawRomaji).trim();
                 let finalRomaji = wanakana.toRomaji(cleanedRomajiText).toLowerCase().trim();
 
                 return {
-                    kanji: cleanHtmlText(fields[FIELD_KANJI]?.value || "N/A"),
+                    kanji: cleanHtmlText(rawKanji || "N/A"),
                     romaji: finalRomaji,
-                    meaning: cleanHtmlText(fields[FIELD_MEANING]?.value || "N/A")
+                    meaning: cleanHtmlText(rawMeaning || "N/A")
                 };
             }).filter(word => word.romaji !== "");
 
@@ -374,9 +423,8 @@
                 wordNode.appendChild(romajiNode);
                 wordNode.appendChild(meaningNode);
 
-                // Word Click Handler - Disabled if "No Spaces" is enabled
                 wordNode.addEventListener("click", () => {
-                    if (removeSpaces) return; // Prevent meaning toggle when No Spaces is active
+                    if (removeSpaces) return;
                     showMeaning = !showMeaning;
                     updateVisibility();
                 });
@@ -410,11 +458,7 @@
                 span.classList.remove("correct", "current", "incorrect", "neutral-typed");
                 
                 if (idx < correctCount) {
-                    if (showErrorColors) {
-                        span.classList.add("correct");
-                    } else {
-                        span.classList.add("neutral-typed");
-                    }
+                    span.classList.add("neutral-typed");
                 } else if (idx === correctCount && incorrectCount === 0) {
                     span.classList.add("current");
                 } else if (idx === correctCount && incorrectCount > 0) {
@@ -448,8 +492,6 @@
                     
                     if (!entry.isCorrect && showErrorColors) {
                         charSpan.className = "typed-char-wrong";
-                    } else if (entry.isCorrect && showErrorColors) {
-                        charSpan.className = "typed-char-correct";
                     } else {
                         charSpan.className = "typed-char-neutral";
                     }
@@ -459,7 +501,7 @@
                 inputPlaceholder.style.display = "inline";
             }
 
-            // Scroll Calculation Fix (Works seamlessly in both Space and No-Spaces mode)
+            // Scroll Calculation
             const firstWordTop = wordsContainer.children[0].offsetTop;
             const currentWordTop = currentWordNode.offsetTop;
             const lineOffset = currentWordTop - firstWordTop;
@@ -493,7 +535,6 @@
             if (wordList.length === 0) return;
             const currentWord = wordList[currentIndex];
 
-            // CTRL + BACKSPACE / CMD + BACKSPACE: Delete entire word input
             if (e.key === "Backspace" && (e.ctrlKey || e.metaKey)) {
                 e.preventDefault();
                 typedInput = [];
@@ -502,7 +543,6 @@
                 return;
             }
 
-            // SINGLE BACKSPACE
             if (e.key === "Backspace") {
                 if (typedInput.length > 0) {
                     const removed = typedInput.pop();
@@ -591,51 +631,59 @@
             appearanceTabBtn.classList.toggle("active");
         });
 
-        // Error Toggle Switch
+        // Error Toggle Switch (Saved)
         errorToggle.addEventListener("change", (e) => {
             showErrorColors = e.target.checked;
+            localStorage.setItem("anki_type_show_errors", showErrorColors);
             updateDisplay();
         });
 
-        // Space Removal Toggle
+        // Space Removal Toggle (Saved)
         spaceToggle.addEventListener("change", (e) => {
             removeSpaces = e.target.checked;
+            localStorage.setItem("anki_type_no_spaces", removeSpaces);
             if (removeSpaces) {
                 wordsContainer.classList.add("no-spaces");
-                showMeaning = false; // Hide meanings if opening no spaces
+                showMeaning = false;
             } else {
                 wordsContainer.classList.remove("no-spaces");
             }
             updateVisibility();
         });
 
-        // Theme Switcher
+        // Theme Switcher (Saved)
         themeDropdown.addEventListener("change", (e) => {
-            document.documentElement.setAttribute("data-theme", e.target.value);
+            currentTheme = e.target.value;
+            document.documentElement.setAttribute("data-theme", currentTheme);
+            localStorage.setItem("anki_type_theme", currentTheme);
         });
 
-        // Hide Live Input Box Logic
+        // Font Switcher (Saved)
+        fontDropdown.addEventListener("change", (e) => {
+            currentFontClass = e.target.value;
+            localStorage.setItem("anki_type_font", currentFontClass);
+            const kanjiElements = document.querySelectorAll(".kanji-text");
+            kanjiElements.forEach(el => {
+                el.className = `kanji-text ${currentFontClass}`;
+            });
+        });
+
+        // Hide Live Input Box Logic (Saved)
         hideBoxBtn.addEventListener("click", () => {
             isInputBoxHidden = true;
+            localStorage.setItem("anki_type_hide_box", "true");
             liveInputBox.classList.add("hidden");
             restoreBoxBtn.classList.remove("hidden");
             updateDisplay();
         });
 
-        // Restore Live Input Box Logic
+        // Restore Live Input Box Logic (Saved)
         restoreBoxBtn.addEventListener("click", () => {
             isInputBoxHidden = false;
+            localStorage.setItem("anki_type_hide_box", "false");
             liveInputBox.classList.remove("hidden");
             restoreBoxBtn.classList.add("hidden");
             updateDisplay();
-        });
-
-        fontDropdown.addEventListener("change", (e) => {
-            currentFontClass = e.target.value;
-            const kanjiElements = document.querySelectorAll(".kanji-text");
-            kanjiElements.forEach(el => {
-                el.className = `kanji-text ${currentFontClass}`;
-            });
         });
 
         function shuffleArray(array) {
