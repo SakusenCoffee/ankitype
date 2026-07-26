@@ -406,15 +406,6 @@
             overflowSpan.textContent = "";
             kanjiErrorSpan.textContent = "";
 
-            const kanjiLength = currentWordObj.kanji.length;
-            const shouldHideRomajiForOverlay = isInputBoxHidden && (typedInput.length <= kanjiLength);
-
-            if (shouldHideRomajiForOverlay) {
-                romajiNode.classList.add("romaji-overlay-hidden");
-            } else {
-                romajiNode.classList.remove("romaji-overlay-hidden");
-            }
-
             charSpans.forEach((span, idx) => {
                 span.classList.remove("correct", "current", "incorrect", "neutral-typed");
                 
@@ -435,7 +426,7 @@
                 }
             });
 
-            if (incorrectCount > 0) {
+            if (incorrectCount > 0 && typedInput.length > correctCount) {
                 let wrongChars = typedInput.slice(correctCount).map(item => item.char).join("");
                 
                 if (showErrorColors) {
