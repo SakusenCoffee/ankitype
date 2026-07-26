@@ -201,7 +201,13 @@
                 </div>
             </div>
         </div>
-
+        <div class="selector-container full-width">
+    <div class="slider-label-row">
+        <label for="row-count-slider">VISIBLE ROWS</label>
+        <span class="slider-val-display" id="row-count-val">3</span>
+    </div>
+    <input type="range" id="row-count-slider" min="1" max="5" step="1" value="3" class="font-slider" />
+</div>
         <!-- EXPANDABLE DRAWER: SEED OPTIONS -->
         <div class="nav-drawer hidden" id="seed-drawer">
             <div class="drawer-inner flex-center">
@@ -309,6 +315,11 @@
     </div>
 
     <script>
+    let rowCountSetting = localStorage.getItem("anki_type_row_count") || "3";
+
+const rowCountSlider = document.getElementById("row-count-slider");
+const rowCountVal = document.getElementById("row-count-val");
+const wordsWrapper = document.getElementById("words-wrapper");
         const KANJI_FIELDS = ["Expression", "Kanji", "Word", "Japanese", "Vocabulary-Kanji", "Front"];
         const READING_FIELDS = ["ExpressionReading", "Reading", "Furigana", "Kana", "Pronunciation", "Romaji", "Vocabulary-Kana"];
         const MEANING_FIELDS = ["MainDefinition", "Meaning", "Definition", "English", "Glossary", "Vocabulary-English", "Back"];
@@ -754,6 +765,26 @@
             }
             return "";
         }
+        function applyRowCount() {
+    // Each row averages roughly 90px depending on main font size
+    const rowHeight = 90 * (parseFloat(mainFontSize) / 2.2);
+    const newHeight = Math.round(rowHeight * parseInt(rowCountSetting, 10));
+
+    wordsWrapper.style.height = `${newHeight}px`;
+    rowCountSlider.value = rowCountSetting;
+    rowCountVal.textContent = rowCountSetting;
+}
+function applyFontSizes() {
+    document.documentElement.style.setProperty('--kanji-font-size', `${mainFontSize}rem`);
+    document.documentElement.style.setProperty('--sub-font-size', `${subFontSize}rem`);
+    mainFontSlider.value = mainFontSize;
+    subFontSlider.value = subFontSize;
+    mainFontVal.textContent = `${mainFontSize}rem`;
+    subFontVal.textContent = `${subFontSize}rem`;
+    applyRowCount(); // Keep row height in sync when font scale changes
+}
+applyFontSizes();
+
 
         async function fetchFromAnki(action, params = {}) {
             try {
@@ -788,6 +819,11 @@
                 deckDropdown.appendChild(option);
             });
 
+            rowCountSlider.addEventListener("input", (e) => {
+    rowCountSetting = e.target.value;
+    localStorage.setItem("anki_type_row_count", rowCountSetting);
+    applyRowCount();
+});
             deckDropdown.addEventListener("change", (e) => {
                 if (e.target.value) {
                     localStorage.setItem("anki_type_deck", e.target.value);
@@ -1370,6 +1406,7 @@
 
         setSource(activeSource);
         populateDecks();
+
     </script>
 </body>
 </html>

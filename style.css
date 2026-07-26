@@ -524,10 +524,11 @@ select:focus {
 
 .words-wrapper {
     width: 100%;
-    height: 180px;
+    height: 270px; /* Changed from 180px to accommodate 3 rows */
     overflow: hidden;
     position: relative;
     margin-top: 10px;
+    transition: height 0.2s ease;
 }
 
 .words-container {
