@@ -365,10 +365,6 @@ body {
     display: none;
 }
 
-.romaji-text.romaji-overlay-hidden {
-    opacity: 0 !important;
-}
-
 .romaji-text .char {
     opacity: 0.35;
     transition: color 0.1s ease, opacity 0.1s ease;
