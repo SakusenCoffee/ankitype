@@ -95,13 +95,11 @@
                     <span class="toggle-label">NO SPACES</span>
                 </div>
 
-                <!-- CARDS TYPED COMPACT PANEL NEXT TO NO SPACES -->
                 <div class="score-panel-inline">
                     <span class="label">CARDS TYPED</span>
                     <span class="value" id="score-val">0</span>
                 </div>
 
-                <!-- KO-FI ICON ONLY BUTTON -->
                 <a href="https://ko-fi.com/mojikazu" target="_blank" rel="noopener noreferrer" class="kofi-btn-icon" title="Support via Ko-fi">
                     <svg class="kofi-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M18 8h1a4 4 0 0 1 0 8h-1"></path>
@@ -114,7 +112,6 @@
             </div>
         </div>
 
-        <!-- REENABLE INPUT BOX TOGGLE BUTTON (VISIBLE WHEN HIDDEN) -->
         <button class="restore-box-btn hidden" id="restore-box-btn">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                 <polyline points="15 3 21 3 21 9"></polyline>
@@ -157,6 +154,14 @@
         const spaceToggle = document.getElementById("space-toggle");
         const hideBoxBtn = document.getElementById("hide-box-btn");
         const restoreBoxBtn = document.getElementById("restore-box-btn");
+
+        // Helper: Strip HTML and decode entities cleanly
+        function cleanHtmlText(rawHtml) {
+            if (!rawHtml) return "";
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(rawHtml, 'text/html');
+            return doc.body.textContent || "";
+        }
 
         async function fetchFromAnki(action, params = {}) {
             try {
@@ -217,14 +222,14 @@
             
             wordList = notesResult.result.map(note => {
                 const fields = note.fields;
-                let originalText = fields[FIELD_ROMAJI]?.value || "";
-                let cleanedText = originalText.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').trim();
-                let finalRomaji = wanakana.toRomaji(cleanedText).toLowerCase().trim();
+                let rawRomaji = fields[FIELD_ROMAJI]?.value || "";
+                let cleanedRomajiText = cleanHtmlText(rawRomaji).trim();
+                let finalRomaji = wanakana.toRomaji(cleanedRomajiText).toLowerCase().trim();
 
                 return {
-                    kanji: (fields[FIELD_KANJI]?.value || "N/A").replace(/<[^>]*>/g, ''),
+                    kanji: cleanHtmlText(fields[FIELD_KANJI]?.value || "N/A"),
                     romaji: finalRomaji,
-                    meaning: (fields[FIELD_MEANING]?.value || "N/A").replace(/<[^>]*>/g, '')
+                    meaning: cleanHtmlText(fields[FIELD_MEANING]?.value || "N/A")
                 };
             }).filter(word => word.romaji !== "");
 
@@ -254,9 +259,18 @@
                 wordNode.className = "word-item";
                 if (idx === currentIndex) wordNode.classList.add("active");
 
+                const kanjiWrapperNode = document.createElement("div");
+                kanjiWrapperNode.className = "kanji-wrapper";
+
                 const kanjiNode = document.createElement("div");
                 kanjiNode.className = `kanji-text ${currentFontClass}`;
                 kanjiNode.textContent = wordObj.kanji;
+                kanjiWrapperNode.appendChild(kanjiNode);
+
+                // Container for side error display when romaji is toggled OFF
+                const kanjiErrorSpan = document.createElement("span");
+                kanjiErrorSpan.className = "kanji-side-error";
+                kanjiWrapperNode.appendChild(kanjiErrorSpan);
 
                 const romajiNode = document.createElement("div");
                 romajiNode.className = `romaji-text ${!showRomaji ? 'hidden' : ''}`;
@@ -268,11 +282,16 @@
                     romajiNode.appendChild(charSpan);
                 }
 
+                // Extra container for overflowing wrong characters past romaji
+                const overflowSpan = document.createElement("span");
+                overflowSpan.className = "romaji-overflow-error";
+                romajiNode.appendChild(overflowSpan);
+
                 const meaningNode = document.createElement("div");
                 meaningNode.className = `meaning-text ${!showMeaning ? 'hidden' : ''}`;
                 meaningNode.textContent = wordObj.meaning;
 
-                wordNode.appendChild(kanjiNode);
+                wordNode.appendChild(kanjiWrapperNode);
                 wordNode.appendChild(romajiNode);
                 wordNode.appendChild(meaningNode);
 
@@ -292,18 +311,22 @@
             const currentWordNode = wordsContainer.children[currentIndex];
             if (!currentWordNode || !currentWordObj) return;
 
-            // Calculate correct prefix length
             let correctCount = 0;
             for (let i = 0; i < typedInput.length; i++) {
                 if (typedInput[i].isCorrect) correctCount++;
                 else break; 
             }
 
-            // 1. Update Word Romaji Highlights
             const romajiNode = currentWordNode.querySelector(".romaji-text");
             const charSpans = romajiNode.querySelectorAll(".char");
+            const overflowSpan = romajiNode.querySelector(".romaji-overflow-error");
+            const kanjiErrorSpan = currentWordNode.querySelector(".kanji-side-error");
 
-            // Monkeytype Hidden Box Mode condition: Hide Romaji until typed character count > Japanese kanji length
+            // Clear old dynamic overflow error displays
+            overflowSpan.textContent = "";
+            kanjiErrorSpan.textContent = "";
+
+            // 1. Monkeytype Hidden Box Mode condition
             const kanjiLength = currentWordObj.kanji.length;
             const shouldHideRomajiForOverlay = isInputBoxHidden && (typedInput.length <= kanjiLength);
 
@@ -313,11 +336,11 @@
                 romajiNode.classList.remove("romaji-overlay-hidden");
             }
 
+            // 2. Character-by-character validation formatting
             charSpans.forEach((span, idx) => {
                 span.classList.remove("correct", "current", "incorrect", "neutral-typed");
                 
                 if (idx < correctCount) {
-                    // IF SHOW RED ERRORS IS OFF: Do not highlight green while typing
                     if (showErrorColors) {
                         span.classList.add("correct");
                     } else {
@@ -334,7 +357,22 @@
                 }
             });
 
-            // 2. Update Live Input Box Text
+            // 3. Render incorrect inputs when box is hidden
+            if (incorrectCount > 0) {
+                let wrongChars = typedInput.slice(correctCount).map(item => item.char).join("");
+                
+                if (showErrorColors) {
+                    if (showRomaji) {
+                        // Display wrong chars over/after Romaji
+                        overflowSpan.textContent = wrongChars;
+                    } else {
+                        // Display wrong chars directly next to Japanese word when Romaji is off
+                        kanjiErrorSpan.textContent = wrongChars;
+                    }
+                }
+            }
+
+            // 4. Update Live Input Box Text
             liveInputText.innerHTML = "";
             if (typedInput.length > 0) {
                 inputPlaceholder.style.display = "none";
@@ -355,7 +393,7 @@
                 inputPlaceholder.style.display = "inline";
             }
 
-            // 3. Smooth Scroll active row into view
+            // 5. Scroll active row into view
             const containerTop = wordsContainer.getBoundingClientRect().top;
             const wordTop = currentWordNode.getBoundingClientRect().top;
             const lineOffset = wordTop - containerTop;
@@ -372,9 +410,11 @@
 
             allRomaji.forEach(el => showRomaji ? el.classList.remove("hidden") : el.classList.add("hidden"));
             allMeaning.forEach(el => showMeaning ? el.classList.remove("hidden") : el.classList.add("hidden"));
+
+            updateDisplay();
         }
 
-        // Global Typing Listener
+        // Global Keyboard Handler
         window.addEventListener("keydown", (e) => {
             if (e.key === "Tab") {
                 e.preventDefault();
@@ -386,6 +426,16 @@
             if (wordList.length === 0) return;
             const currentWord = wordList[currentIndex];
 
+            // CTRL + BACKSPACE / CMD + BACKSPACE: Delete entire word input
+            if (e.key === "Backspace" && (e.ctrlKey || e.metaKey)) {
+                e.preventDefault();
+                typedInput = [];
+                incorrectCount = 0;
+                updateDisplay();
+                return;
+            }
+
+            // SINGLE BACKSPACE: Delete single character
             if (e.key === "Backspace") {
                 if (typedInput.length > 0) {
                     const removed = typedInput.pop();
@@ -397,7 +447,7 @@
                 return;
             }
 
-            if (e.key.length > 1) return; 
+            if (e.key.length > 1 || e.ctrlKey || e.metaKey || e.altKey) return; 
 
             const keyTyped = e.key.toLowerCase();
 
@@ -460,7 +510,7 @@
             updateDisplay();
         });
 
-        // Hide Live Input Box Button Logic
+        // Hide Live Input Box Logic
         hideBoxBtn.addEventListener("click", () => {
             isInputBoxHidden = true;
             liveInputBox.classList.add("hidden");
@@ -468,7 +518,7 @@
             updateDisplay();
         });
 
-        // Restore Live Input Box Button Logic
+        // Restore Live Input Box Logic
         restoreBoxBtn.addEventListener("click", () => {
             isInputBoxHidden = false;
             liveInputBox.classList.remove("hidden");
