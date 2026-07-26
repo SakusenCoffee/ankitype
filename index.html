@@ -694,7 +694,7 @@
             applyWordCountFilter();
         }
 
-       function updateCountNavUI() {
+        function updateCountNavUI() {
             let activeCustomVal = "";
 
             if (activeSource === "hiragana" || activeSource === "katakana") {
@@ -727,14 +727,6 @@
                     activeCustomVal = testTimeSetting;
                 }
             }
-
-            if (activeCustomVal !== "") {
-                customInputWrapper.classList.remove("hidden");
-                customCountInput.value = activeCustomVal;
-            } else {
-                customInputWrapper.classList.add("hidden");
-            }
-        }
 
             if (activeCustomVal !== "") {
                 customInputWrapper.classList.remove("hidden");
