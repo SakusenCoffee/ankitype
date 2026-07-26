@@ -287,14 +287,13 @@ body {
     align-content: flex-start;
 }
 
-/* Remove Spaces Toggle Mode */
 .words-container.no-spaces {
     gap: 16px 0px;
 }
 
 .words-container.no-spaces .word-item {
     padding: 8px 0px;
-    cursor: default; /* Change cursor back to default pointer */
+    cursor: default;
 }
 
 .words-container.no-spaces .kanji-text {
@@ -368,13 +367,6 @@ body {
 .romaji-text .char {
     opacity: 0.35;
     transition: color 0.1s ease, opacity 0.1s ease;
-}
-
-/* Colors when SHOW RED ERRORS is ON */
-.romaji-text .char.correct {
-    color: var(--accent-green);
-    opacity: 1;
-    text-shadow: 0 0 8px rgba(0, 255, 170, 0.5);
 }
 
 .romaji-text .char.current {
@@ -510,10 +502,6 @@ body {
     opacity: 0.6;
     font-size: 0.95rem;
     letter-spacing: 1px;
-}
-
-.typed-char-correct {
-    color: var(--accent-green);
 }
 
 .typed-char-wrong {
