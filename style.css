@@ -282,7 +282,7 @@ body {
 .words-container {
     display: flex;
     flex-wrap: wrap;
-    gap: 20px 28px;
+    gap: 12px 16px;
     transition: transform 0.25s cubic-bezier(0.25, 1, 0.5, 1);
     align-content: flex-start;
 }
