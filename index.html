@@ -94,14 +94,15 @@
 
                 <div class="selector-divider"></div>
 
-                <!-- Word Options -->
-                <div class="count-selector-group" id="word-options-group">
-                    <button class="count-btn" data-count="10">10w</button>
-                    <button class="count-btn" data-count="25">25w</button>
-                    <button class="count-btn" data-count="50">50w</button>
-                    <button class="count-btn" data-count="custom" id="custom-count-btn">custom</button>
-                    <button class="count-btn active" data-count="max">max</button>
-                </div>
+               <!-- Word Options -->
+<div class="count-selector-group" id="word-options-group">
+    <button class="count-btn" data-count="10">10w</button>
+    <button class="count-btn" data-count="25">25w</button>
+    <button class="count-btn" data-count="50">50w</button>
+    <button class="count-btn" data-count="100">100w</button>
+    <button class="count-btn active" data-count="max">max</button>
+    <button class="count-btn" data-count="custom" id="custom-count-btn">custom</button>
+</div>
 
                 <!-- Time Options -->
                 <div class="count-selector-group hidden" id="time-options-group">
@@ -1136,23 +1137,23 @@
         sourceAnkiBtn.addEventListener("click", () => setSource("anki"));
 
         countBtns.forEach(btn => {
-            btn.addEventListener("click", () => {
-                const value = btn.dataset.count;
-                if (value === "custom") {
-                    countBtns.forEach(b => b.classList.remove("active"));
-                    btn.classList.add("active");
-                    customCountInputWrapper.classList.remove("hidden");
-                    customCountInput.value = (wordCountSetting !== "max" && !["10","25","50"].includes(wordCountSetting)) ? wordCountSetting : "";
-                    customCountInput.focus();
-                } else {
-                    customCountInputWrapper.classList.add("hidden");
-                    wordCountSetting = value;
-                    localStorage.setItem("anki_type_word_count", wordCountSetting);
-                    updateCountNavUI();
-                    applyWordCountFilter();
-                }
-            });
-        });
+    btn.addEventListener("click", () => {
+        const value = btn.dataset.count;
+        if (value === "custom") {
+            countBtns.forEach(b => b.classList.remove("active"));
+            btn.classList.add("active");
+            customCountInputWrapper.classList.remove("hidden");
+            customCountInput.value = (wordCountSetting !== "max" && !["10","25","50","100"].includes(wordCountSetting)) ? wordCountSetting : "";
+            customCountInput.focus();
+        } else {
+            customCountInputWrapper.classList.add("hidden");
+            wordCountSetting = value;
+            localStorage.setItem("anki_type_word_count", wordCountSetting);
+            updateCountNavUI();
+            applyWordCountFilter();
+        }
+    });
+});
 
         timeBtns.forEach(btn => {
             btn.addEventListener("click", () => {
