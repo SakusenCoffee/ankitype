@@ -1046,7 +1046,7 @@
             navigator.clipboard.writeText(seed).then(() => {
                 const spanEl = copySeedBtn.querySelector("span");
                 const originalText = spanEl.textContent;
-                spanEl.textContent = "COPIED!";
+                spanEl.textContent = "コピーした!";
                 setTimeout(() => {
                     spanEl.textContent = originalText;
                 }, 1500);
