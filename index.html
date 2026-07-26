@@ -61,11 +61,21 @@
             <span>[TAB] TOGGLE ROMAJI READINGS</span> • <span>[CLICK WORD] SHOW MEANING</span>
         </div>
 
-        <!-- LIVE TYPING INPUT DISPLAY BOX WITH TOGGLES -->
-        <div class="live-input-container">
-            <div class="live-input-box" id="live-input-box">
-                <span class="placeholder-text" id="input-placeholder">Type active word...</span>
-                <span id="live-input-text"></span>
+        <!-- LIVE TYPING INPUT DISPLAY BOX WITH TOGGLES & RESTORE BTN -->
+        <div class="live-input-container" id="live-input-container">
+            <div class="live-input-box-wrapper">
+                <div class="live-input-box" id="live-input-box">
+                    <span class="placeholder-text" id="input-placeholder">Type active word...</span>
+                    <span id="live-input-text"></span>
+                    <button class="hide-box-btn" id="hide-box-btn" title="Hide Input Box (Monkeytype Mode)">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="4 14 10 14 10 20"></polyline>
+                            <polyline points="20 10 14 10 14 4"></polyline>
+                            <line x1="14" y1="10" x2="21" y2="3"></line>
+                            <line x1="3" y1="21" x2="10" y2="14"></line>
+                        </svg>
+                    </button>
+                </div>
             </div>
 
             <div class="toggles-row">
@@ -84,26 +94,36 @@
                     </label>
                     <span class="toggle-label">NO SPACES</span>
                 </div>
+
+                <!-- CARDS TYPED COMPACT PANEL NEXT TO NO SPACES -->
+                <div class="score-panel-inline">
+                    <span class="label">CARDS TYPED</span>
+                    <span class="value" id="score-val">0</span>
+                </div>
+
+                <!-- KO-FI ICON ONLY BUTTON -->
+                <a href="https://ko-fi.com/mojikazu" target="_blank" rel="noopener noreferrer" class="kofi-btn-icon" title="Support via Ko-fi">
+                    <svg class="kofi-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M18 8h1a4 4 0 0 1 0 8h-1"></path>
+                        <path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"></path>
+                        <line x1="6" y1="1" x2="6" y2="4"></line>
+                        <line x1="10" y1="1" x2="10" y2="4"></line>
+                        <line x1="14" y1="1" x2="14" y2="4"></line>
+                    </svg>
+                </a>
             </div>
         </div>
 
-        <div class="score-panel">
-            <span class="label">CARDS TYPED</span>
-            <span class="value" id="score-val">0</span>
-        </div>
-
-        <div class="footer-actions">
-            <a href="https://ko-fi.com/mojikazu" target="_blank" rel="noopener noreferrer" class="kofi-btn">
-                <svg class="kofi-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M18 8h1a4 4 0 0 1 0 8h-1"></path>
-                    <path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"></path>
-                    <line x1="6" y1="1" x2="6" y2="4"></line>
-                    <line x1="10" y1="1" x2="10" y2="4"></line>
-                    <line x1="14" y1="1" x2="14" y2="4"></line>
-                </svg>
-                SUPPORT VIA KO-FI
-            </a>
-        </div>
+        <!-- REENABLE INPUT BOX TOGGLE BUTTON (VISIBLE WHEN HIDDEN) -->
+        <button class="restore-box-btn hidden" id="restore-box-btn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="15 3 21 3 21 9"></polyline>
+                <polyline points="9 21 3 21 3 15"></polyline>
+                <line x1="21" y1="3" x2="14" y2="10"></line>
+                <line x1="3" y1="21" x2="10" y2="14"></line>
+            </svg>
+            SHOW INPUT BOX
+        </button>
     </div>
 
     <script>
@@ -122,6 +142,7 @@
         let showMeaning = false;
         let showErrorColors = true;
         let removeSpaces = false;
+        let isInputBoxHidden = false;
         let currentFontClass = "font-modern";
 
         const statusEl = document.getElementById("status");
@@ -131,8 +152,11 @@
         const fontDropdown = document.getElementById("font-select");
         const liveInputText = document.getElementById("live-input-text");
         const inputPlaceholder = document.getElementById("input-placeholder");
+        const liveInputBox = document.getElementById("live-input-box");
         const errorToggle = document.getElementById("error-toggle");
         const spaceToggle = document.getElementById("space-toggle");
+        const hideBoxBtn = document.getElementById("hide-box-btn");
+        const restoreBoxBtn = document.getElementById("restore-box-btn");
 
         async function fetchFromAnki(action, params = {}) {
             try {
@@ -264,41 +288,66 @@
         }
 
         function updateDisplay() {
+            const currentWordObj = wordList[currentIndex];
             const currentWordNode = wordsContainer.children[currentIndex];
-            if (!currentWordNode) return;
+            if (!currentWordNode || !currentWordObj) return;
 
-            // 1. Update Romaji Highlights
-            const romajiNode = currentWordNode.querySelector(".romaji-text");
-            const charSpans = romajiNode.querySelectorAll(".char");
-
+            // Calculate correct prefix length
             let correctCount = 0;
             for (let i = 0; i < typedInput.length; i++) {
                 if (typedInput[i].isCorrect) correctCount++;
                 else break; 
             }
 
+            // 1. Update Word Romaji Highlights
+            const romajiNode = currentWordNode.querySelector(".romaji-text");
+            const charSpans = romajiNode.querySelectorAll(".char");
+
+            // Monkeytype Hidden Box Mode condition: Hide Romaji until typed character count > Japanese kanji length
+            const kanjiLength = currentWordObj.kanji.length;
+            const shouldHideRomajiForOverlay = isInputBoxHidden && (typedInput.length <= kanjiLength);
+
+            if (shouldHideRomajiForOverlay) {
+                romajiNode.classList.add("romaji-overlay-hidden");
+            } else {
+                romajiNode.classList.remove("romaji-overlay-hidden");
+            }
+
             charSpans.forEach((span, idx) => {
-                span.classList.remove("correct", "current", "incorrect");
+                span.classList.remove("correct", "current", "incorrect", "neutral-typed");
+                
                 if (idx < correctCount) {
-                    span.classList.add("correct");
+                    // IF SHOW RED ERRORS IS OFF: Do not highlight green while typing
+                    if (showErrorColors) {
+                        span.classList.add("correct");
+                    } else {
+                        span.classList.add("neutral-typed");
+                    }
                 } else if (idx === correctCount && incorrectCount === 0) {
                     span.classList.add("current");
                 } else if (idx === correctCount && incorrectCount > 0) {
-                    span.classList.add("incorrect");
+                    if (showErrorColors) {
+                        span.classList.add("incorrect");
+                    } else {
+                        span.classList.add("neutral-typed");
+                    }
                 }
             });
 
-            // 2. Update Live Typing Box
+            // 2. Update Live Input Box Text
             liveInputText.innerHTML = "";
             if (typedInput.length > 0) {
                 inputPlaceholder.style.display = "none";
                 typedInput.forEach(entry => {
                     const charSpan = document.createElement("span");
                     charSpan.textContent = entry.char;
+                    
                     if (!entry.isCorrect && showErrorColors) {
                         charSpan.className = "typed-char-wrong";
-                    } else if (entry.isCorrect) {
+                    } else if (entry.isCorrect && showErrorColors) {
                         charSpan.className = "typed-char-correct";
+                    } else {
+                        charSpan.className = "typed-char-neutral";
                     }
                     liveInputText.appendChild(charSpan);
                 });
@@ -408,6 +457,22 @@
             } else {
                 wordsContainer.classList.remove("no-spaces");
             }
+            updateDisplay();
+        });
+
+        // Hide Live Input Box Button Logic
+        hideBoxBtn.addEventListener("click", () => {
+            isInputBoxHidden = true;
+            liveInputBox.classList.add("hidden");
+            restoreBoxBtn.classList.remove("hidden");
+            updateDisplay();
+        });
+
+        // Restore Live Input Box Button Logic
+        restoreBoxBtn.addEventListener("click", () => {
+            isInputBoxHidden = false;
+            liveInputBox.classList.remove("hidden");
+            restoreBoxBtn.classList.add("hidden");
             updateDisplay();
         });
 
