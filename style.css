@@ -294,6 +294,7 @@ body {
 
 .words-container.no-spaces .word-item {
     padding: 8px 0px;
+    cursor: default; /* Change cursor back to default pointer */
 }
 
 .words-container.no-spaces .kanji-text {
