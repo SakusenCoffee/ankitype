@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark-slate">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -13,43 +13,93 @@
 </head>
 <body>
 
-    <div class="app-layout">
-        <div class="status-badge" id="status">INIT CONNECTION</div>
-
-        <div class="controls-row">
-            <div class="selector-container">
-                <label for="deck-select">ANKI DECK</label>
-                <select id="deck-select">
-                    <option value="">Querying local database...</option>
-                </select>
+    <!-- ROUNDED FLOATING NAVBAR -->
+    <nav class="top-navbar">
+        <div class="nav-content">
+            <div class="nav-brand">
+                <span class="logo-dot"></span> ANKI TYPE
             </div>
 
-            <div class="selector-container">
-                <label for="font-select">FONT</label>
-                <select id="font-select">
-                    <optgroup label="Standard Styles">
-                        <option value="font-modern">Modern Gothic (Default)</option>
-                        <option value="font-noto">Noto Sans (Ultra Clean)</option>
-                        <option value="font-serif">Traditional Mincho (Kaisei)</option>
-                        <option value="font-hina">Delicate Mincho (Hina)</option>
-                    </optgroup>
-                    <optgroup label="Handwriting & Pop">
-                        <option value="font-brush">Calligraphy Brush (Yuji)</option>
-                        <option value="font-yomogi">Thin Handwriting (Yomogi)</option>
-                        <option value="font-hachi">80s Gyaru Pop (Hachi Maru)</option>
-                        <option value="font-mochiy">Comic Pop Art (Mochiy)</option>
-                        <option value="font-rounded">Rounded Pop (Zen Maru)</option>
-                    </optgroup>
-                    <optgroup label="Experimental & Retro">
-                        <option value="font-pixel">Retro 8-Bit (DotGothic)</option>
-                        <option value="font-carved">Wood Carved (Chokokutai)</option>
-                        <option value="font-bomb">Bubble Graffiti (Cherry Bomb)</option>
-                        <option value="font-zoo">Abstract Grill (Zen Tokyo Zoo)</option>
-                    </optgroup>
-                </select>
+            <div class="nav-actions">
+                <!-- Anki Settings Tab Button -->
+                <button class="nav-btn" id="anki-tab-btn" title="Anki Deck Settings">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+                        <line x1="8" y1="21" x2="16" y2="21"></line>
+                        <line x1="12" y1="17" x2="12" y2="21"></line>
+                    </svg>
+                    <span>ANKI</span>
+                </button>
+
+                <!-- Appearance Tab Button -->
+                <button class="nav-btn" id="appearance-tab-btn" title="Font & Theme Options">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"></path>
+                    </svg>
+                    <span>THEME & FONT</span>
+                </button>
             </div>
         </div>
 
+        <!-- EXPANDABLE DRAWER: ANKI SETTINGS -->
+        <div class="nav-drawer hidden" id="anki-drawer">
+            <div class="drawer-inner">
+                <div class="drawer-header">
+                    <span class="drawer-title">ANKI CONNECTION</span>
+                    <div class="status-badge" id="status">INIT CONNECTION</div>
+                </div>
+                <div class="selector-container">
+                    <label for="deck-select">SELECT DECK</label>
+                    <select id="deck-select">
+                        <option value="">Querying local database...</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <!-- EXPANDABLE DRAWER: APPEARANCE SETTINGS -->
+        <div class="nav-drawer hidden" id="appearance-drawer">
+            <div class="drawer-inner grid-2">
+                <div class="selector-container">
+                    <label for="theme-select">COLOR THEME</label>
+                    <select id="theme-select">
+                        <option value="dark-slate">Dark Slate (Default)</option>
+                        <option value="carbon">Carbon (High Contrast)</option>
+                        <option value="cyberpunk">Cyberpunk Neon</option>
+                        <option value="serika">Serika Dark</option>
+                        <option value="dracula">Dracula</option>
+                    </select>
+                </div>
+
+                <div class="selector-container">
+                    <label for="font-select">JAPANESE FONT</label>
+                    <select id="font-select">
+                        <optgroup label="Standard Styles">
+                            <option value="font-modern">Modern Gothic (Default)</option>
+                            <option value="font-noto">Noto Sans (Ultra Clean)</option>
+                            <option value="font-serif">Traditional Mincho (Kaisei)</option>
+                            <option value="font-hina">Delicate Mincho (Hina)</option>
+                        </optgroup>
+                        <optgroup label="Handwriting & Pop">
+                            <option value="font-brush">Calligraphy Brush (Yuji)</option>
+                            <option value="font-yomogi">Thin Handwriting (Yomogi)</option>
+                            <option value="font-hachi">80s Gyaru Pop (Hachi Maru)</option>
+                            <option value="font-mochiy">Comic Pop Art (Mochiy)</option>
+                            <option value="font-rounded">Rounded Pop (Zen Maru)</option>
+                        </optgroup>
+                        <optgroup label="Experimental & Retro">
+                            <option value="font-pixel">Retro 8-Bit (DotGothic)</option>
+                            <option value="font-carved">Wood Carved (Chokokutai)</option>
+                            <option value="font-bomb">Bubble Graffiti (Cherry Bomb)</option>
+                            <option value="font-zoo">Abstract Grill (Zen Tokyo Zoo)</option>
+                        </optgroup>
+                    </select>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="app-layout">
         <!-- MONKEYTYPE SCROLLING CONTAINER FRAME -->
         <div class="words-wrapper" id="words-wrapper">
             <div class="words-container" id="words-container">
@@ -130,7 +180,7 @@
 
         let wordList = [];
         let currentIndex = 0;
-        let typedInput = []; // Array of { char: string, isCorrect: boolean }
+        let typedInput = []; 
         let incorrectCount = 0;
         const MAX_INCORRECT = 10;
 
@@ -147,6 +197,7 @@
         const scoreEl = document.getElementById("score-val");
         const deckDropdown = document.getElementById("deck-select");
         const fontDropdown = document.getElementById("font-select");
+        const themeDropdown = document.getElementById("theme-select");
         const liveInputText = document.getElementById("live-input-text");
         const inputPlaceholder = document.getElementById("input-placeholder");
         const liveInputBox = document.getElementById("live-input-box");
@@ -155,7 +206,12 @@
         const hideBoxBtn = document.getElementById("hide-box-btn");
         const restoreBoxBtn = document.getElementById("restore-box-btn");
 
-        // Helper: Strip HTML and decode entities cleanly
+        // Navbar drawers
+        const ankiTabBtn = document.getElementById("anki-tab-btn");
+        const appearanceTabBtn = document.getElementById("appearance-tab-btn");
+        const ankiDrawer = document.getElementById("anki-drawer");
+        const appearanceDrawer = document.getElementById("appearance-drawer");
+
         function cleanHtmlText(rawHtml) {
             if (!rawHtml) return "";
             const parser = new DOMParser();
@@ -267,7 +323,6 @@
                 kanjiNode.textContent = wordObj.kanji;
                 kanjiWrapperNode.appendChild(kanjiNode);
 
-                // Container for side error display when romaji is toggled OFF
                 const kanjiErrorSpan = document.createElement("span");
                 kanjiErrorSpan.className = "kanji-side-error";
                 kanjiWrapperNode.appendChild(kanjiErrorSpan);
@@ -282,7 +337,6 @@
                     romajiNode.appendChild(charSpan);
                 }
 
-                // Extra container for overflowing wrong characters past romaji
                 const overflowSpan = document.createElement("span");
                 overflowSpan.className = "romaji-overflow-error";
                 romajiNode.appendChild(overflowSpan);
@@ -322,11 +376,9 @@
             const overflowSpan = romajiNode.querySelector(".romaji-overflow-error");
             const kanjiErrorSpan = currentWordNode.querySelector(".kanji-side-error");
 
-            // Clear old dynamic overflow error displays
             overflowSpan.textContent = "";
             kanjiErrorSpan.textContent = "";
 
-            // 1. Monkeytype Hidden Box Mode condition
             const kanjiLength = currentWordObj.kanji.length;
             const shouldHideRomajiForOverlay = isInputBoxHidden && (typedInput.length <= kanjiLength);
 
@@ -336,7 +388,6 @@
                 romajiNode.classList.remove("romaji-overlay-hidden");
             }
 
-            // 2. Character-by-character validation formatting
             charSpans.forEach((span, idx) => {
                 span.classList.remove("correct", "current", "incorrect", "neutral-typed");
                 
@@ -357,22 +408,19 @@
                 }
             });
 
-            // 3. Render incorrect inputs when box is hidden
             if (incorrectCount > 0) {
                 let wrongChars = typedInput.slice(correctCount).map(item => item.char).join("");
                 
                 if (showErrorColors) {
                     if (showRomaji) {
-                        // Display wrong chars over/after Romaji
                         overflowSpan.textContent = wrongChars;
                     } else {
-                        // Display wrong chars directly next to Japanese word when Romaji is off
                         kanjiErrorSpan.textContent = wrongChars;
                     }
                 }
             }
 
-            // 4. Update Live Input Box Text
+            // Update Live Input Box Text
             liveInputText.innerHTML = "";
             if (typedInput.length > 0) {
                 inputPlaceholder.style.display = "none";
@@ -393,14 +441,15 @@
                 inputPlaceholder.style.display = "inline";
             }
 
-            // 5. Scroll active row into view
-            const containerTop = wordsContainer.getBoundingClientRect().top;
-            const wordTop = currentWordNode.getBoundingClientRect().top;
-            const lineOffset = wordTop - containerTop;
+            // Scroll Calculation Fix (Works seamlessly in both Space and No-Spaces mode)
+            const firstWordTop = wordsContainer.children[0].offsetTop;
+            const currentWordTop = currentWordNode.offsetTop;
+            const lineOffset = currentWordTop - firstWordTop;
 
-            if (lineOffset > 90) {
-                const shiftY = Math.floor(lineOffset / 80) * 80;
-                wordsContainer.style.transform = `translateY(-${shiftY}px)`;
+            if (lineOffset > 20) {
+                wordsContainer.style.transform = `translateY(-${lineOffset}px)`;
+            } else {
+                wordsContainer.style.transform = `translateY(0px)`;
             }
         }
 
@@ -435,7 +484,7 @@
                 return;
             }
 
-            // SINGLE BACKSPACE: Delete single character
+            // SINGLE BACKSPACE
             if (e.key === "Backspace") {
                 if (typedInput.length > 0) {
                     const removed = typedInput.pop();
@@ -493,6 +542,23 @@
             updateDisplay();
         });
 
+        // Navbar Drawer Toggle Event Listeners
+        ankiTabBtn.addEventListener("click", () => {
+            appearanceDrawer.classList.add("hidden");
+            appearanceTabBtn.classList.remove("active");
+            
+            ankiDrawer.classList.toggle("hidden");
+            ankiTabBtn.classList.toggle("active");
+        });
+
+        appearanceTabBtn.addEventListener("click", () => {
+            ankiDrawer.classList.add("hidden");
+            ankiTabBtn.classList.remove("active");
+            
+            appearanceDrawer.classList.toggle("hidden");
+            appearanceTabBtn.classList.toggle("active");
+        });
+
         // Error Toggle Switch
         errorToggle.addEventListener("change", (e) => {
             showErrorColors = e.target.checked;
@@ -508,6 +574,11 @@
                 wordsContainer.classList.remove("no-spaces");
             }
             updateDisplay();
+        });
+
+        // Theme Switcher
+        themeDropdown.addEventListener("change", (e) => {
+            document.documentElement.setAttribute("data-theme", e.target.value);
         });
 
         // Hide Live Input Box Logic
