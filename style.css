@@ -1,7 +1,7 @@
 /* ==========================================================================
-   MONKEYTYPE / MINIMALIST JAPANESE TYPING DESIGN (style.css)
+   THEMES & COLOR PALETTES
    ========================================================================== */
-:root {
+:root, [data-theme="dark-slate"] {
     --bg-dark: #0b1622;
     --bg-card: #152232;
     --bg-input: #1f2d3d;
@@ -10,10 +10,56 @@
     --accent-blue: #3db4f2;
     --accent-green: #00ffaa;
     --accent-red: #ff4a6a;
+}
+
+[data-theme="carbon"] {
+    --bg-dark: #161616;
+    --bg-card: #262626;
+    --bg-input: #393939;
+    --text-main: #f4f4f4;
+    --text-muted: #8d8d8d;
+    --accent-blue: #78a9ff;
+    --accent-green: #42be65;
+    --accent-red: #ff8389;
+}
+
+[data-theme="cyberpunk"] {
+    --bg-dark: #0d0f18;
+    --bg-card: #1a1c2e;
+    --bg-input: #252842;
+    --text-main: #00f0ff;
+    --text-muted: #7378a0;
+    --accent-blue: #ff0055;
+    --accent-green: #ffe600;
+    --accent-red: #ff0055;
+}
+
+[data-theme="serika"] {
+    --bg-dark: #1f232a;
+    --bg-card: #2d3139;
+    --bg-input: #3b404a;
+    --text-main: #e1e3e6;
+    --text-muted: #676e7d;
+    --accent-blue: #e2b714;
+    --accent-green: #a3be8c;
+    --accent-red: #bf616a;
+}
+
+[data-theme="dracula"] {
+    --bg-dark: #282a36;
+    --bg-card: #44475a;
+    --bg-input: #6272a4;
+    --text-main: #f8f8f2;
+    --text-muted: #6272a4;
+    --accent-blue: #8be9fd;
+    --accent-green: #50fa7b;
+    --accent-red: #ff5555;
+}
+
+/* Japanese Font Variables */
+:root {
     --font-heading: 'Space Grotesk', sans-serif;
     --font-body: 'Plus Jakarta Sans', sans-serif;
-
-    /* Japanese Font Variables */
     --font-noto: 'Noto Sans JP', sans-serif;
     --font-serif: 'Kaisei Tokumin', serif;
     --font-hina: 'Hina Mincho', serif;
@@ -33,13 +79,14 @@ body {
     color: var(--text-main);
     font-family: var(--font-body);
     display: flex;
+    flex-direction: column;
     justify-content: center;
     align-items: center;
     min-height: 100vh;
     margin: 0;
-    padding: 40px 20px;
+    padding: 90px 20px 40px 20px;
     box-sizing: border-box;
-    background-image: radial-gradient(circle at 50% -20%, #1e375a 0%, var(--bg-dark) 60%);
+    transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 .app-layout {
@@ -52,16 +99,131 @@ body {
     position: relative;
 }
 
-/* Status Badges */
-.status-badge {
-    position: absolute;
-    top: -25px;
-    right: 0;
+/* ==========================================================================
+   ROUNDED FLOATING TOP NAVBAR & DRAWERS
+   ========================================================================== */
+.top-navbar {
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: calc(100% - 40px);
+    max-width: 860px;
+    background: var(--bg-card);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 20px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
+    z-index: 100;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.nav-content {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 20px;
+}
+
+.nav-brand {
     font-family: var(--font-heading);
     font-weight: 700;
-    font-size: 0.7rem;
+    font-size: 0.85rem;
+    letter-spacing: 2px;
+    color: var(--text-main);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.logo-dot {
+    width: 8px;
+    height: 8px;
+    background-color: var(--accent-blue);
+    border-radius: 50%;
+}
+
+.nav-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.nav-btn {
+    background: transparent;
+    border: 1px solid transparent;
+    color: var(--text-muted);
+    padding: 6px 14px;
+    border-radius: 12px;
+    font-family: var(--font-heading);
+    font-size: 0.75rem;
+    font-weight: 700;
     letter-spacing: 1px;
-    padding: 4px 12px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.2s ease;
+}
+
+.nav-btn svg {
+    width: 16px;
+    height: 16px;
+}
+
+.nav-btn:hover {
+    color: var(--text-main);
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.nav-btn.active {
+    color: var(--accent-blue);
+    background: var(--bg-input);
+    border-color: rgba(255, 255, 255, 0.1);
+}
+
+.nav-drawer {
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+    padding: 16px 20px;
+    animation: drawerSlide 0.2s cubic-bezier(0, 0, 0.2, 1);
+}
+
+.nav-drawer.hidden {
+    display: none;
+}
+
+@keyframes drawerSlide {
+    from { opacity: 0; transform: translateY(-8px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.drawer-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+}
+
+.drawer-title {
+    font-family: var(--font-heading);
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 2px;
+    color: var(--accent-blue);
+}
+
+.grid-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 15px;
+}
+
+/* Status Badges */
+.status-badge {
+    font-family: var(--font-heading);
+    font-weight: 700;
+    font-size: 0.65rem;
+    letter-spacing: 1px;
+    padding: 4px 10px;
     border-radius: 6px;
     background: #2b3a4a;
     color: var(--text-muted);
@@ -70,46 +232,37 @@ body {
 .status-loading { background: rgba(61, 180, 242, 0.15); color: var(--accent-blue); }
 .status-offline { background: rgba(255, 74, 106, 0.15); color: var(--accent-red); }
 
-.controls-row {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 15px;
-    width: 100%;
-}
-
 .selector-container {
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 6px;
 }
 
 .selector-container label {
     font-family: var(--font-heading);
-    font-size: 0.75rem;
+    font-size: 0.65rem;
     font-weight: 700;
-    letter-spacing: 2px;
-    color: var(--accent-blue);
+    letter-spacing: 1px;
+    color: var(--text-muted);
 }
 
 .selector-container select {
-    background-color: var(--bg-card);
+    background-color: var(--bg-input);
     color: var(--text-main);
     border: 1px solid rgba(255, 255, 255, 0.05);
-    padding: 12px 18px;
-    border-radius: 12px;
+    padding: 10px 14px;
+    border-radius: 10px;
     font-family: var(--font-body);
-    font-size: 0.9rem;
+    font-size: 0.85rem;
     font-weight: 500;
     outline: none;
     cursor: pointer;
-    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+    transition: all 0.2s ease;
     width: 100%;
 }
 
 .selector-container select:hover {
-    background-color: var(--bg-input);
-    border-color: rgba(61, 180, 242, 0.4);
+    border-color: rgba(255, 255, 255, 0.2);
 }
 
 /* ==========================================================================
@@ -248,7 +401,6 @@ body {
     margin-left: 2px;
 }
 
-/* Neutral state when SHOW RED ERRORS is OFF */
 .romaji-text .char.neutral-typed {
     color: var(--text-main);
     opacity: 0.9;
@@ -325,7 +477,6 @@ body {
     display: none !important;
 }
 
-/* Hide Input Box Button */
 .hide-box-btn {
     position: absolute;
     right: 12px;
@@ -379,7 +530,6 @@ body {
     color: var(--text-main);
 }
 
-/* Toggles & Controls Row */
 .toggles-row {
     display: flex;
     align-items: center;
@@ -419,9 +569,10 @@ body {
     position: absolute;
     cursor: pointer;
     inset: 0;
-    background-color: #2b3a4a;
+    background-color: var(--bg-card);
     transition: 0.2s;
     border-radius: 18px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 .toggle-slider:before {
@@ -429,9 +580,9 @@ body {
     content: "";
     height: 12px;
     width: 12px;
-    left: 3px;
-    bottom: 3px;
-    background-color: white;
+    left: 2px;
+    bottom: 2px;
+    background-color: var(--text-main);
     transition: 0.2s;
     border-radius: 50%;
 }
@@ -448,7 +599,6 @@ input:checked + .toggle-slider:before {
     transform: translateX(16px);
 }
 
-/* CARDS TYPED COMPACT PANEL */
 .score-panel-inline {
     display: flex;
     align-items: center;
@@ -474,7 +624,6 @@ input:checked + .toggle-slider:before {
     font-family: var(--font-heading);
 }
 
-/* KO-FI ICON ONLY BUTTON */
 .kofi-btn-icon {
     display: inline-flex;
     align-items: center;
@@ -501,7 +650,6 @@ input:checked + .toggle-slider:before {
     height: 16px;
 }
 
-/* RESTORE INPUT BOX BUTTON */
 .restore-box-btn {
     background: var(--bg-card);
     color: var(--text-muted);
