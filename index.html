@@ -99,7 +99,7 @@
                     <button class="count-btn" data-count="10">10w</button>
                     <button class="count-btn" data-count="25">25w</button>
                     <button class="count-btn" data-count="50">50w</button>
-                    <button class="count-btn" data-count="custom" id="custom-count-btn">Custom</button>
+                    <button class="count-btn" data-count="custom" id="custom-count-btn">custom</button>
                     <button class="count-btn active" data-count="max">Max</button>
                 </div>
 
@@ -110,7 +110,7 @@
                     <button class="time-btn" data-time="60">60s</button>
                     <button class="time-btn" data-time="120">120s</button>
                     <button class="time-btn hidden" data-time="infinite" id="infinite-time-btn">Infinite</button>
-                    <button class="time-btn" data-time="custom" id="custom-time-btn">Custom</button>
+                    <button class="time-btn" data-time="custom" id="custom-time-btn">custom</button>
                 </div>
 
                 <!-- Kana Char Count Bar (Shown when Hiragana/Katakana active) -->
@@ -119,7 +119,7 @@
                     <button class="kana-count-btn" data-kana-count="25">25c</button>
                     <button class="kana-count-btn" data-kana-count="50">50c</button>
                     <button class="kana-count-btn" data-kana-count="100">100c</button>
-                    <button class="kana-count-btn" data-kana-count="custom" id="custom-kana-btn">Custom</button>
+                    <button class="kana-count-btn" data-kana-count="custom" id="custom-kana-btn">custom</button>
                 </div>
 
                 <div class="custom-input-wrapper hidden" id="custom-input-wrapper">
@@ -948,46 +948,48 @@
         }
 
         function updateDisplay() {
-            const currentWordObj = activeWordList[currentIndex];
-            const currentWordNode = wordsContainer.children[currentIndex];
-            if (!currentWordNode || !currentWordObj) return;
+    const currentWordObj = activeWordList[currentIndex];
+    const currentWordNode = wordsContainer.children[currentIndex];
+    if (!currentWordNode || !currentWordObj) return;
 
-            const romajiNode = currentWordNode.querySelector(".romaji-text");
-            const charSpans = romajiNode.querySelectorAll(".char");
+    const romajiNode = currentWordNode.querySelector(".romaji-text");
+    const charSpans = romajiNode.querySelectorAll(".char");
 
-            charSpans.forEach((span, idx) => {
-                span.classList.remove("current", "neutral-typed");
+    charSpans.forEach((span, idx) => {
+        span.classList.remove("current", "neutral-typed");
 
-                if (idx < typedInput.length) {
-                    span.classList.add("neutral-typed");
-                } else if (idx === typedInput.length) {
-                    span.classList.add("current");
-                }
-            });
-
-            liveInputText.innerHTML = "";
-            if (typedInput.length > 0) {
-                inputPlaceholder.style.display = "none";
-                typedInput.forEach(char => {
-                    const charSpan = document.createElement("span");
-                    charSpan.textContent = char;
-                    charSpan.className = "typed-char-neutral";
-                    liveInputText.appendChild(charSpan);
-                });
-            } else {
-                inputPlaceholder.style.display = "inline";
-            }
-
-            const firstWordTop = wordsContainer.children[0].offsetTop;
-            const currentWordTop = currentWordNode.offsetTop;
-            const lineOffset = currentWordTop - firstWordTop;
-
-            if (lineOffset > 20) {
-                wordsContainer.style.transform = `translateY(-${lineOffset}px)`;
-            } else {
-                wordsContainer.style.transform = `translateY(0px)`;
-            }
+        if (idx < typedInput.length) {
+            span.classList.add("neutral-typed");
+        } else if (idx === typedInput.length) {
+            span.classList.add("current");
         }
+    });
+
+    liveInputText.innerHTML = "";
+    if (typedInput.length > 0) {
+        inputPlaceholder.style.display = "none";
+        typedInput.forEach(char => {
+            const charSpan = document.createElement("span");
+            charSpan.textContent = char;
+            charSpan.className = "typed-char-neutral";
+            liveInputText.appendChild(charSpan);
+        });
+    } else {
+        inputPlaceholder.style.display = "inline";
+    }
+
+    // --- PARAGRAPH LINE SCROLL LOGIC ---
+    const firstWordTop = wordsContainer.children[0].offsetTop;
+    const currentWordTop = currentWordNode.offsetTop;
+    const currentLineOffset = currentWordTop - firstWordTop;
+
+    // Smoothly shift the paragraph up whenever you move past the first line
+    if (currentLineOffset > 0) {
+        wordsContainer.style.transform = `translateY(-${currentLineOffset}px)`;
+    } else {
+        wordsContainer.style.transform = `translateY(0px)`;
+    }
+}
 
         function updateVisibility() {
             const allRomaji = document.querySelectorAll(".romaji-text");
