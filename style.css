@@ -72,6 +72,10 @@
     --font-carved: 'Chokokutai', sans-serif;
     --font-bomb: 'Cherry Bomb One', sans-serif;
     --font-zoo: 'Zen Tokyo Zoo', sans-serif;
+
+    /* Dynamic font sizes */
+    --kanji-font-size: 2.2rem;
+    --sub-font-size: 1.0rem;
 }
 
 body {
@@ -176,6 +180,12 @@ body {
     height: 16px;
 }
 
+.kanji-seed-icon {
+    font-size: 1.1rem;
+    font-weight: 700;
+    line-height: 1;
+}
+
 .nav-btn:hover {
     color: var(--text-main);
     background: rgba(255, 255, 255, 0.05);
@@ -210,6 +220,12 @@ body {
     flex-wrap: wrap;
 }
 
+.flex-center {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
 .count-selector-group {
     display: flex;
     background: var(--bg-input);
@@ -222,7 +238,7 @@ body {
     display: none !important;
 }
 
-.count-btn, .time-btn, .mode-btn, .source-btn {
+.count-btn, .time-btn, .mode-btn, .source-btn, .kana-count-btn {
     background: transparent;
     border: none;
     color: var(--text-muted);
@@ -235,17 +251,17 @@ body {
     transition: all 0.2s ease;
 }
 
-.count-btn:hover, .time-btn:hover, .mode-btn:hover, .source-btn:hover {
+.count-btn:hover, .time-btn:hover, .mode-btn:hover, .source-btn:hover, .kana-count-btn:hover {
     color: var(--text-main);
 }
 
-.count-btn.active, .time-btn.active, .mode-btn.active, .source-btn.active {
+.count-btn.active, .time-btn.active, .mode-btn.active, .source-btn.active, .kana-count-btn.active {
     background: var(--bg-card);
     color: var(--accent-blue);
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
 }
 
-.count-btn:disabled, .time-btn:disabled, .mode-btn:disabled, .source-btn:disabled {
+.count-btn:disabled, .time-btn:disabled, .mode-btn:disabled, .source-btn:disabled, .kana-count-btn:disabled {
     opacity: 0.3;
     cursor: not-allowed;
 }
@@ -292,12 +308,12 @@ body {
 }
 
 .seed-controls-group #paste-seed-input {
-    width: 110px;
+    width: 140px;
 }
 
 #copy-seed-btn {
-font-size: 1.1rem; /* Adjust this value (e.g., 1rem to 1.3rem) to get your desired size */
-padding: 6px 12px; /* Optional: adjusts padding to fit the larger text comfortably */
+font-size: 1.1rem;
+padding: 6px 12px;
 }
 
 .drawer-header {
@@ -319,6 +335,51 @@ padding: 6px 12px; /* Optional: adjusts padding to fit the larger text comfortab
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 15px;
+}
+
+.full-width {
+    grid-column: span 2;
+}
+
+/* Font Sliders UI */
+.slider-label-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.slider-val-display {
+    font-family: var(--font-heading);
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: var(--accent-blue);
+}
+
+.font-slider {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 6px;
+    border-radius: 3px;
+    background: var(--bg-input);
+    outline: none;
+    margin-top: 4px;
+}
+
+.font-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: var(--accent-blue);
+    cursor: pointer;
+    box-shadow: 0 0 8px rgba(61, 180, 242, 0.5);
+    transition: transform 0.1s ease;
+}
+
+.font-slider::-webkit-slider-thumb:hover {
+    transform: scale(1.2);
 }
 
 .status-badge {
@@ -426,7 +487,7 @@ padding: 6px 12px; /* Optional: adjusts padding to fit the larger text comfortab
 }
 
 .kanji-text {
-    font-size: 2.2rem;
+    font-size: var(--kanji-font-size);
     font-weight: 700;
     color: var(--text-main);
     line-height: 1.2;
@@ -435,7 +496,7 @@ padding: 6px 12px; /* Optional: adjusts padding to fit the larger text comfortab
 
 .romaji-text {
     font-family: 'Space Grotesk', monospace;
-    font-size: 1rem;
+    font-size: var(--sub-font-size);
     font-weight: 700;
     letter-spacing: 1px;
     margin-top: 4px;
@@ -464,7 +525,7 @@ padding: 6px 12px; /* Optional: adjusts padding to fit the larger text comfortab
 }
 
 .meaning-text {
-    font-size: 0.75rem;
+    font-size: var(--sub-font-size);
     color: var(--accent-blue);
     margin-top: 4px;
     font-weight: 600;

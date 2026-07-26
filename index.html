@@ -42,14 +42,19 @@
                         <line x1="8" y1="21" x2="16" y2="21"></line>
                         <line x1="12" y1="17" x2="12" y2="21"></line>
                     </svg>
-                    <span>ANKI</span>
+                    <span>CUSTOM WORDS</span>
                 </button>
 
-                <button class="nav-btn" id="appearance-tab-btn" title="Font & Theme Options">
+                <button class="nav-btn" id="appearance-tab-btn" title="Customization Options">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"></path>
                     </svg>
-                    <span>THEME & FONT</span>
+                    <span>CUSTOMIZATION</span>
+                </button>
+
+                <button class="nav-btn" id="seed-tab-btn" title="Seed Options">
+                    <span class="kanji-seed-icon">種</span>
+                    <span>SEED</span>
                 </button>
             </div>
         </div>
@@ -93,22 +98,18 @@
                     <button class="time-btn" data-time="custom" id="custom-time-btn">Custom</button>
                 </div>
 
+                <!-- Kana Char Count Bar (Shown when Hiragana/Katakana active) -->
+                <div class="count-selector-group hidden" id="kana-count-group">
+                    <button class="kana-count-btn" data-kana-count="10">10c</button>
+                    <button class="kana-count-btn" data-kana-count="25">25c</button>
+                    <button class="kana-count-btn" data-kana-count="50">50c</button>
+                    <button class="kana-count-btn" data-kana-count="100">100c</button>
+                    <button class="kana-count-btn" data-kana-count="custom" id="custom-kana-btn">Custom</button>
+                </div>
+
                 <div class="custom-input-wrapper hidden" id="custom-input-wrapper">
                     <input type="number" id="custom-count-input" min="1" placeholder="Qty..." />
                     <button id="custom-count-submit">Set</button>
-                </div>
-
-                <div class="selector-divider"></div>
-
-                <!-- Test Seed Controls -->
-                <div class="seed-controls-group">
-                    <button class="nav-btn" id="copy-seed-btn" title="Copy Shareable Seed">
-                        <span>種</span>
-                    </button>
-                    <div class="custom-input-wrapper">
-                        <input type="text" id="paste-seed-input" placeholder="種のペースト" />
-                        <button id="load-seed-btn">ロード</button>
-                    </div>
                 </div>
             </div>
         </div>
@@ -129,7 +130,7 @@
             </div>
         </div>
 
-        <!-- EXPANDABLE DRAWER: APPEARANCE SETTINGS -->
+        <!-- EXPANDABLE DRAWER: CUSTOMIZATION SETTINGS -->
         <div class="nav-drawer hidden" id="appearance-drawer">
             <div class="drawer-inner grid-2">
                 <div class="selector-container">
@@ -166,6 +167,38 @@
                             <option value="font-zoo">Abstract Grill (Zen Tokyo Zoo)</option>
                         </optgroup>
                     </select>
+                </div>
+
+                <!-- Font Size Adjusters -->
+                <div class="selector-container full-width">
+                    <div class="slider-label-row">
+                        <label for="main-font-slider">MAIN EXPRESSION FONT SIZE</label>
+                        <span class="slider-val-display" id="main-font-val">2.2rem</span>
+                    </div>
+                    <input type="range" id="main-font-slider" min="1.2" max="4.0" step="0.1" value="2.2" class="font-slider" />
+                </div>
+
+                <div class="selector-container full-width">
+                    <div class="slider-label-row">
+                        <label for="sub-font-slider">ROMAJI / DEFINITION FONT SIZE</label>
+                        <span class="slider-val-display" id="sub-font-val">1.0rem</span>
+                    </div>
+                    <input type="range" id="sub-font-slider" min="0.6" max="2.0" step="0.05" value="1.0" class="font-slider" />
+                </div>
+            </div>
+        </div>
+
+        <!-- EXPANDABLE DRAWER: SEED OPTIONS -->
+        <div class="nav-drawer hidden" id="seed-drawer">
+            <div class="drawer-inner flex-center">
+                <div class="seed-controls-group">
+                    <button class="nav-btn" id="copy-seed-btn" title="Copy Shareable Seed">
+                        <span>種</span>
+                    </button>
+                    <div class="custom-input-wrapper">
+                        <input type="text" id="paste-seed-input" placeholder="種のペースト" />
+                        <button id="load-seed-btn">ロード</button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -300,6 +333,10 @@
         let activeSource = localStorage.getItem("anki_type_source") || "anki"; // 'anki' | 'hiragana' | 'katakana'
         let wordCountSetting = localStorage.getItem("anki_type_word_count") || "max";
         let testTimeSetting = localStorage.getItem("anki_type_time_setting") || "30";
+        let kanaCountSetting = localStorage.getItem("anki_type_kana_count") || "25";
+
+        let mainFontSize = localStorage.getItem("anki_type_main_font_size") || "2.2";
+        let subFontSize = localStorage.getItem("anki_type_sub_font_size") || "1.0";
 
         let timeRemaining = 0;
         let testTimerInterval = null;
@@ -345,10 +382,12 @@
         const testOptionsTabBtn = document.getElementById("test-options-tab-btn");
         const ankiTabBtn = document.getElementById("anki-tab-btn");
         const appearanceTabBtn = document.getElementById("appearance-tab-btn");
+        const seedTabBtn = document.getElementById("seed-tab-btn");
 
         const testOptionsDrawer = document.getElementById("test-options-drawer");
         const ankiDrawer = document.getElementById("anki-drawer");
         const appearanceDrawer = document.getElementById("appearance-drawer");
+        const seedDrawer = document.getElementById("seed-drawer");
 
         const modeWordsBtn = document.getElementById("mode-words-btn");
         const modeTimeBtn = document.getElementById("mode-time-btn");
@@ -358,9 +397,11 @@
 
         const wordOptionsGroup = document.getElementById("word-options-group");
         const timeOptionsGroup = document.getElementById("time-options-group");
+        const kanaCountGroup = document.getElementById("kana-count-group");
 
         const countBtns = document.querySelectorAll(".count-btn");
         const timeBtns = document.querySelectorAll(".time-btn");
+        const kanaCountBtns = document.querySelectorAll(".kana-count-btn");
         const infiniteTimeBtn = document.getElementById("infinite-time-btn");
         const customInputWrapper = document.getElementById("custom-input-wrapper");
         const customCountInput = document.getElementById("custom-count-input");
@@ -369,6 +410,11 @@
         const copySeedBtn = document.getElementById("copy-seed-btn");
         const pasteSeedInput = document.getElementById("paste-seed-input");
         const loadSeedBtn = document.getElementById("load-seed-btn");
+
+        const mainFontSlider = document.getElementById("main-font-slider");
+        const subFontSlider = document.getElementById("sub-font-slider");
+        const mainFontVal = document.getElementById("main-font-val");
+        const subFontVal = document.getElementById("sub-font-val");
 
         const timerDisplayPanel = document.getElementById("timer-display-panel");
         const timeLeftVal = document.getElementById("time-left-val");
@@ -386,6 +432,16 @@
         themeDropdown.value = currentTheme;
         fontDropdown.value = currentFontClass;
 
+        function applyFontSizes() {
+            document.documentElement.style.setProperty('--kanji-font-size', `${mainFontSize}rem`);
+            document.documentElement.style.setProperty('--sub-font-size', `${subFontSize}rem`);
+            mainFontSlider.value = mainFontSize;
+            subFontSlider.value = subFontSize;
+            mainFontVal.textContent = `${mainFontSize}rem`;
+            subFontVal.textContent = `${subFontSize}rem`;
+        }
+        applyFontSizes();
+
         if (isInputBoxHidden) {
             liveInputBox.classList.add("hidden");
             restoreBoxBtn.classList.remove("hidden");
@@ -396,6 +452,31 @@
             const seedData = activeWordList.map(w => [w.kanji, w.romaji, w.meaning]);
             const jsonStr = JSON.stringify(seedData);
             return btoa(encodeURIComponent(jsonStr));
+        }
+
+        function openTab(tabName) {
+            testOptionsDrawer.classList.add("hidden");
+            testOptionsTabBtn.classList.remove("active");
+            ankiDrawer.classList.add("hidden");
+            ankiTabBtn.classList.remove("active");
+            appearanceDrawer.classList.add("hidden");
+            appearanceTabBtn.classList.remove("active");
+            seedDrawer.classList.add("hidden");
+            seedTabBtn.classList.remove("active");
+
+            if (tabName === "test-options") {
+                testOptionsDrawer.classList.remove("hidden");
+                testOptionsTabBtn.classList.add("active");
+            } else if (tabName === "anki") {
+                ankiDrawer.classList.remove("hidden");
+                ankiTabBtn.classList.add("active");
+            } else if (tabName === "appearance") {
+                appearanceDrawer.classList.remove("hidden");
+                appearanceTabBtn.classList.add("active");
+            } else if (tabName === "seed") {
+                seedDrawer.classList.remove("hidden");
+                seedTabBtn.classList.add("active");
+            }
         }
 
         function loadFromSeed(seedString) {
@@ -435,6 +516,9 @@
                 renderWordBlock();
                 statusEl.className = "status-badge status-online";
                 statusEl.textContent = `CUSTOM SEED (${activeWordList.length} WORDS)`;
+
+                // Switch to Custom Words tab on successful seed load
+                openTab("anki");
 
             } catch (err) {
                 console.error("Seed parsing error:", err);
@@ -541,23 +625,21 @@
             sourceKatakanaBtn.classList.remove("active");
             sourceAnkiBtn.classList.remove("active");
 
-            if (source === "hiragana") {
-                sourceHiraganaBtn.classList.add("active");
+            if (source === "hiragana" || source === "katakana") {
+                if (source === "hiragana") sourceHiraganaBtn.classList.add("active");
+                if (source === "katakana") sourceKatakanaBtn.classList.add("active");
+
                 scoreLabel.textContent = "CHARS TYPED";
                 modeWordsBtn.disabled = true;
                 infiniteTimeBtn.classList.remove("hidden");
-                setMode("time");
-            } else if (source === "katakana") {
-                sourceKatakanaBtn.classList.add("active");
-                scoreLabel.textContent = "CHARS TYPED";
-                modeWordsBtn.disabled = true;
-                infiniteTimeBtn.classList.remove("hidden");
+                kanaCountGroup.classList.remove("hidden");
                 setMode("time");
             } else {
                 sourceAnkiBtn.classList.add("active");
                 scoreLabel.textContent = "WORDS TYPED";
                 modeWordsBtn.disabled = false;
                 infiniteTimeBtn.classList.add("hidden");
+                kanaCountGroup.classList.add("hidden");
                 if (testTimeSetting === "infinite") {
                     testTimeSetting = "30";
                 }
@@ -612,6 +694,18 @@
                     document.getElementById("custom-time-btn").classList.add("active");
                     customInputWrapper.classList.remove("hidden");
                     customCountInput.value = testTimeSetting;
+                }
+            }
+
+            if (activeSource === "hiragana" || activeSource === "katakana") {
+                kanaCountBtns.forEach(btn => btn.classList.remove("active"));
+                const matchKanaBtn = Array.from(kanaCountBtns).find(b => b.dataset.kanaCount === kanaCountSetting);
+                if (matchKanaBtn) {
+                    matchKanaBtn.classList.add("active");
+                } else {
+                    document.getElementById("custom-kana-btn").classList.add("active");
+                    customInputWrapper.classList.remove("hidden");
+                    customCountInput.value = kanaCountSetting;
                 }
             }
         }
@@ -746,10 +840,10 @@
         }
 
         function applyWordCountFilter() {
-            if (activeSource === "hiragana") {
-                activeWordList = generateKanaList(HIRAGANA_CHARS, 150);
-            } else if (activeSource === "katakana") {
-                activeWordList = generateKanaList(KATAKANA_CHARS, 150);
+            if (activeSource === "hiragana" || activeSource === "katakana") {
+                const qty = parseInt(kanaCountSetting, 10) || 25;
+                const charSet = (activeSource === "hiragana") ? HIRAGANA_CHARS : KATAKANA_CHARS;
+                activeWordList = generateKanaList(charSet, qty);
             } else {
                 if (masterDeckList.length === 0) return;
                 let listCopy = [...masterDeckList];
@@ -952,35 +1046,10 @@
             updateDisplay();
         });
 
-        testOptionsTabBtn.addEventListener("click", () => {
-            ankiDrawer.classList.add("hidden");
-            ankiTabBtn.classList.remove("active");
-            appearanceDrawer.classList.add("hidden");
-            appearanceTabBtn.classList.remove("active");
-
-            testOptionsDrawer.classList.toggle("hidden");
-            testOptionsTabBtn.classList.toggle("active");
-        });
-
-        ankiTabBtn.addEventListener("click", () => {
-            testOptionsDrawer.classList.add("hidden");
-            testOptionsTabBtn.classList.remove("active");
-            appearanceDrawer.classList.add("hidden");
-            appearanceTabBtn.classList.remove("active");
-
-            ankiDrawer.classList.toggle("hidden");
-            ankiTabBtn.classList.toggle("active");
-        });
-
-        appearanceTabBtn.addEventListener("click", () => {
-            testOptionsDrawer.classList.add("hidden");
-            testOptionsTabBtn.classList.remove("active");
-            ankiDrawer.classList.add("hidden");
-            ankiTabBtn.classList.remove("active");
-
-            appearanceDrawer.classList.toggle("hidden");
-            appearanceTabBtn.classList.toggle("active");
-        });
+        testOptionsTabBtn.addEventListener("click", () => openTab("test-options"));
+        ankiTabBtn.addEventListener("click", () => openTab("anki"));
+        appearanceTabBtn.addEventListener("click", () => openTab("appearance"));
+        seedTabBtn.addEventListener("click", () => openTab("seed"));
 
         modeWordsBtn.addEventListener("click", () => setMode("words"));
         modeTimeBtn.addEventListener("click", () => setMode("time"));
@@ -1025,10 +1094,31 @@
             });
         });
 
+        kanaCountBtns.forEach(btn => {
+            btn.addEventListener("click", () => {
+                const value = btn.dataset.kanaCount;
+                if (value === "custom") {
+                    customInputWrapper.classList.remove("hidden");
+                    kanaCountBtns.forEach(b => b.classList.remove("active"));
+                    btn.classList.add("active");
+                    customCountInput.focus();
+                } else {
+                    customInputWrapper.classList.add("hidden");
+                    kanaCountSetting = value;
+                    localStorage.setItem("anki_type_kana_count", kanaCountSetting);
+                    updateCountNavUI();
+                    applyWordCountFilter();
+                }
+            });
+        });
+
         customCountSubmit.addEventListener("click", () => {
             const val = parseInt(customCountInput.value, 10);
             if (val && val > 0) {
-                if (activeMode === "words") {
+                if (activeSource === "hiragana" || activeSource === "katakana") {
+                    kanaCountSetting = val.toString();
+                    localStorage.setItem("anki_type_kana_count", kanaCountSetting);
+                } else if (activeMode === "words") {
                     wordCountSetting = val.toString();
                     localStorage.setItem("anki_type_word_count", wordCountSetting);
                 } else {
@@ -1059,6 +1149,18 @@
                 loadFromSeed(val);
                 pasteSeedInput.value = "";
             }
+        });
+
+        mainFontSlider.addEventListener("input", (e) => {
+            mainFontSize = e.target.value;
+            localStorage.setItem("anki_type_main_font_size", mainFontSize);
+            applyFontSizes();
+        });
+
+        subFontSlider.addEventListener("input", (e) => {
+            subFontSize = e.target.value;
+            localStorage.setItem("anki_type_sub_font_size", subFontSize);
+            applyFontSizes();
         });
 
         closeResultModal.addEventListener("click", () => {
