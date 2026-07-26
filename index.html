@@ -21,6 +21,13 @@
             </div>
 
             <div class="nav-actions">
+            <button class="nav-btn" id="profile-tab-btn" title="Profile & Stats">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+        <circle cx="12" cy="7" r="4"></circle>
+    </svg>
+    <span>PROFILE</span>
+</button>
                 <button class="nav-btn active" id="test-options-tab-btn" title="Test Options">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <line x1="4" y1="21" x2="4" y2="14"></line>
@@ -60,6 +67,11 @@
         </div>
 
         <!-- EXPANDABLE DRAWER: TEST OPTIONS -->
+        <div class="nav-drawer hidden" id="profile-drawer">
+    <div class="drawer-inner" id="profile-container">
+        <!-- Dynamically rendered (Login/Register or User Profile Stats) -->
+    </div>
+</div>
         <div class="nav-drawer" id="test-options-drawer">
             <div class="drawer-inner word-count-nav">
                 <!-- Mode Switcher -->
@@ -193,7 +205,7 @@
             <div class="drawer-inner flex-center">
                 <div class="seed-controls-group">
                     <button class="nav-btn" id="copy-seed-btn" title="Copy Shareable Seed">
-                        <span>種</span>
+                        <span>Copy Seed! 種</span>
                     </button>
                     <div class="custom-input-wrapper">
                         <input type="text" id="paste-seed-input" placeholder="種のペースト" />
@@ -325,7 +337,7 @@
         let typedInput = [];
 
         let totalScore = 0;
-        let showRomaji = true;
+        let showRomaji = false;
         let showMeaning = false;
 
         // Active Modes & Settings
@@ -1205,6 +1217,138 @@
                 [array[i], array[j]] = [array[j], array[i]];
             }
         }
+
+
+        // Profile JavaScript Logic
+let currentUserToken = localStorage.getItem('anki_jwt');
+
+async function loadProfileUI() {
+    const container = document.getElementById('profile-container');
+    if (!container) return;
+
+    if (!currentUserToken) {
+        container.innerHTML = `
+            <div class="auth-form-container">
+                <span class="drawer-title" style="text-align:center;">CREATE ACCOUNT / LOGIN</span>
+                <input type="text" id="reg-username" placeholder="Username" />
+                <input type="password" id="reg-password" placeholder="Password" />
+                <input type="password" id="reg-confirm" placeholder="Confirm Password (if registering)" />
+                <div class="auth-error" id="auth-err-msg"></div>
+                <button class="auth-btn" id="auth-submit-btn">REGISTER / LOGIN</button>
+            </div>
+        `;
+
+        document.getElementById('auth-submit-btn').onclick = async () => {
+            const user = document.getElementById('reg-username').value;
+            const pass = document.getElementById('reg-password').value;
+            const confirm = document.getElementById('reg-confirm').value;
+            const errEl = document.getElementById('auth-err-msg');
+
+            if (confirm && pass !== confirm) {
+                errEl.textContent = "Passwords do not match!";
+                return;
+            }
+
+            const endpoint = confirm ? '/api/register' : '/api/login';
+            try {
+                const res = await fetch(endpoint, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username: user, password: pass })
+                });
+                const data = await res.json();
+
+                if (data.error) {
+                    errEl.textContent = data.error;
+                } else {
+                    localStorage.setItem('anki_jwt', data.token);
+                    currentUserToken = data.token;
+                    loadProfileUI();
+                }
+            } catch (err) {
+                errEl.textContent = "Server error. Please try again.";
+            }
+        };
+    } else {
+        try {
+            const res = await fetch('/api/profile', {
+                headers: { 'Authorization': `Bearer ${currentUserToken}` }
+            });
+
+            if (res.status === 401 || res.status === 403) {
+                // Token expired or invalid
+                localStorage.removeItem('anki_jwt');
+                currentUserToken = null;
+                loadProfileUI();
+                return;
+            }
+
+            const data = await res.json();
+
+            container.innerHTML = `
+                <div class="profile-card">
+                    <div class="avatar-wrapper" onclick="document.getElementById('avatar-input').click()">
+                        <img src="${data.avatar}" id="profile-avatar-img" alt="Avatar"/>
+                        <div class="avatar-overlay">EDIT</div>
+                    </div>
+                    <input type="file" id="avatar-input" class="hidden" accept="image/*" />
+                    <h3>${data.username}</h3>
+                    <div class="profile-stats-grid">
+                        <div class="stat-box"><span class="stat-value">${Math.floor((data.playtime || 0) / 60)}m</span><span class="stat-label">PLAYTIME</span></div>
+                        <div class="stat-box"><span class="stat-value">${data.highest_cpm || 0}</span><span class="stat-label">HIGHEST CPM</span></div>
+                        <div class="stat-box"><span class="stat-value">${data.avg_cpm || 0}</span><span class="stat-label">AVG CPM</span></div>
+                        <div class="stat-box"><span class="stat-value">${data.stats?.kanji_count || 0}</span><span class="stat-label">KANJI</span></div>
+                        <div class="stat-box"><span class="stat-value">${data.stats?.hiragana_count || 0}</span><span class="stat-label">HIRAGANA</span></div>
+                        <div class="stat-box"><span class="stat-value">${data.stats?.katakana_count || 0}</span><span class="stat-label">KATAKANA</span></div>
+                    </div>
+                    <button id="logout-btn" class="auth-btn" style="background: var(--accent-red); margin-top: 10px;">LOGOUT</button>
+                </div>
+            `;
+
+            // Avatar Upload Listener
+            document.getElementById('avatar-input').onchange = async (e) => {
+                if (!e.target.files[0]) return;
+                const formData = new FormData();
+                formData.append('avatar', e.target.files[0]);
+
+                const uploadRes = await fetch('/api/profile/avatar', {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${currentUserToken}` },
+                    body: formData
+                });
+                const uploadData = await uploadRes.json();
+                if (uploadData.avatar) {
+                    document.getElementById('profile-avatar-img').src = uploadData.avatar;
+                }
+            };
+
+            // Logout Listener
+            document.getElementById('logout-btn').onclick = () => {
+                localStorage.removeItem('anki_jwt');
+                currentUserToken = null;
+                loadProfileUI();
+            };
+
+        } catch (err) {
+            console.error('Failed to fetch profile:', err);
+        }
+    }
+}
+
+// Drawer Toggle Logic
+document.getElementById('profile-tab-btn')?.addEventListener('click', () => {
+    const drawer = document.getElementById('profile-drawer');
+    const isHidden = drawer.classList.contains('hidden');
+
+    // Hide any other active drawers first if applicable
+    document.querySelectorAll('.nav-drawer').forEach(d => d.classList.add('hidden'));
+
+    if (isHidden) {
+        drawer.classList.remove('hidden');
+        loadProfileUI();
+    }
+});
+
 
         setSource(activeSource);
         populateDecks();
