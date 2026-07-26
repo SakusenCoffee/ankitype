@@ -524,7 +524,6 @@ select:focus {
 
 .words-wrapper {
     width: 100%;
-    /* Set fixed height to show ~3 lines of text comfortably */
     height: 180px;
     overflow: hidden;
     position: relative;
@@ -533,11 +532,11 @@ select:focus {
 
 .words-container {
     display: flex;
-    flex-wrap: wrap; /* Allows items to flow like standard paragraph text */
+    flex-wrap: wrap;
     align-content: flex-start;
-    gap: 8px 14px; /* Row and column spacing between words */
+    gap: 8px 14px;
     width: 100%;
-    transition: transform 0.2s ease-out; /* Smooth vertical line scrolling */
+    transition: transform 0.2s ease-out;
 }
 
 .word-item {
@@ -732,7 +731,6 @@ select:focus {
     display: flex;
     flex-direction: column;
     gap: 16px;
-
     box-shadow: 0 12px 32px rgba(0,0,0,0.3);
 }
 

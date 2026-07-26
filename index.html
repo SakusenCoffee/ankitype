@@ -70,7 +70,7 @@
         <!-- EXPANDABLE DRAWER: PROFILE -->
         <div class="nav-drawer hidden" id="profile-drawer">
             <div class="drawer-inner" id="profile-container">
-                <!-- Dynamically rendered (Login/Register or User Profile Stats) -->
+                <!-- Dynamically rendered -->
             </div>
         </div>
 
@@ -87,9 +87,9 @@
 
                 <!-- Source Switcher (Hiragana / Katakana / Anki) -->
                 <div class="count-selector-group">
-                    <button class="source-btn" id="source-hiragana-btn">平仮名</button>
-                    <button class="source-btn" id="source-katakana-btn">片仮名</button>
-                    <button class="source-btn active" id="source-anki-btn">Anki</button>
+                    <button class="source-btn" id="source-hiragana-btn">hiragana</button>
+                    <button class="source-btn" id="source-katakana-btn">katakana</button>
+                    <button class="source-btn active" id="source-anki-btn">anki</button>
                 </div>
 
                 <div class="selector-divider"></div>
@@ -109,7 +109,7 @@
                     <button class="time-btn active" data-time="30">30s</button>
                     <button class="time-btn" data-time="60">60s</button>
                     <button class="time-btn" data-time="120">120s</button>
-                    <button class="time-btn hidden" data-time="infinite" id="infinite-time-btn">Infinite</button>
+                    <button class="time-btn hidden" data-time="infinite" id="infinite-time-btn">infinite</button>
                     <button class="time-btn" data-time="custom" id="custom-time-btn">custom</button>
                 </div>
 
@@ -184,7 +184,6 @@
                     </select>
                 </div>
 
-                <!-- Font Size Adjusters -->
                 <div class="selector-container full-width">
                     <div class="slider-label-row">
                         <label for="main-font-slider">MAIN EXPRESSION FONT SIZE</label>
@@ -472,14 +471,12 @@
         }
 
         function openTab(tabName) {
-            // Hide all drawers
             profileDrawer.classList.add("hidden");
             testOptionsDrawer.classList.add("hidden");
             ankiDrawer.classList.add("hidden");
             appearanceDrawer.classList.add("hidden");
             seedDrawer.classList.add("hidden");
 
-            // Deactivate all tab buttons
             profileTabBtn.classList.remove("active");
             testOptionsTabBtn.classList.remove("active");
             ankiTabBtn.classList.remove("active");
@@ -698,29 +695,7 @@
         }
 
         function updateCountNavUI() {
-            customInputWrapper.classList.add("hidden");
-
-            if (activeMode === "words") {
-                countBtns.forEach(btn => btn.classList.remove("active"));
-                const matchBtn = Array.from(countBtns).find(b => b.dataset.count === wordCountSetting);
-                if (matchBtn) {
-                    matchBtn.classList.add("active");
-                } else {
-                    document.getElementById("custom-count-btn").classList.add("active");
-                    customInputWrapper.classList.remove("hidden");
-                    customCountInput.value = wordCountSetting;
-                }
-            } else {
-                timeBtns.forEach(btn => btn.classList.remove("active"));
-                const matchBtn = Array.from(timeBtns).find(b => b.dataset.time === testTimeSetting);
-                if (matchBtn) {
-                    matchBtn.classList.add("active");
-                } else {
-                    document.getElementById("custom-time-btn").classList.add("active");
-                    customInputWrapper.classList.remove("hidden");
-                    customCountInput.value = testTimeSetting;
-                }
-            }
+            let activeCustomVal = "";
 
             if (activeSource === "hiragana" || activeSource === "katakana") {
                 kanaCountBtns.forEach(btn => btn.classList.remove("active"));
@@ -729,9 +704,35 @@
                     matchKanaBtn.classList.add("active");
                 } else {
                     document.getElementById("custom-kana-btn").classList.add("active");
-                    customInputWrapper.classList.remove("hidden");
-                    customCountInput.value = kanaCountSetting;
+                    activeCustomVal = kanaCountSetting;
                 }
+            }
+
+            if (activeMode === "words") {
+                countBtns.forEach(btn => btn.classList.remove("active"));
+                const matchBtn = Array.from(countBtns).find(b => b.dataset.count === wordCountSetting);
+                if (matchBtn) {
+                    matchBtn.classList.add("active");
+                } else {
+                    document.getElementById("custom-count-btn").classList.add("active");
+                    activeCustomVal = wordCountSetting;
+                }
+            } else {
+                timeBtns.forEach(btn => btn.classList.remove("active"));
+                const matchBtn = Array.from(timeBtns).find(b => b.dataset.time === testTimeSetting);
+                if (matchBtn) {
+                    matchBtn.classList.add("active");
+                } else {
+                    document.getElementById("custom-time-btn").classList.add("active");
+                    activeCustomVal = testTimeSetting;
+                }
+            }
+
+            if (activeCustomVal !== "") {
+                customInputWrapper.classList.remove("hidden");
+                customCountInput.value = activeCustomVal;
+            } else {
+                customInputWrapper.classList.add("hidden");
             }
         }
 
@@ -948,48 +949,46 @@
         }
 
         function updateDisplay() {
-    const currentWordObj = activeWordList[currentIndex];
-    const currentWordNode = wordsContainer.children[currentIndex];
-    if (!currentWordNode || !currentWordObj) return;
+            const currentWordObj = activeWordList[currentIndex];
+            const currentWordNode = wordsContainer.children[currentIndex];
+            if (!currentWordNode || !currentWordObj) return;
 
-    const romajiNode = currentWordNode.querySelector(".romaji-text");
-    const charSpans = romajiNode.querySelectorAll(".char");
+            const romajiNode = currentWordNode.querySelector(".romaji-text");
+            const charSpans = romajiNode.querySelectorAll(".char");
 
-    charSpans.forEach((span, idx) => {
-        span.classList.remove("current", "neutral-typed");
+            charSpans.forEach((span, idx) => {
+                span.classList.remove("current", "neutral-typed");
 
-        if (idx < typedInput.length) {
-            span.classList.add("neutral-typed");
-        } else if (idx === typedInput.length) {
-            span.classList.add("current");
+                if (idx < typedInput.length) {
+                    span.classList.add("neutral-typed");
+                } else if (idx === typedInput.length) {
+                    span.classList.add("current");
+                }
+            });
+
+            liveInputText.innerHTML = "";
+            if (typedInput.length > 0) {
+                inputPlaceholder.style.display = "none";
+                typedInput.forEach(char => {
+                    const charSpan = document.createElement("span");
+                    charSpan.textContent = char;
+                    charSpan.className = "typed-char-neutral";
+                    liveInputText.appendChild(charSpan);
+                });
+            } else {
+                inputPlaceholder.style.display = "inline";
+            }
+
+            const firstWordTop = wordsContainer.children[0].offsetTop;
+            const currentWordTop = currentWordNode.offsetTop;
+            const currentLineOffset = currentWordTop - firstWordTop;
+
+            if (currentLineOffset > 0) {
+                wordsContainer.style.transform = `translateY(-${currentLineOffset}px)`;
+            } else {
+                wordsContainer.style.transform = `translateY(0px)`;
+            }
         }
-    });
-
-    liveInputText.innerHTML = "";
-    if (typedInput.length > 0) {
-        inputPlaceholder.style.display = "none";
-        typedInput.forEach(char => {
-            const charSpan = document.createElement("span");
-            charSpan.textContent = char;
-            charSpan.className = "typed-char-neutral";
-            liveInputText.appendChild(charSpan);
-        });
-    } else {
-        inputPlaceholder.style.display = "inline";
-    }
-
-    // --- PARAGRAPH LINE SCROLL LOGIC ---
-    const firstWordTop = wordsContainer.children[0].offsetTop;
-    const currentWordTop = currentWordNode.offsetTop;
-    const currentLineOffset = currentWordTop - firstWordTop;
-
-    // Smoothly shift the paragraph up whenever you move past the first line
-    if (currentLineOffset > 0) {
-        wordsContainer.style.transform = `translateY(-${currentLineOffset}px)`;
-    } else {
-        wordsContainer.style.transform = `translateY(0px)`;
-    }
-}
 
         function updateVisibility() {
             const allRomaji = document.querySelectorAll(".romaji-text");
@@ -1006,7 +1005,7 @@
 
             if (e.ctrlKey && e.key === "Enter") {
                 e.preventDefault();
-                if (isTestActive) {
+                if (isTestActive && activeMode === "time" && testTimeSetting === "infinite") {
                     finishTest();
                 }
                 return;
@@ -1090,9 +1089,8 @@
             btn.addEventListener("click", () => {
                 const value = btn.dataset.count;
                 if (value === "custom") {
-                    customInputWrapper.classList.remove("hidden");
-                    countBtns.forEach(b => b.classList.remove("active"));
-                    btn.classList.add("active");
+                    updateCountNavUI();
+                    customCountInput.value = wordCountSetting;
                     customCountInput.focus();
                 } else {
                     customInputWrapper.classList.add("hidden");
@@ -1108,16 +1106,20 @@
             btn.addEventListener("click", () => {
                 const value = btn.dataset.time;
                 if (value === "custom") {
-                    customInputWrapper.classList.remove("hidden");
-                    timeBtns.forEach(b => b.classList.remove("active"));
-                    btn.classList.add("active");
+                    updateCountNavUI();
+                    customCountInput.value = testTimeSetting;
                     customCountInput.focus();
                 } else {
                     customInputWrapper.classList.add("hidden");
                     testTimeSetting = value;
                     localStorage.setItem("anki_type_time_setting", testTimeSetting);
                     updateCountNavUI();
-                    applyWordCountFilter();
+
+                    // Keep existing loaded test text, only update time limits
+                    clearInterval(testTimerInterval);
+                    isTestActive = false;
+                    timeRemaining = (testTimeSetting === "infinite") ? "∞" : testTimeSetting;
+                    timeLeftVal.textContent = (testTimeSetting === "infinite") ? "∞" : `${timeRemaining}s`;
                 }
             });
         });
@@ -1126,9 +1128,8 @@
             btn.addEventListener("click", () => {
                 const value = btn.dataset.kanaCount;
                 if (value === "custom") {
-                    customInputWrapper.classList.remove("hidden");
-                    kanaCountBtns.forEach(b => b.classList.remove("active"));
-                    btn.classList.add("active");
+                    updateCountNavUI();
+                    customCountInput.value = kanaCountSetting;
                     customCountInput.focus();
                 } else {
                     customInputWrapper.classList.add("hidden");
@@ -1143,17 +1144,25 @@
         customCountSubmit.addEventListener("click", () => {
             const val = parseInt(customCountInput.value, 10);
             if (val && val > 0) {
-                if (activeSource === "hiragana" || activeSource === "katakana") {
+                const activeCustomBtn = document.querySelector('.count-btn.active, .time-btn.active, .kana-count-btn.active');
+
+                if (activeCustomBtn && activeCustomBtn.id === "custom-kana-btn") {
                     kanaCountSetting = val.toString();
                     localStorage.setItem("anki_type_kana_count", kanaCountSetting);
-                } else if (activeMode === "words") {
+                    applyWordCountFilter();
+                } else if (activeCustomBtn && activeCustomBtn.id === "custom-count-btn") {
                     wordCountSetting = val.toString();
                     localStorage.setItem("anki_type_word_count", wordCountSetting);
-                } else {
+                    applyWordCountFilter();
+                } else if (activeCustomBtn && activeCustomBtn.id === "custom-time-btn") {
                     testTimeSetting = val.toString();
                     localStorage.setItem("anki_type_time_setting", testTimeSetting);
+
+                    clearInterval(testTimerInterval);
+                    isTestActive = false;
+                    timeRemaining = testTimeSetting;
+                    timeLeftVal.textContent = `${timeRemaining}s`;
                 }
-                applyWordCountFilter();
             }
         });
 
@@ -1234,7 +1243,6 @@
             }
         }
 
-        // Profile JavaScript Logic
         let currentUserToken = localStorage.getItem('anki_jwt');
 
         async function loadProfileUI() {
