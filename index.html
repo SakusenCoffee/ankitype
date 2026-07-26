@@ -59,21 +59,18 @@
 
         <!-- EXPANDABLE DRAWER: TEST OPTIONS -->
         <div class="nav-drawer" id="test-options-drawer">
-            <div class="drawer-inner grid-2">
-                <div class="error-toggle-wrapper">
-                    <label class="toggle-switch">
-                        <input type="checkbox" id="space-toggle" checked>
-                        <span class="toggle-slider"></span>
-                    </label>
-                    <span class="toggle-label">NO SPACES</span>
+            <div class="drawer-inner word-count-nav">
+                <div class="count-selector-group">
+                    <button class="count-btn" data-count="10">10w</button>
+                    <button class="count-btn" data-count="25">25w</button>
+                    <button class="count-btn" data-count="50">50w</button>
+                    <button class="count-btn" data-count="custom" id="custom-count-btn">Custom</button>
+                    <button class="count-btn active" data-count="max">Max</button>
                 </div>
 
-                <div class="error-toggle-wrapper">
-                    <label class="toggle-switch">
-                        <input type="checkbox" id="error-toggle" checked>
-                        <span class="toggle-slider"></span>
-                    </label>
-                    <span class="toggle-label">ERROR HIGHLIGHT</span>
+                <div class="custom-input-wrapper hidden" id="custom-input-wrapper">
+                    <input type="number" id="custom-count-input" min="1" placeholder="Qty..." />
+                    <button id="custom-count-submit">Set</button>
                 </div>
             </div>
         </div>
@@ -139,7 +136,7 @@
     <div class="app-layout">
         <!-- MONKEYTYPE SCROLLING CONTAINER FRAME -->
         <div class="words-wrapper" id="words-wrapper">
-            <div class="words-container no-spaces" id="words-container">
+            <div class="words-container" id="words-container">
                 <!-- Dynamic Word Nodes Render Here -->
             </div>
         </div>
@@ -195,29 +192,19 @@
     </div>
 
     <script>
-        // Fallback target lists for extracting note content across different deck templates
         const KANJI_FIELDS = ["Expression", "Kanji", "Word", "Japanese", "Vocabulary-Kanji", "Front"];
         const READING_FIELDS = ["ExpressionReading", "Reading", "Furigana", "Kana", "Pronunciation", "Romaji", "Vocabulary-Kana"];
         const MEANING_FIELDS = ["MainDefinition", "Meaning", "Definition", "English", "Glossary", "Vocabulary-English", "Back"];
 
-        let wordList = [];
+        let masterDeckList = [];
+        let activeWordList = [];
         let currentIndex = 0;
-        let typedInput = []; 
-        let incorrectCount = 0;
-        const MAX_INCORRECT = 10;
+        let typedInput = [];
 
         let totalScore = 0;
         let showRomaji = true;
         let showMeaning = false;
-        
-        // Persistent State Defaults
-        let showErrorColors = localStorage.getItem("anki_type_show_errors") !== null 
-            ? localStorage.getItem("anki_type_show_errors") === "true" 
-            : true;
-            
-        let removeSpaces = localStorage.getItem("anki_type_no_spaces") !== null 
-            ? localStorage.getItem("anki_type_no_spaces") === "true" 
-            : true;
+        let wordCountSetting = localStorage.getItem("anki_type_word_count") || "max";
 
         let isInputBoxHidden = localStorage.getItem("anki_type_hide_box") === "true";
         let currentFontClass = localStorage.getItem("anki_type_font") || "font-modern";
@@ -233,36 +220,42 @@
         const liveInputText = document.getElementById("live-input-text");
         const inputPlaceholder = document.getElementById("input-placeholder");
         const liveInputBox = document.getElementById("live-input-box");
-        const errorToggle = document.getElementById("error-toggle");
-        const spaceToggle = document.getElementById("space-toggle");
         const hideBoxBtn = document.getElementById("hide-box-btn");
         const restoreBoxBtn = document.getElementById("restore-box-btn");
 
-        // Navbar drawers & buttons
         const testOptionsTabBtn = document.getElementById("test-options-tab-btn");
         const ankiTabBtn = document.getElementById("anki-tab-btn");
         const appearanceTabBtn = document.getElementById("appearance-tab-btn");
-        
+
         const testOptionsDrawer = document.getElementById("test-options-drawer");
         const ankiDrawer = document.getElementById("anki-drawer");
         const appearanceDrawer = document.getElementById("appearance-drawer");
 
-        // Initialize UI from Saved State
+        const countBtns = document.querySelectorAll(".count-btn");
+        const customInputWrapper = document.getElementById("custom-input-wrapper");
+        const customCountInput = document.getElementById("custom-count-input");
+        const customCountSubmit = document.getElementById("custom-count-submit");
+
         document.documentElement.setAttribute("data-theme", currentTheme);
         themeDropdown.value = currentTheme;
         fontDropdown.value = currentFontClass;
-        errorToggle.checked = showErrorColors;
-        spaceToggle.checked = removeSpaces;
-
-        if (removeSpaces) {
-            wordsContainer.classList.add("no-spaces");
-        } else {
-            wordsContainer.classList.remove("no-spaces");
-        }
 
         if (isInputBoxHidden) {
             liveInputBox.classList.add("hidden");
             restoreBoxBtn.classList.remove("hidden");
+        }
+
+        function updateCountNavUI() {
+            countBtns.forEach(btn => btn.classList.remove("active"));
+            const matchBtn = Array.from(countBtns).find(b => b.dataset.count === wordCountSetting);
+            if (matchBtn) {
+                matchBtn.classList.add("active");
+                customInputWrapper.classList.add("hidden");
+            } else {
+                document.getElementById("custom-count-btn").classList.add("active");
+                customInputWrapper.classList.remove("hidden");
+                customCountInput.value = wordCountSetting;
+            }
         }
 
         function cleanHtmlText(rawHtml) {
@@ -308,7 +301,7 @@
             }
 
             const decks = response.result;
-            deckDropdown.innerHTML = ""; 
+            deckDropdown.innerHTML = "";
 
             decks.forEach(deckName => {
                 const option = document.createElement("option");
@@ -325,8 +318,8 @@
             });
 
             if (decks.length > 0) {
-                const targetDeck = (savedSelectedDeck && decks.includes(savedSelectedDeck)) 
-                    ? savedSelectedDeck 
+                const targetDeck = (savedSelectedDeck && decks.includes(savedSelectedDeck))
+                    ? savedSelectedDeck
                     : decks[0];
                 deckDropdown.value = targetDeck;
                 loadAnkiDeck(targetDeck);
@@ -336,7 +329,7 @@
         async function loadAnkiDeck(targetDeckName) {
             statusEl.className = "status-badge status-loading";
             statusEl.textContent = "LOADING QUEUE";
-            
+
             const findResult = await fetchFromAnki("findNotes", { query: `deck:"${targetDeckName}"` });
             if (!findResult || !findResult.result || findResult.result.length === 0) {
                 statusEl.textContent = "DECK EMPTY";
@@ -346,8 +339,8 @@
             }
 
             const notesResult = await fetchFromAnki("notesInfo", { notes: findResult.result });
-            
-            wordList = notesResult.result.map(note => {
+
+            masterDeckList = notesResult.result.map(note => {
                 const fields = note.fields;
                 let rawKanji = getFieldValue(fields, KANJI_FIELDS);
                 let rawRomaji = getFieldValue(fields, READING_FIELDS);
@@ -363,16 +356,10 @@
                 };
             }).filter(word => word.romaji !== "");
 
-            if (wordList.length > 0) {
+            if (masterDeckList.length > 0) {
                 statusEl.className = "status-badge status-online";
-                statusEl.textContent = `${wordList.length} TRACKS SYNCED`;
-                currentIndex = 0;
-                typedInput = [];
-                incorrectCount = 0;
-                totalScore = 0;
-                scoreEl.textContent = totalScore;
-                shuffleArray(wordList);
-                renderWordBlock();
+                statusEl.textContent = `${masterDeckList.length} TRACKS SYNCED`;
+                applyWordCountFilter();
             } else {
                 statusEl.textContent = "PARSE ERROR";
                 statusEl.className = "status-badge status-offline";
@@ -380,11 +367,30 @@
             }
         }
 
+        function applyWordCountFilter() {
+            if (masterDeckList.length === 0) return;
+            let listCopy = [...masterDeckList];
+            shuffleArray(listCopy);
+
+            if (wordCountSetting === "max") {
+                activeWordList = listCopy;
+            } else {
+                let qty = parseInt(wordCountSetting, 10);
+                activeWordList = isNaN(qty) ? listCopy : listCopy.slice(0, qty);
+            }
+
+            currentIndex = 0;
+            typedInput = [];
+            totalScore = 0;
+            scoreEl.textContent = totalScore;
+            renderWordBlock();
+        }
+
         function renderWordBlock() {
             wordsContainer.innerHTML = "";
             wordsContainer.style.transform = `translateY(0px)`;
 
-            wordList.forEach((wordObj, idx) => {
+            activeWordList.forEach((wordObj, idx) => {
                 const wordNode = document.createElement("div");
                 wordNode.className = "word-item";
                 if (idx === currentIndex) wordNode.classList.add("active");
@@ -397,23 +403,15 @@
                 kanjiNode.textContent = wordObj.kanji;
                 kanjiWrapperNode.appendChild(kanjiNode);
 
-                const kanjiErrorSpan = document.createElement("span");
-                kanjiErrorSpan.className = "kanji-side-error";
-                kanjiWrapperNode.appendChild(kanjiErrorSpan);
-
                 const romajiNode = document.createElement("div");
                 romajiNode.className = `romaji-text ${!showRomaji ? 'hidden' : ''}`;
-                
+
                 for (let i = 0; i < wordObj.romaji.length; i++) {
                     const charSpan = document.createElement("span");
                     charSpan.className = "char";
                     charSpan.textContent = wordObj.romaji[i];
                     romajiNode.appendChild(charSpan);
                 }
-
-                const overflowSpan = document.createElement("span");
-                overflowSpan.className = "romaji-overflow-error";
-                romajiNode.appendChild(overflowSpan);
 
                 const meaningNode = document.createElement("div");
                 meaningNode.className = `meaning-text ${!showMeaning ? 'hidden' : ''}`;
@@ -424,7 +422,6 @@
                 wordNode.appendChild(meaningNode);
 
                 wordNode.addEventListener("click", () => {
-                    if (removeSpaces) return;
                     showMeaning = !showMeaning;
                     updateVisibility();
                 });
@@ -436,72 +433,36 @@
         }
 
         function updateDisplay() {
-            const currentWordObj = wordList[currentIndex];
+            const currentWordObj = activeWordList[currentIndex];
             const currentWordNode = wordsContainer.children[currentIndex];
             if (!currentWordNode || !currentWordObj) return;
 
-            let correctCount = 0;
-            for (let i = 0; i < typedInput.length; i++) {
-                if (typedInput[i].isCorrect) correctCount++;
-                else break; 
-            }
-
             const romajiNode = currentWordNode.querySelector(".romaji-text");
             const charSpans = romajiNode.querySelectorAll(".char");
-            const overflowSpan = romajiNode.querySelector(".romaji-overflow-error");
-            const kanjiErrorSpan = currentWordNode.querySelector(".kanji-side-error");
-
-            overflowSpan.textContent = "";
-            kanjiErrorSpan.textContent = "";
 
             charSpans.forEach((span, idx) => {
-                span.classList.remove("correct", "current", "incorrect", "neutral-typed");
-                
-                if (idx < correctCount) {
+                span.classList.remove("current", "neutral-typed");
+
+                if (idx < typedInput.length) {
                     span.classList.add("neutral-typed");
-                } else if (idx === correctCount && incorrectCount === 0) {
+                } else if (idx === typedInput.length) {
                     span.classList.add("current");
-                } else if (idx === correctCount && incorrectCount > 0) {
-                    if (showErrorColors) {
-                        span.classList.add("incorrect");
-                    } else {
-                        span.classList.add("neutral-typed");
-                    }
                 }
             });
 
-            if (incorrectCount > 0 && typedInput.length > correctCount) {
-                let wrongChars = typedInput.slice(correctCount).map(item => item.char).join("");
-                
-                if (showErrorColors) {
-                    if (showRomaji) {
-                        overflowSpan.textContent = wrongChars;
-                    } else {
-                        kanjiErrorSpan.textContent = wrongChars;
-                    }
-                }
-            }
-
-            // Update Live Input Box Text
             liveInputText.innerHTML = "";
             if (typedInput.length > 0) {
                 inputPlaceholder.style.display = "none";
-                typedInput.forEach(entry => {
+                typedInput.forEach(char => {
                     const charSpan = document.createElement("span");
-                    charSpan.textContent = entry.char;
-                    
-                    if (!entry.isCorrect && showErrorColors) {
-                        charSpan.className = "typed-char-wrong";
-                    } else {
-                        charSpan.className = "typed-char-neutral";
-                    }
+                    charSpan.textContent = char;
+                    charSpan.className = "typed-char-neutral";
                     liveInputText.appendChild(charSpan);
                 });
             } else {
                 inputPlaceholder.style.display = "inline";
             }
 
-            // Scroll Calculation
             const firstWordTop = wordsContainer.children[0].offsetTop;
             const currentWordTop = currentWordNode.offsetTop;
             const lineOffset = currentWordTop - firstWordTop;
@@ -523,7 +484,6 @@
             updateDisplay();
         }
 
-        // Global Keyboard Handler
         window.addEventListener("keydown", (e) => {
             if (e.key === "Tab") {
                 e.preventDefault();
@@ -532,75 +492,53 @@
                 return;
             }
 
-            if (wordList.length === 0) return;
-            const currentWord = wordList[currentIndex];
-
-            if (e.key === "Backspace" && (e.ctrlKey || e.metaKey)) {
-                e.preventDefault();
-                typedInput = [];
-                incorrectCount = 0;
-                updateDisplay();
-                return;
-            }
+            if (activeWordList.length === 0) return;
+            const currentWord = activeWordList[currentIndex];
 
             if (e.key === "Backspace") {
                 if (typedInput.length > 0) {
-                    const removed = typedInput.pop();
-                    if (!removed.isCorrect) {
-                        incorrectCount = Math.max(0, incorrectCount - 1);
-                    }
+                    typedInput.pop();
                     updateDisplay();
                 }
                 return;
             }
 
-            if (e.key.length > 1 || e.ctrlKey || e.metaKey || e.altKey) return; 
+            if (e.key.length > 1 || e.ctrlKey || e.metaKey || e.altKey) return;
 
             const keyTyped = e.key.toLowerCase();
+            const expectedChar = currentWord.romaji[typedInput.length];
 
-            let correctCount = 0;
-            for (let i = 0; i < typedInput.length; i++) {
-                if (typedInput[i].isCorrect) correctCount++;
-                else break;
-            }
+            if (keyTyped === expectedChar) {
+                typedInput.push(keyTyped);
 
-            const expectedChar = currentWord.romaji[correctCount];
+                if (typedInput.length === currentWord.romaji.length) {
+                    const finishedWordNode = wordsContainer.children[currentIndex];
+                    finishedWordNode.classList.remove("active");
+                    finishedWordNode.classList.add("completed");
 
-            if (incorrectCount === 0 && keyTyped === expectedChar) {
-                typedInput.push({ char: keyTyped, isCorrect: true });
+                    totalScore++;
+                    scoreEl.textContent = totalScore;
+
+                    currentIndex++;
+                    typedInput = [];
+
+                    if (currentIndex < activeWordList.length) {
+                        wordsContainer.children[currentIndex].classList.add("active");
+                    } else {
+                        applyWordCountFilter();
+                    }
+                }
             } else {
-                if (incorrectCount >= MAX_INCORRECT) {
-                    return; 
-                }
-                typedInput.push({ char: keyTyped, isCorrect: false });
-                incorrectCount++;
-            }
-
-            let currentCorrectCount = typedInput.filter(t => t.isCorrect).length;
-            if (incorrectCount === 0 && currentCorrectCount === currentWord.romaji.length) {
-                const finishedWordNode = wordsContainer.children[currentIndex];
-                finishedWordNode.classList.remove("active");
-                finishedWordNode.classList.add("completed");
-
-                totalScore++;
-                scoreEl.textContent = totalScore;
-
-                currentIndex++;
+                // Flash error highlight on active card and instantly wipe text
+                const activeCard = wordsContainer.children[currentIndex];
+                activeCard.classList.add("error-wipe");
+                setTimeout(() => activeCard.classList.remove("error-wipe"), 250);
                 typedInput = [];
-                incorrectCount = 0;
-
-                if (currentIndex < wordList.length) {
-                    wordsContainer.children[currentIndex].classList.add("active");
-                } else {
-                    currentIndex = 0;
-                    renderWordBlock();
-                }
             }
 
             updateDisplay();
         });
 
-        // Navbar Drawer Toggle Event Listeners
         testOptionsTabBtn.addEventListener("click", () => {
             ankiDrawer.classList.add("hidden");
             ankiTabBtn.classList.remove("active");
@@ -616,7 +554,7 @@
             testOptionsTabBtn.classList.remove("active");
             appearanceDrawer.classList.add("hidden");
             appearanceTabBtn.classList.remove("active");
-            
+
             ankiDrawer.classList.toggle("hidden");
             ankiTabBtn.classList.toggle("active");
         });
@@ -626,39 +564,44 @@
             testOptionsTabBtn.classList.remove("active");
             ankiDrawer.classList.add("hidden");
             ankiTabBtn.classList.remove("active");
-            
+
             appearanceDrawer.classList.toggle("hidden");
             appearanceTabBtn.classList.toggle("active");
         });
 
-        // Error Toggle Switch (Saved)
-        errorToggle.addEventListener("change", (e) => {
-            showErrorColors = e.target.checked;
-            localStorage.setItem("anki_type_show_errors", showErrorColors);
-            updateDisplay();
+        countBtns.forEach(btn => {
+            btn.addEventListener("click", () => {
+                const value = btn.dataset.count;
+                if (value === "custom") {
+                    customInputWrapper.classList.remove("hidden");
+                    countBtns.forEach(b => b.classList.remove("active"));
+                    btn.classList.add("active");
+                    customCountInput.focus();
+                } else {
+                    customInputWrapper.classList.add("hidden");
+                    wordCountSetting = value;
+                    localStorage.setItem("anki_type_word_count", wordCountSetting);
+                    updateCountNavUI();
+                    applyWordCountFilter();
+                }
+            });
         });
 
-        // Space Removal Toggle (Saved)
-        spaceToggle.addEventListener("change", (e) => {
-            removeSpaces = e.target.checked;
-            localStorage.setItem("anki_type_no_spaces", removeSpaces);
-            if (removeSpaces) {
-                wordsContainer.classList.add("no-spaces");
-                showMeaning = false;
-            } else {
-                wordsContainer.classList.remove("no-spaces");
+        customCountSubmit.addEventListener("click", () => {
+            const val = parseInt(customCountInput.value, 10);
+            if (val && val > 0) {
+                wordCountSetting = val.toString();
+                localStorage.setItem("anki_type_word_count", wordCountSetting);
+                applyWordCountFilter();
             }
-            updateVisibility();
         });
 
-        // Theme Switcher (Saved)
         themeDropdown.addEventListener("change", (e) => {
             currentTheme = e.target.value;
             document.documentElement.setAttribute("data-theme", currentTheme);
             localStorage.setItem("anki_type_theme", currentTheme);
         });
 
-        // Font Switcher (Saved)
         fontDropdown.addEventListener("change", (e) => {
             currentFontClass = e.target.value;
             localStorage.setItem("anki_type_font", currentFontClass);
@@ -668,7 +611,6 @@
             });
         });
 
-        // Hide Live Input Box Logic (Saved)
         hideBoxBtn.addEventListener("click", () => {
             isInputBoxHidden = true;
             localStorage.setItem("anki_type_hide_box", "true");
@@ -677,7 +619,6 @@
             updateDisplay();
         });
 
-        // Restore Live Input Box Logic (Saved)
         restoreBoxBtn.addEventListener("click", () => {
             isInputBoxHidden = false;
             localStorage.setItem("anki_type_hide_box", "false");
@@ -693,6 +634,7 @@
             }
         }
 
+        updateCountNavUI();
         populateDecks();
     </script>
 </body>

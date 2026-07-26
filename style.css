@@ -1,6 +1,6 @@
 /* ==========================================================================
-   THEMES & COLOR PALETTES
-   ========================================================================== */
+ *  THEMES & COLOR PALETTES
+ *  ========================================================================== */
 :root, [data-theme="dark-slate"] {
     --bg-dark: #0b1622;
     --bg-card: #152232;
@@ -100,8 +100,8 @@ body {
 }
 
 /* ==========================================================================
-   ROUNDED FLOATING TOP NAVBAR & DRAWERS
-   ========================================================================== */
+ *  ROUNDED FLOATING TOP NAVBAR & DRAWERS
+ *  ========================================================================== */
 .top-navbar {
     position: fixed;
     top: 20px;
@@ -196,6 +196,77 @@ body {
     to { opacity: 1; transform: translateY(0); }
 }
 
+/* Word Count Selector Styles */
+.word-count-nav {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 15px;
+    flex-wrap: wrap;
+}
+
+.count-selector-group {
+    display: flex;
+    background: var(--bg-input);
+    padding: 4px;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.count-btn {
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    font-family: var(--font-heading);
+    font-size: 0.8rem;
+    font-weight: 700;
+    padding: 6px 14px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.count-btn:hover {
+    color: var(--text-main);
+}
+
+.count-btn.active {
+    background: var(--bg-card);
+    color: var(--accent-blue);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.custom-input-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.custom-input-wrapper input {
+    background: var(--bg-input);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: var(--text-main);
+    font-family: var(--font-heading);
+    font-size: 0.8rem;
+    font-weight: 700;
+    padding: 6px 10px;
+    border-radius: 8px;
+    width: 60px;
+    outline: none;
+}
+
+.custom-input-wrapper button {
+    background: var(--accent-blue);
+    color: var(--bg-dark);
+    border: none;
+    font-family: var(--font-heading);
+    font-weight: 700;
+    font-size: 0.75rem;
+    padding: 6px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+}
+
 .drawer-header {
     display: flex;
     align-items: center;
@@ -266,8 +337,8 @@ body {
 }
 
 /* ==========================================================================
-   MONKEYTYPE SCROLLING WORD CONTAINER
-   ========================================================================== */
+ *  MONKEYTYPE SCROLLING WORD CONTAINER
+ *  ========================================================================== */
 .words-wrapper {
     width: 100%;
     height: 270px;
@@ -282,22 +353,9 @@ body {
 .words-container {
     display: flex;
     flex-wrap: wrap;
-    gap: 12px 16px;
+    gap: 16px 0px;
     transition: transform 0.25s cubic-bezier(0.25, 1, 0.5, 1);
     align-content: flex-start;
-}
-
-.words-container.no-spaces {
-    gap: 16px 0px;
-}
-
-.words-container.no-spaces .word-item {
-    padding: 8px 0px;
-    cursor: default;
-}
-
-.words-container.no-spaces .kanji-text {
-    letter-spacing: 0px;
 }
 
 .word-item {
@@ -305,13 +363,14 @@ body {
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    padding: 8px 12px;
+    padding: 8px 0px;
     background: transparent;
     border: none;
     box-shadow: none;
     opacity: 0.35;
     transition: opacity 0.2s ease, transform 0.2s ease, filter 0.2s ease;
     cursor: pointer;
+    flex: 0 0 auto;
 }
 
 .word-item.active {
@@ -322,6 +381,11 @@ body {
 .word-item.completed {
     opacity: 0.15;
     filter: grayscale(100%);
+}
+
+.word-item.error-wipe .kanji-text {
+    color: var(--accent-red) !important;
+    text-shadow: 0 0 10px rgba(255, 74, 106, 0.6);
 }
 
 .kanji-wrapper {
@@ -336,18 +400,7 @@ body {
     font-weight: 700;
     color: var(--text-main);
     line-height: 1.2;
-}
-
-.kanji-side-error {
-    font-family: 'Space Grotesk', monospace;
-    font-size: 1.2rem;
-    font-weight: 700;
-    color: var(--accent-red);
-    margin-left: 6px;
-    text-shadow: 0 0 8px rgba(255, 74, 106, 0.5);
-    background: rgba(255, 74, 106, 0.15);
-    padding: 0 4px;
-    border-radius: 4px;
+    letter-spacing: 0px;
 }
 
 .romaji-text {
@@ -375,21 +428,6 @@ body {
     border-bottom: 2px solid var(--accent-blue);
 }
 
-.romaji-text .char.incorrect {
-    color: var(--accent-red);
-    opacity: 1;
-    border-bottom: 2px solid var(--accent-red);
-}
-
-.romaji-overflow-error {
-    color: var(--accent-red);
-    opacity: 1;
-    background: rgba(255, 74, 106, 0.15);
-    border-radius: 3px;
-    padding: 0 2px;
-    margin-left: 2px;
-}
-
 .romaji-text .char.neutral-typed {
     color: var(--text-main);
     opacity: 0.9;
@@ -400,6 +438,7 @@ body {
     color: var(--accent-blue);
     margin-top: 4px;
     font-weight: 600;
+    text-align: center;
 }
 
 .typing-controls-hint {
@@ -426,8 +465,8 @@ body {
 .kanji-text.font-zoo     { font-family: var(--font-zoo); }
 
 /* ==========================================================================
-   LIVE TYPING INPUT DISPLAY BOX & TOGGLES
-   ========================================================================== */
+ *  LIVE TYPING INPUT DISPLAY BOX & TOGGLES
+ *  ========================================================================== */
 .live-input-container {
     width: 100%;
     display: flex;
@@ -504,13 +543,6 @@ body {
     letter-spacing: 1px;
 }
 
-.typed-char-wrong {
-    color: var(--accent-red);
-    text-shadow: 0 0 8px rgba(255, 74, 106, 0.5);
-    background: rgba(255, 74, 106, 0.15);
-    border-radius: 3px;
-}
-
 .typed-char-neutral {
     color: var(--text-main);
 }
@@ -521,67 +553,6 @@ body {
     justify-content: center;
     gap: 18px;
     flex-wrap: wrap;
-}
-
-.error-toggle-wrapper {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-.toggle-label {
-    font-family: var(--font-heading);
-    font-size: 0.65rem;
-    font-weight: 700;
-    letter-spacing: 1px;
-    color: var(--text-muted);
-}
-
-.toggle-switch {
-    position: relative;
-    display: inline-block;
-    width: 34px;
-    height: 18px;
-}
-
-.toggle-switch input {
-    opacity: 0;
-    width: 0;
-    height: 0;
-}
-
-.toggle-slider {
-    position: absolute;
-    cursor: pointer;
-    inset: 0;
-    background-color: var(--bg-card);
-    transition: 0.2s;
-    border-radius: 18px;
-    border: 1px solid rgba(255, 255, 255, 0.05);
-}
-
-.toggle-slider:before {
-    position: absolute;
-    content: "";
-    height: 12px;
-    width: 12px;
-    left: 2px;
-    bottom: 2px;
-    background-color: var(--text-main);
-    transition: 0.2s;
-    border-radius: 50%;
-}
-
-input:checked + .toggle-slider {
-    background-color: var(--accent-blue);
-}
-
-#error-toggle:checked + .toggle-slider {
-    background-color: var(--accent-red);
-}
-
-input:checked + .toggle-slider:before {
-    transform: translateX(16px);
 }
 
 .score-panel-inline {
