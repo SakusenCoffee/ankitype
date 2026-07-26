@@ -113,6 +113,12 @@
                     <button class="time-btn" data-time="custom" id="custom-time-btn">custom</button>
                 </div>
 
+                <!-- Custom Time Input Box -->
+                <div class="custom-input-wrapper hidden" id="custom-time-input-wrapper">
+                    <input type="number" id="custom-time-input" min="1" placeholder="Secs..." />
+                    <button id="custom-time-submit">Set</button>
+                </div>
+
                 <!-- Kana Char Count Bar (Shown when Hiragana/Katakana active) -->
                 <div class="count-selector-group hidden" id="kana-count-group">
                     <button class="kana-count-btn" data-kana-count="10">10c</button>
@@ -122,7 +128,8 @@
                     <button class="kana-count-btn" data-kana-count="custom" id="custom-kana-btn">custom</button>
                 </div>
 
-                <div class="custom-input-wrapper hidden" id="custom-input-wrapper">
+                <!-- Custom Count/Kana Input Box -->
+                <div class="custom-input-wrapper hidden" id="custom-count-input-wrapper">
                     <input type="number" id="custom-count-input" min="1" placeholder="Qty..." />
                     <button id="custom-count-submit">Set</button>
                 </div>
@@ -202,12 +209,12 @@
             </div>
 
             <div class="selector-container full-width">
-    <div class="slider-label-row">
-        <label for="row-count-slider">VISIBLE ROWS</label>
-        <span class="slider-val-display" id="row-count-val">3</span>
-    </div>
-    <input type="range" id="row-count-slider" min="1" max="5" step="1" value="3" class="font-slider" />
-</div>
+                <div class="slider-label-row">
+                    <label for="row-count-slider">VISIBLE ROWS</label>
+                    <span class="slider-val-display" id="row-count-val">3</span>
+                </div>
+                <input type="range" id="row-count-slider" min="1" max="5" step="1" value="3" class="font-slider" />
+            </div>
         </div>
 
         <!-- EXPANDABLE DRAWER: SEED OPTIONS -->
@@ -317,11 +324,11 @@
     </div>
 
     <script>
-    let rowCountSetting = localStorage.getItem("anki_type_row_count") || "3";
+        let rowCountSetting = localStorage.getItem("anki_type_row_count") || "3";
 
-const rowCountSlider = document.getElementById("row-count-slider");
-const rowCountVal = document.getElementById("row-count-val");
-const wordsWrapper = document.getElementById("words-wrapper");
+        const rowCountSlider = document.getElementById("row-count-slider");
+        const rowCountVal = document.getElementById("row-count-val");
+        const wordsWrapper = document.getElementById("words-wrapper");
         const KANJI_FIELDS = ["Expression", "Kanji", "Word", "Japanese", "Vocabulary-Kanji", "Front"];
         const READING_FIELDS = ["ExpressionReading", "Reading", "Furigana", "Kana", "Pronunciation", "Romaji", "Vocabulary-Kana"];
         const MEANING_FIELDS = ["MainDefinition", "Meaning", "Definition", "English", "Glossary", "Vocabulary-English", "Back"];
@@ -432,9 +439,14 @@ const wordsWrapper = document.getElementById("words-wrapper");
         const timeBtns = document.querySelectorAll(".time-btn");
         const kanaCountBtns = document.querySelectorAll(".kana-count-btn");
         const infiniteTimeBtn = document.getElementById("infinite-time-btn");
-        const customInputWrapper = document.getElementById("custom-input-wrapper");
+
+        const customCountInputWrapper = document.getElementById("custom-count-input-wrapper");
         const customCountInput = document.getElementById("custom-count-input");
         const customCountSubmit = document.getElementById("custom-count-submit");
+
+        const customTimeInputWrapper = document.getElementById("custom-time-input-wrapper");
+        const customTimeInput = document.getElementById("custom-time-input");
+        const customTimeSubmit = document.getElementById("custom-time-submit");
 
         const copySeedBtn = document.getElementById("copy-seed-btn");
         const pasteSeedInput = document.getElementById("paste-seed-input");
@@ -468,8 +480,8 @@ const wordsWrapper = document.getElementById("words-wrapper");
             subFontSlider.value = subFontSize;
             mainFontVal.textContent = `${mainFontSize}rem`;
             subFontVal.textContent = `${subFontSize}rem`;
+            applyRowCount();
         }
-        applyFontSizes();
 
         if (isInputBoxHidden) {
             liveInputBox.classList.add("hidden");
@@ -708,7 +720,8 @@ const wordsWrapper = document.getElementById("words-wrapper");
         }
 
         function updateCountNavUI() {
-            let activeCustomVal = "";
+            let activeCustomCountVal = "";
+            let activeCustomTimeVal = "";
 
             if (activeSource === "hiragana" || activeSource === "katakana") {
                 kanaCountBtns.forEach(btn => btn.classList.remove("active"));
@@ -717,7 +730,7 @@ const wordsWrapper = document.getElementById("words-wrapper");
                     matchKanaBtn.classList.add("active");
                 } else {
                     document.getElementById("custom-kana-btn").classList.add("active");
-                    activeCustomVal = kanaCountSetting;
+                    activeCustomCountVal = kanaCountSetting;
                 }
             }
 
@@ -728,7 +741,7 @@ const wordsWrapper = document.getElementById("words-wrapper");
                     matchBtn.classList.add("active");
                 } else {
                     document.getElementById("custom-count-btn").classList.add("active");
-                    activeCustomVal = wordCountSetting;
+                    activeCustomCountVal = wordCountSetting;
                 }
             } else {
                 timeBtns.forEach(btn => btn.classList.remove("active"));
@@ -737,15 +750,22 @@ const wordsWrapper = document.getElementById("words-wrapper");
                     matchBtn.classList.add("active");
                 } else {
                     document.getElementById("custom-time-btn").classList.add("active");
-                    activeCustomVal = testTimeSetting;
+                    activeCustomTimeVal = testTimeSetting;
                 }
             }
 
-            if (activeCustomVal !== "") {
-                customInputWrapper.classList.remove("hidden");
-                customCountInput.value = activeCustomVal;
+            if (activeCustomCountVal !== "") {
+                customCountInputWrapper.classList.remove("hidden");
+                customCountInput.value = activeCustomCountVal;
             } else {
-                customInputWrapper.classList.add("hidden");
+                customCountInputWrapper.classList.add("hidden");
+            }
+
+            if (activeCustomTimeVal !== "") {
+                customTimeInputWrapper.classList.remove("hidden");
+                customTimeInput.value = activeCustomTimeVal;
+            } else {
+                customTimeInputWrapper.classList.add("hidden");
             }
         }
 
@@ -767,26 +787,17 @@ const wordsWrapper = document.getElementById("words-wrapper");
             }
             return "";
         }
+
         function applyRowCount() {
-    // Each row averages roughly 90px depending on main font size
-    const rowHeight = 90 * (parseFloat(mainFontSize) / 3);
-    const newHeight = Math.round(rowHeight * parseInt(rowCountSetting, 10));
+            const rowHeight = 90 * (parseFloat(mainFontSize) / 3);
+            const newHeight = Math.round(rowHeight * parseInt(rowCountSetting, 10));
 
-    wordsWrapper.style.height = `${newHeight}px`;
-    rowCountSlider.value = rowCountSetting;
-    rowCountVal.textContent = rowCountSetting;
-}
-function applyFontSizes() {
-    document.documentElement.style.setProperty('--kanji-font-size', `${mainFontSize}rem`);
-    document.documentElement.style.setProperty('--sub-font-size', `${subFontSize}rem`);
-    mainFontSlider.value = mainFontSize;
-    subFontSlider.value = subFontSize;
-    mainFontVal.textContent = `${mainFontSize}rem`;
-    subFontVal.textContent = `${subFontSize}rem`;
-    applyRowCount(); // Keep row height in sync when font scale changes
-}
-applyFontSizes();
+            wordsWrapper.style.height = `${newHeight}px`;
+            rowCountSlider.value = rowCountSetting;
+            rowCountVal.textContent = rowCountSetting;
+        }
 
+        applyFontSizes();
 
         async function fetchFromAnki(action, params = {}) {
             try {
@@ -822,10 +833,11 @@ applyFontSizes();
             });
 
             rowCountSlider.addEventListener("input", (e) => {
-    rowCountSetting = e.target.value;
-    localStorage.setItem("anki_type_row_count", rowCountSetting);
-    applyRowCount();
-});
+                rowCountSetting = e.target.value;
+                localStorage.setItem("anki_type_row_count", rowCountSetting);
+                applyRowCount();
+            });
+
             deckDropdown.addEventListener("change", (e) => {
                 if (e.target.value) {
                     localStorage.setItem("anki_type_deck", e.target.value);
@@ -1129,11 +1141,11 @@ applyFontSizes();
                 if (value === "custom") {
                     countBtns.forEach(b => b.classList.remove("active"));
                     btn.classList.add("active");
-                    customInputWrapper.classList.remove("hidden");
+                    customCountInputWrapper.classList.remove("hidden");
                     customCountInput.value = (wordCountSetting !== "max" && !["10","25","50"].includes(wordCountSetting)) ? wordCountSetting : "";
                     customCountInput.focus();
                 } else {
-                    customInputWrapper.classList.add("hidden");
+                    customCountInputWrapper.classList.add("hidden");
                     wordCountSetting = value;
                     localStorage.setItem("anki_type_word_count", wordCountSetting);
                     updateCountNavUI();
@@ -1148,11 +1160,11 @@ applyFontSizes();
                 if (value === "custom") {
                     timeBtns.forEach(b => b.classList.remove("active"));
                     btn.classList.add("active");
-                    customInputWrapper.classList.remove("hidden");
-                    customCountInput.value = (!["15","30","60","120","infinite"].includes(testTimeSetting)) ? testTimeSetting : "";
-                    customCountInput.focus();
+                    customTimeInputWrapper.classList.remove("hidden");
+                    customTimeInput.value = (!["15","30","60","120","infinite"].includes(testTimeSetting)) ? testTimeSetting : "";
+                    customTimeInput.focus();
                 } else {
-                    customInputWrapper.classList.add("hidden");
+                    customTimeInputWrapper.classList.add("hidden");
                     testTimeSetting = value;
                     localStorage.setItem("anki_type_time_setting", testTimeSetting);
                     updateCountNavUI();
@@ -1171,11 +1183,11 @@ applyFontSizes();
                 if (value === "custom") {
                     kanaCountBtns.forEach(b => b.classList.remove("active"));
                     btn.classList.add("active");
-                    customInputWrapper.classList.remove("hidden");
+                    customCountInputWrapper.classList.remove("hidden");
                     customCountInput.value = (!["10","25","50","100"].includes(kanaCountSetting)) ? kanaCountSetting : "";
                     customCountInput.focus();
                 } else {
-                    customInputWrapper.classList.add("hidden");
+                    customCountInputWrapper.classList.add("hidden");
                     kanaCountSetting = value;
                     localStorage.setItem("anki_type_kana_count", kanaCountSetting);
                     updateCountNavUI();
@@ -1190,20 +1202,26 @@ applyFontSizes();
                 if (activeSource === "hiragana" || activeSource === "katakana") {
                     kanaCountSetting = val.toString();
                     localStorage.setItem("anki_type_kana_count", kanaCountSetting);
-                    applyWordCountFilter();
                 } else if (activeMode === "words") {
                     wordCountSetting = val.toString();
                     localStorage.setItem("anki_type_word_count", wordCountSetting);
-                    applyWordCountFilter();
-                } else if (activeMode === "time") {
-                    testTimeSetting = val.toString();
-                    localStorage.setItem("anki_type_time_setting", testTimeSetting);
-
-                    clearInterval(testTimerInterval);
-                    isTestActive = false;
-                    timeRemaining = testTimeSetting;
-                    timeLeftVal.textContent = `${timeRemaining}s`;
                 }
+                applyWordCountFilter();
+                updateCountNavUI();
+            }
+        });
+
+        customTimeSubmit.addEventListener("click", () => {
+            const val = parseInt(customTimeInput.value, 10);
+            if (val && val > 0) {
+                testTimeSetting = val.toString();
+                localStorage.setItem("anki_type_time_setting", testTimeSetting);
+
+                clearInterval(testTimerInterval);
+                isTestActive = false;
+                timeRemaining = testTimeSetting;
+                timeLeftVal.textContent = `${timeRemaining}s`;
+
                 updateCountNavUI();
             }
         });
