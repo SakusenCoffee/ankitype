@@ -18,13 +18,6 @@
     <nav class="top-navbar">
         <div class="nav-content">
             <div class="nav-left-group">
-                <button class="nav-btn" id="zen-tab-btn" title="Zen Character Counter">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M12 3a9 9 0 1 0 9 9 9.75 9.75 0 0 0-.68-3.62A8.91 8.91 0 0 0 12 3z"></path>
-                        <path d="M12 12m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0"></path>
-                    </svg>
-                    <span>ZEN</span>
-                </button>
                 <div class="nav-brand">
                     <span class="logo-dot"></span> ANKI TYPE
                 </div>
@@ -88,6 +81,7 @@
                 <div class="count-selector-group">
                     <button class="mode-btn active" id="mode-words-btn">words</button>
                     <button class="mode-btn" id="mode-time-btn">time</button>
+                    <button class="mode-btn" id="mode-zen-btn">zen</button>
                 </div>
                 <div class="selector-divider"></div>
                 <div class="count-selector-group">
@@ -370,7 +364,8 @@
     <script>
         let isZenMode = false;
 
-        const zenTabBtn = document.getElementById("zen-tab-btn");
+        const zenTabBtn = document.getElementById("zen-tab-btn"); // Kept as reference if used elsewhere, or hook into the new test options button
+        const modeZenBtn = document.getElementById("mode-zen-btn");
         const typingAppLayout = document.getElementById("typing-app-layout");
         const zenLayout = document.getElementById("zen-layout");
 
@@ -380,29 +375,29 @@
             if (isZenMode) {
                 typingAppLayout.classList.add("hidden");
                 zenLayout.classList.remove("hidden");
-                zenTabBtn.classList.add("active");
+                modeZenBtn.classList.add("active");
+                modeWordsBtn.classList.remove("active");
+                modeTimeBtn.classList.remove("active");
 
                 profileDrawer.classList.add("hidden");
-                testOptionsDrawer.classList.add("hidden");
                 ankiDrawer.classList.add("hidden");
                 appearanceDrawer.classList.add("hidden");
                 seedDrawer.classList.add("hidden");
 
                 profileTabBtn.classList.remove("active");
-                testOptionsTabBtn.classList.remove("active");
                 ankiTabBtn.classList.remove("active");
                 appearanceTabBtn.classList.remove("active");
                 seedTabBtn.classList.remove("active");
             } else {
                 zenLayout.classList.add("hidden");
                 typingAppLayout.classList.remove("hidden");
-                zenTabBtn.classList.remove("active");
-                testOptionsTabBtn.classList.add("active");
-                testOptionsDrawer.classList.remove("hidden");
+                modeZenBtn.classList.remove("active");
+                modeWordsBtn.classList.add("active");
             }
         }
 
-        zenTabBtn.addEventListener("click", toggleZenMode);
+        modeZenBtn.addEventListener("click", toggleZenMode);
+        if (zenTabBtn) zenTabBtn.addEventListener("click", toggleZenMode);
 
         let rowCountSetting = localStorage.getItem("anki_type_row_count") || "3";
 
@@ -1207,7 +1202,27 @@
         testOptionsTabBtn.addEventListener("click", () => openTab("test-options"));
         ankiTabBtn.addEventListener("click", () => openTab("anki"));
         appearanceTabBtn.addEventListener("click", () => openTab("appearance"));
-        seedTabBtn.addEventListener("click", () => openTab("seed"));
+        seedTabBtn.addEventListener("click", () => {
+            // Close other drawers except keep zen layout active if we are in zen mode
+            profileDrawer.classList.add("hidden");
+            testOptionsDrawer.classList.add("hidden");
+            ankiDrawer.classList.add("hidden");
+            appearanceDrawer.classList.add("hidden");
+
+            profileTabBtn.classList.remove("active");
+            testOptionsTabBtn.classList.remove("active");
+            ankiTabBtn.classList.remove("active");
+            appearanceTabBtn.classList.remove("active");
+
+            const isHidden = seedDrawer.classList.contains("hidden");
+            if (isHidden) {
+                seedDrawer.classList.remove("hidden");
+                seedTabBtn.classList.add("active");
+            } else {
+                seedDrawer.classList.add("hidden");
+                seedTabBtn.classList.remove("active");
+            }
+        });
 
         modeWordsBtn.addEventListener("click", () => setMode("words"));
         modeTimeBtn.addEventListener("click", () => setMode("time"));
@@ -1308,7 +1323,15 @@
         });
 
         copySeedBtn.addEventListener("click", () => {
-            const seed = generateSeed();
+            let seed = "";
+            if (isZenMode) {
+                const jpTextArea = document.getElementById("jptext");
+                const textContent = jpTextArea ? jpTextArea.value : "";
+                if (!textContent) return;
+                seed = btoa(encodeURIComponent(textContent));
+            } else {
+                seed = generateSeed();
+            }
             if (!seed) return;
 
             navigator.clipboard.writeText(seed).then(() => {
