@@ -1,12 +1,12 @@
 /* ==========================================================================
-   ANIME-DATABASE MODERN DESIGN TOKENS (style.css)
+   MONKEYTYPE / MINIMALIST JAPANESE TYPING DESIGN (style.css)
    ========================================================================== */
 :root {
     --bg-dark: #0b1622;
     --bg-card: #152232;
     --bg-input: #1f2d3d;
     --text-main: #edf1f5;
-    --text-muted: #8ba0b2;
+    --text-muted: #52657a;
     --accent-blue: #3db4f2;
     --accent-green: #00ffaa;
     --accent-red: #ff4a6a;
@@ -37,7 +37,7 @@ body {
     align-items: center;
     min-height: 100vh;
     margin: 0;
-    padding: 20px;
+    padding: 40px 20px;
     box-sizing: border-box;
     background-image: radial-gradient(circle at 50% -20%, #1e375a 0%, var(--bg-dark) 60%);
 }
@@ -47,13 +47,34 @@ body {
     max-width: 900px;
     display: flex;
     flex-direction: column;
-    gap: 20px;
+    align-items: center;
+    gap: 24px;
+    position: relative;
 }
+
+/* Status Badges */
+.status-badge {
+    position: absolute;
+    top: -25px;
+    right: 0;
+    font-family: var(--font-heading);
+    font-weight: 700;
+    font-size: 0.7rem;
+    letter-spacing: 1px;
+    padding: 4px 12px;
+    border-radius: 6px;
+    background: #2b3a4a;
+    color: var(--text-muted);
+}
+.status-online { background: rgba(0, 255, 170, 0.15); color: var(--accent-green); }
+.status-loading { background: rgba(61, 180, 242, 0.15); color: var(--accent-blue); }
+.status-offline { background: rgba(255, 74, 106, 0.15); color: var(--accent-red); }
 
 .controls-row {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 15px;
+    width: 100%;
 }
 
 .selector-container {
@@ -74,10 +95,10 @@ body {
     background-color: var(--bg-card);
     color: var(--text-main);
     border: 1px solid rgba(255, 255, 255, 0.05);
-    padding: 14px 20px;
+    padding: 12px 18px;
     border-radius: 12px;
     font-family: var(--font-body);
-    font-size: 0.95rem;
+    font-size: 0.9rem;
     font-weight: 500;
     outline: none;
     cursor: pointer;
@@ -91,59 +112,40 @@ body {
     border-color: rgba(61, 180, 242, 0.4);
 }
 
-.card {
-    background-color: var(--bg-card);
-    border: 1px solid rgba(255, 255, 255, 0.03);
-    border-radius: 20px;
-    padding: 35px;
-    position: relative;
-    overflow: hidden;
-    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.4);
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    width: 100%;
-    box-sizing: border-box;
-}
-
-/* Status Badges */
-.status-badge {
-    position: absolute;
-    top: 0;
-    right: 0;
-    font-family: var(--font-heading);
-    font-weight: 700;
-    font-size: 0.7rem;
-    letter-spacing: 1px;
-    padding: 6px 16px;
-    border-bottom-left-radius: 12px;
-    background: #2b3a4a;
-    color: var(--text-muted);
-}
-.status-online { background: rgba(0, 255, 170, 0.15); color: var(--accent-green); }
-.status-loading { background: rgba(61, 180, 242, 0.15); color: var(--accent-blue); }
-.status-offline { background: rgba(255, 74, 106, 0.15); color: var(--accent-red); }
-
 /* ==========================================================================
-   MONKEYTYPE SCROLLING WORD CONTAINER
+   MONKEYTYPE SCROLLING WORD CONTAINER (NO BACKGROUND CARDS)
    ========================================================================== */
 .words-wrapper {
     width: 100%;
     height: 270px;
     overflow: hidden;
     position: relative;
-    margin-top: 20px;
-    margin-bottom: 20px;
-    mask-image: linear-gradient(to bottom, transparent 0%, black 15%, black 85%, transparent 100%);
-    -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 15%, black 85%, transparent 100%);
+    margin-top: 10px;
+    margin-bottom: 10px;
+    /* Mask only fades out towards the bottom so top words remain sharp */
+    mask-image: linear-gradient(to bottom, black 0%, black 75%, transparent 100%);
+    -webkit-mask-image: linear-gradient(to bottom, black 0%, black 75%, transparent 100%);
 }
 
 .words-container {
     display: flex;
     flex-wrap: wrap;
-    gap: 16px 20px;
+    gap: 20px 28px;
     transition: transform 0.25s cubic-bezier(0.25, 1, 0.5, 1);
     align-content: flex-start;
+}
+
+/* Remove Spaces Toggle Mode */
+.words-container.no-spaces {
+    gap: 16px 0px;
+}
+
+.words-container.no-spaces .word-item {
+    padding: 8px 0px;
+}
+
+.words-container.no-spaces .kanji-text {
+    letter-spacing: 0px;
 }
 
 .word-item {
@@ -151,30 +153,27 @@ body {
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    padding: 10px 16px;
-    background: var(--bg-input);
-    border-radius: 12px;
-    border: 1px solid rgba(255, 255, 255, 0.03);
-    opacity: 0.4;
-    transition: all 0.2s ease;
+    padding: 8px 12px;
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    opacity: 0.35;
+    transition: opacity 0.2s ease, transform 0.2s ease, filter 0.2s ease;
     cursor: pointer;
-    min-width: 80px;
 }
 
 .word-item.active {
     opacity: 1;
-    border-color: var(--accent-blue);
-    box-shadow: 0 0 15px rgba(61, 180, 242, 0.2);
-    transform: scale(1.04);
+    transform: scale(1.05);
 }
 
 .word-item.completed {
-    opacity: 0.25;
-    filter: grayscale(80%);
+    opacity: 0.15;
+    filter: grayscale(100%);
 }
 
 .kanji-text {
-    font-size: 2rem;
+    font-size: 2.2rem;
     font-weight: 700;
     color: var(--text-main);
     line-height: 1.2;
@@ -229,7 +228,6 @@ body {
     font-weight: 700;
     letter-spacing: 1px;
     color: var(--text-muted);
-    margin-top: 5px;
 }
 
 /* Dynamic Kanji Fonts */
@@ -248,21 +246,20 @@ body {
 .kanji-text.font-zoo     { font-family: var(--font-zoo); }
 
 /* ==========================================================================
-   LIVE TYPING INPUT DISPLAY BOX & TOGGLE
+   LIVE TYPING INPUT DISPLAY BOX & TOGGLES
    ========================================================================== */
 .live-input-container {
     width: 100%;
-    margin-top: 20px;
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 10px;
+    gap: 12px;
 }
 
 .live-input-box {
     width: 100%;
     max-width: 450px;
-    background-color: var(--bg-input);
+    background-color: var(--bg-card);
     border: 1px solid rgba(255, 255, 255, 0.08);
     border-radius: 12px;
     padding: 12px 20px;
@@ -280,7 +277,7 @@ body {
 
 .placeholder-text {
     color: var(--text-muted);
-    opacity: 0.4;
+    opacity: 0.6;
     font-size: 0.95rem;
     letter-spacing: 1px;
 }
@@ -296,7 +293,13 @@ body {
     border-radius: 3px;
 }
 
-/* Error Toggle Controls */
+/* Toggles Row */
+.toggles-row {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+}
+
 .error-toggle-wrapper {
     display: flex;
     align-items: center;
@@ -346,6 +349,10 @@ body {
 }
 
 input:checked + .toggle-slider {
+    background-color: var(--accent-blue);
+}
+
+#error-toggle:checked + .toggle-slider {
     background-color: var(--accent-red);
 }
 
@@ -355,7 +362,6 @@ input:checked + .toggle-slider:before {
 
 /* Score Panel */
 .score-panel {
-    margin-top: 15px;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -380,9 +386,8 @@ input:checked + .toggle-slider:before {
     font-family: var(--font-heading);
 }
 
-/* Footer & Ko-fi */
+/* Footer Actions */
 .footer-actions {
-    margin-top: 10px;
     display: flex;
     justify-content: center;
     width: 100%;
