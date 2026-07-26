@@ -171,11 +171,30 @@ body {
     filter: grayscale(100%);
 }
 
+.kanji-wrapper {
+    display: flex;
+    align-items: baseline;
+    justify-content: center;
+    position: relative;
+}
+
 .kanji-text {
     font-size: 2.2rem;
     font-weight: 700;
     color: var(--text-main);
     line-height: 1.2;
+}
+
+.kanji-side-error {
+    font-family: 'Space Grotesk', monospace;
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: var(--accent-red);
+    margin-left: 6px;
+    text-shadow: 0 0 8px rgba(255, 74, 106, 0.5);
+    background: rgba(255, 74, 106, 0.15);
+    padding: 0 4px;
+    border-radius: 4px;
 }
 
 .romaji-text {
@@ -218,6 +237,15 @@ body {
     color: var(--accent-red);
     opacity: 1;
     border-bottom: 2px solid var(--accent-red);
+}
+
+.romaji-overflow-error {
+    color: var(--accent-red);
+    opacity: 1;
+    background: rgba(255, 74, 106, 0.15);
+    border-radius: 3px;
+    padding: 0 2px;
+    margin-left: 2px;
 }
 
 /* Neutral state when SHOW RED ERRORS is OFF */
@@ -297,7 +325,7 @@ body {
     display: none !important;
 }
 
-/* Hide Input Box Button (Appears on Box Hover) */
+/* Hide Input Box Button */
 .hide-box-btn {
     position: absolute;
     right: 12px;
