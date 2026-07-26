@@ -129,7 +129,7 @@ body {
    ========================================================================== */
 .words-wrapper {
     width: 100%;
-    height: 270px; /* Locks height to ~3 visible lines */
+    height: 270px;
     overflow: hidden;
     position: relative;
     margin-top: 20px;
@@ -210,6 +210,12 @@ body {
     border-bottom: 2px solid var(--accent-blue);
 }
 
+.romaji-text .char.incorrect {
+    color: var(--accent-red);
+    opacity: 1;
+    border-bottom: 2px solid var(--accent-red);
+}
+
 .meaning-text {
     font-size: 0.75rem;
     color: var(--accent-blue);
@@ -241,9 +247,115 @@ body {
 .kanji-text.font-bomb    { font-family: var(--font-bomb); }
 .kanji-text.font-zoo     { font-family: var(--font-zoo); }
 
+/* ==========================================================================
+   LIVE TYPING INPUT DISPLAY BOX & TOGGLE
+   ========================================================================== */
+.live-input-container {
+    width: 100%;
+    margin-top: 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+}
+
+.live-input-box {
+    width: 100%;
+    max-width: 450px;
+    background-color: var(--bg-input);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 12px;
+    padding: 12px 20px;
+    font-family: 'Space Grotesk', monospace;
+    font-size: 1.25rem;
+    font-weight: 700;
+    letter-spacing: 2px;
+    min-height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.3);
+    box-sizing: border-box;
+}
+
+.placeholder-text {
+    color: var(--text-muted);
+    opacity: 0.4;
+    font-size: 0.95rem;
+    letter-spacing: 1px;
+}
+
+.typed-char-correct {
+    color: var(--accent-green);
+}
+
+.typed-char-wrong {
+    color: var(--accent-red);
+    text-shadow: 0 0 8px rgba(255, 74, 106, 0.5);
+    background: rgba(255, 74, 106, 0.15);
+    border-radius: 3px;
+}
+
+/* Error Toggle Controls */
+.error-toggle-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.toggle-label {
+    font-family: var(--font-heading);
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 1px;
+    color: var(--text-muted);
+}
+
+.toggle-switch {
+    position: relative;
+    display: inline-block;
+    width: 34px;
+    height: 18px;
+}
+
+.toggle-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.toggle-slider {
+    position: absolute;
+    cursor: pointer;
+    inset: 0;
+    background-color: #2b3a4a;
+    transition: 0.2s;
+    border-radius: 18px;
+}
+
+.toggle-slider:before {
+    position: absolute;
+    content: "";
+    height: 12px;
+    width: 12px;
+    left: 3px;
+    bottom: 3px;
+    background-color: white;
+    transition: 0.2s;
+    border-radius: 50%;
+}
+
+input:checked + .toggle-slider {
+    background-color: var(--accent-red);
+}
+
+input:checked + .toggle-slider:before {
+    transform: translateX(16px);
+}
+
 /* Score Panel */
 .score-panel {
-    margin-top: 20px;
+    margin-top: 15px;
     display: flex;
     flex-direction: column;
     align-items: center;
