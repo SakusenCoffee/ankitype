@@ -1,84 +1,69 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Anki Type</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;700;800&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
-
-<meta property="og:title" content="AnkiType" />
-<meta property="og:description" content="Load your Lapis Note Type deck and Practice Typing" />
-<meta property="og:url" content="https://ankitype.com" />
-<meta property="og:type" content="website" />
-<meta property="og:image" content="https://ankitype.com/og-image.png" />
-<meta name="twitter:card" content="summary_large_image" />
-<meta name="twitter:title" content="AnkiType" />
-<meta name="twitter:description" content="Load your Lapis Note Type deck and Practice Typing" />
-<meta name="twitter:image" content="https://ankitype.com/og-image.png" />    <script src="https://cdn.jsdelivr.net/npm/wanakana@5.3.1/wanakana.min.js"></script>
-    <link rel="stylesheet" href="style.css">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Kaisei+Tokumin:wght@700&family=Yuji+Syuku&family=DotGothic16&family=Zen+Maru+Gothic:wght@700&family=Yomogi&family=Hachi+Maru+Pop&family=Mochiy+Pop+One&family=Chokokutai&family=Cherry+Bomb+One&family=Zen+Tokyo+Zoo&family=Noto+Sans+JP:wght@400;700&family=Hina+Mincho&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/wanakana@5.3.1/wanakana.min.js"></script>
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
     <div class="app-layout">
-        <div class="selector-container">
-            <label for="deck-select">ANKI DECK</label>
-            <select id="deck-select">
-                <option value="">Querying local database...</option>
-            </select>
-        </div>
+        <div class="controls-row">
+            <div class="selector-container">
+                <label for="deck-select">ANKI DECK</label>
+                <select id="deck-select">
+                    <option value="">Querying local database...</option>
+                </select>
+            </div>
 
-        <div class="selector-container">
-            <label for="font-select">FONT</label>
-            <select id="font-select">
-                <optgroup label="Standard Styles">
-                    <option value="font-modern">Modern Gothic (Default)</option>
-                    <option value="font-noto">Noto Sans (Ultra Clean)</option>
-                    <option value="font-serif">Traditional Mincho (Kaisei)</option>
-                    <option value="font-hina">Delicate Mincho (Hina)</option>
-                </optgroup>
-                <optgroup label="Handwriting & Pop">
-                    <option value="font-brush">Calligraphy Brush (Yuji)</option>
-                    <option value="font-yomogi">Thin Handwriting (Yomogi)</option>
-                    <option value="font-hachi">80s Gyaru Pop (Hachi Maru)</option>
-                    <option value="font-mochiy">Comic Pop Art (Mochiy)</option>
-                    <option value="font-rounded">Rounded Pop (Zen Maru)</option>
-                </optgroup>
-                <optgroup label="Experimental & Retro">
-                    <option value="font-pixel">Retro 8-Bit (DotGothic)</option>
-                    <option value="font-carved">Wood Carved (Chokokutai)</option>
-                    <option value="font-bomb">Bubble Graffiti (Cherry Bomb)</option>
-                    <option value="font-zoo">Abstract Grill (Zen Tokyo Zoo)</option>
-                </optgroup>
-            </select>
+            <div class="selector-container">
+                <label for="font-select">FONT</label>
+                <select id="font-select">
+                    <optgroup label="Standard Styles">
+                        <option value="font-modern">Modern Gothic (Default)</option>
+                        <option value="font-noto">Noto Sans (Ultra Clean)</option>
+                        <option value="font-serif">Traditional Mincho (Kaisei)</option>
+                        <option value="font-hina">Delicate Mincho (Hina)</option>
+                    </optgroup>
+                    <optgroup label="Handwriting & Pop">
+                        <option value="font-brush">Calligraphy Brush (Yuji)</option>
+                        <option value="font-yomogi">Thin Handwriting (Yomogi)</option>
+                        <option value="font-hachi">80s Gyaru Pop (Hachi Maru)</option>
+                        <option value="font-mochiy">Comic Pop Art (Mochiy)</option>
+                        <option value="font-rounded">Rounded Pop (Zen Maru)</option>
+                    </optgroup>
+                    <optgroup label="Experimental & Retro">
+                        <option value="font-pixel">Retro 8-Bit (DotGothic)</option>
+                        <option value="font-carved">Wood Carved (Chokokutai)</option>
+                        <option value="font-bomb">Bubble Graffiti (Cherry Bomb)</option>
+                        <option value="font-zoo">Abstract Grill (Zen Tokyo Zoo)</option>
+                    </optgroup>
+                </select>
+            </div>
         </div>
 
         <div class="card">
             <div class="status-badge" id="status">INIT CONNECTION</div>
-            
-            <div class="word-showcase">
-                <div class="kanji" id="display-word">--</div>
-                
-                <div class="meaning-wrapper hidden-meaning" id="meaning-box">
-                    <div class="meaning-prompt">CLICK TO REVEAL DEFINITION</div>
-                    <div class="meaning" id="display-meaning">Awaiting connection sync...</div>
-                </div>
-            </div>
-            
-            <div class="romaji-wrapper hidden-romaji" id="romaji-box">
-                <div class="romaji-prompt" id="romaji-hint">PRESS [TAB] TO SHOW ROMAJI</div>
-                <div class="romaji-text-container">
-                    <span class="typed" id="text-typed"></span><span class="untyped" id="text-untyped"></span>
+
+            <!-- MONKEYTYPE SCROLLING CONTAINER FRAME -->
+            <div class="words-wrapper" id="words-wrapper">
+                <div class="words-container" id="words-container">
+                    <!-- Dynamic Word Nodes Render Here -->
                 </div>
             </div>
 
+            <div class="typing-controls-hint">
+                <span>[TAB] TOGGLE ROMAJI READINGS</span> • <span>[CLICK CARD] SHOW MEANING</span>
+            </div>
+
             <div class="score-panel">
-                <span class="label">TYPED: </span>
+                <span class="label">CARDS TYPED</span>
                 <span class="value" id="score-val">0</span>
             </div>
         </div>
@@ -98,26 +83,23 @@
     </div>
 
     <script>
-
-        // Add this right beneath your other global variables (around line 77)
-let isMeaningRevealed = false;
-        // --- CONFIGURATION MAPPINGS ---
         const FIELD_KANJI = "Expression";    
         const FIELD_ROMAJI = "ExpressionReading";    
         const FIELD_MEANING = "MainDefinition";   
 
         let wordList = [];
         let currentIndex = 0;
-        let typedTargetPosition = 0;
+        let currentCharIndex = 0;
         let totalScore = 0;
+        let showRomaji = true;
+        let showMeaning = false;
+        let currentFontClass = "font-modern";
 
         const statusEl = document.getElementById("status");
-        const wordEl = document.getElementById("display-word");
-        const meaningEl = document.getElementById("display-meaning");
-        const typedEl = document.getElementById("text-typed");
-        const untypedEl = document.getElementById("text-untyped");
+        const wordsContainer = document.getElementById("words-container");
         const scoreEl = document.getElementById("score-val");
         const deckDropdown = document.getElementById("deck-select");
+        const fontDropdown = document.getElementById("font-select");
 
         async function fetchFromAnki(action, params = {}) {
             try {
@@ -170,7 +152,7 @@ let isMeaningRevealed = false;
             if (!findResult || !findResult.result || findResult.result.length === 0) {
                 statusEl.textContent = "DECK EMPTY";
                 statusEl.className = "status-badge status-offline";
-                clearDisplay();
+                wordsContainer.innerHTML = `<div class="empty-state">No cards found in deck "${targetDeckName}".</div>`;
                 return;
             }
 
@@ -193,70 +175,147 @@ let isMeaningRevealed = false;
                 statusEl.className = "status-badge status-online";
                 statusEl.textContent = `${wordList.length} TRACKS SYNCED`;
                 currentIndex = 0;
+                currentCharIndex = 0;
+                totalScore = 0;
+                scoreEl.textContent = totalScore;
                 shuffleArray(wordList);
-                loadWord();
+                renderWordBlock();
             } else {
                 statusEl.textContent = "PARSE ERROR";
                 statusEl.className = "status-badge status-offline";
-                clearDisplay();
+                wordsContainer.innerHTML = '<div class="empty-state">Unable to parse cards from selected deck.</div>';
             }
         }
 
-        function loadWord() {
-    if (wordList.length === 0) return;
-    const currentWord = wordList[currentIndex];
-    wordEl.textContent = currentWord.kanji;
-    meaningEl.textContent = currentWord.meaning;
-    
-    // 🌟 RESPECT PREVIOUS SELECTION: Keep it hidden or revealed based on state
-    const meaningBox = document.getElementById("meaning-box");
-    if (isMeaningRevealed) {
-        meaningBox.classList.remove("hidden-meaning");
-    } else {
-        meaningBox.classList.add("hidden-meaning");
-    }
-    
-    typedTargetPosition = 0;
-    typedEl.textContent = "";
-    untypedEl.textContent = currentWord.romaji;
-}
+        function renderWordBlock() {
+            wordsContainer.innerHTML = "";
+            wordsContainer.style.transform = `translateY(0px)`;
 
-        function clearDisplay() {
-            wordEl.textContent = "--";
-            meaningEl.textContent = "Select an alternate database track entry.";
-            typedEl.textContent = "";
-            untypedEl.textContent = "";
-            wordList = [];
+            wordList.forEach((wordObj, idx) => {
+                const wordNode = document.createElement("div");
+                wordNode.className = "word-item";
+                if (idx === currentIndex) wordNode.classList.add("active");
+
+                // Kanji Target
+                const kanjiNode = document.createElement("div");
+                kanjiNode.className = `kanji-text ${currentFontClass}`;
+                kanjiNode.textContent = wordObj.kanji;
+
+                // Romaji Subtext Character Blocks
+                const romajiNode = document.createElement("div");
+                romajiNode.className = `romaji-text ${!showRomaji ? 'hidden' : ''}`;
+                
+                for (let i = 0; i < wordObj.romaji.length; i++) {
+                    const charSpan = document.createElement("span");
+                    charSpan.className = "char";
+                    charSpan.textContent = wordObj.romaji[i];
+                    romajiNode.appendChild(charSpan);
+                }
+
+                // Meaning Subtext
+                const meaningNode = document.createElement("div");
+                meaningNode.className = `meaning-text ${!showMeaning ? 'hidden' : ''}`;
+                meaningNode.textContent = wordObj.meaning;
+
+                wordNode.appendChild(kanjiNode);
+                wordNode.appendChild(romajiNode);
+                wordNode.appendChild(meaningNode);
+
+                wordNode.addEventListener("click", () => {
+                    showMeaning = !showMeaning;
+                    updateVisibility();
+                });
+
+                wordsContainer.appendChild(wordNode);
+            });
+
+            updateActiveCharHighlight();
         }
 
-        // 🌟 COMBINED MASTER KEY DOWN LISTENER
+        function updateActiveCharHighlight() {
+            const currentWordNode = wordsContainer.children[currentIndex];
+            if (!currentWordNode) return;
+
+            const romajiNode = currentWordNode.querySelector(".romaji-text");
+            const charSpans = romajiNode.querySelectorAll(".char");
+
+            charSpans.forEach((span, idx) => {
+                span.classList.remove("correct", "current");
+                if (idx < currentCharIndex) {
+                    span.classList.add("correct");
+                } else if (idx === currentCharIndex) {
+                    span.classList.add("current");
+                }
+            });
+
+            // Smooth Scroll active row into view
+            const containerTop = wordsContainer.getBoundingClientRect().top;
+            const wordTop = currentWordNode.getBoundingClientRect().top;
+            const lineOffset = wordTop - containerTop;
+
+            // Shift container in row steps (~90px steps)
+            if (lineOffset > 100) {
+                const shiftY = Math.floor(lineOffset / 90) * 90;
+                wordsContainer.style.transform = `translateY(-${shiftY}px)`;
+            }
+        }
+
+        function updateVisibility() {
+            const allRomaji = document.querySelectorAll(".romaji-text");
+            const allMeaning = document.querySelectorAll(".meaning-text");
+
+            allRomaji.forEach(el => showRomaji ? el.classList.remove("hidden") : el.classList.add("hidden"));
+            allMeaning.forEach(el => showMeaning ? el.classList.remove("hidden") : el.classList.add("hidden"));
+        }
+
+        // Global Typing Listener Engine
         window.addEventListener("keydown", (e) => {
-            // A. Intercept Tab key
             if (e.key === "Tab") {
-                e.preventDefault(); 
-                const romajiBox = document.getElementById("romaji-box");
-                romajiBox.classList.toggle("hidden-romaji");
-                return; 
+                e.preventDefault();
+                showRomaji = !showRomaji;
+                updateVisibility();
+                return;
             }
 
-            // B. Run normal typing engine logic
-            if (e.key.length > 1 || wordList.length === 0) return; 
+            if (e.key.length > 1 || wordList.length === 0) return;
 
             const currentWord = wordList[currentIndex];
-            const expectedChar = currentWord.romaji[typedTargetPosition];
+            const expectedChar = currentWord.romaji[currentCharIndex];
 
             if (e.key.toLowerCase() === expectedChar) {
-                typedTargetPosition++;
-                typedEl.textContent = currentWord.romaji.substring(0, typedTargetPosition);
-                untypedEl.textContent = currentWord.romaji.substring(typedTargetPosition);
+                currentCharIndex++;
+                
+                // Finished Current Word
+                if (currentCharIndex >= currentWord.romaji.length) {
+                    const finishedWordNode = wordsContainer.children[currentIndex];
+                    finishedWordNode.classList.remove("active");
+                    finishedWordNode.classList.add("completed");
 
-                if (typedTargetPosition === currentWord.romaji.length) {
                     totalScore++;
                     scoreEl.textContent = totalScore;
-                    currentIndex = (currentIndex + 1) % wordList.length;
-                    loadWord();
+
+                    currentIndex++;
+                    currentCharIndex = 0;
+
+                    if (currentIndex < wordList.length) {
+                        wordsContainer.children[currentIndex].classList.add("active");
+                    } else {
+                        // Loop back or complete
+                        currentIndex = 0;
+                        renderWordBlock();
+                    }
                 }
+                
+                updateActiveCharHighlight();
             }
+        });
+
+        fontDropdown.addEventListener("change", (e) => {
+            currentFontClass = e.target.value;
+            const kanjiElements = document.querySelectorAll(".kanji-text");
+            kanjiElements.forEach(el => {
+                el.className = `kanji-text ${currentFontClass}`;
+            });
         });
 
         function shuffleArray(array) {
@@ -265,27 +324,6 @@ let isMeaningRevealed = false;
                 [array[i], array[j]] = [array[j], array[i]];
             }
         }
-
-        // Font selection handler
-        document.getElementById("font-select").addEventListener("change", (e) => {
-            wordEl.className = "kanji"; 
-            if (e.target.value) {
-                wordEl.classList.add(e.target.value);
-            }
-        });
-
-        // Meaning overlay panel toggle click event
-        document.getElementById("meaning-box").addEventListener("click", () => {
-            const meaningBox = document.getElementById("meaning-box");
-// Toggle our tracking state
-    isMeaningRevealed = !isMeaningRevealed;
-    
-    // Apply the correct visual class based on your preference
-    if (isMeaningRevealed) {
-        meaningBox.classList.remove("hidden-meaning");
-    } else {
-        meaningBox.classList.add("hidden-meaning");
-    }        });
 
         populateDecks();
     </script>
