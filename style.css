@@ -13,7 +13,7 @@
     --font-heading: 'Space Grotesk', sans-serif;
     --font-body: 'Plus Jakarta Sans', sans-serif;
 
-    /* --- GLOBAL JAPANESE FONT MAP --- */
+    /* Japanese Font Variables */
     --font-noto: 'Noto Sans JP', sans-serif;
     --font-serif: 'Kaisei Tokumin', serif;
     --font-hina: 'Hina Mincho', serif;
@@ -28,7 +28,6 @@
     --font-zoo: 'Zen Tokyo Zoo', sans-serif;
 }
 
-/* Base Layout & Ambient Glow */
 body {
     background-color: var(--bg-dark);
     color: var(--text-main);
@@ -45,20 +44,18 @@ body {
 
 .app-layout {
     width: 100%;
-    max-width: 560px;
+    max-width: 900px;
     display: flex;
     flex-direction: column;
     gap: 20px;
 }
 
-/* Controls Grid Row Layout */
 .controls-row {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 15px;
 }
 
-/* Custom Dropdown Menus */
 .selector-container {
     display: flex;
     flex-direction: column;
@@ -94,23 +91,11 @@ body {
     border-color: rgba(61, 180, 242, 0.4);
 }
 
-.selector-container optgroup {
-    background: var(--bg-card);
-    color: var(--accent-blue);
-    font-weight: bold;
-}
-
-.selector-container option {
-    color: var(--text-main);
-    font-weight: normal;
-}
-
-/* Main UI Frame */
 .card {
     background-color: var(--bg-card);
     border: 1px solid rgba(255, 255, 255, 0.03);
     border-radius: 20px;
-    padding: 40px;
+    padding: 35px;
     position: relative;
     overflow: hidden;
     box-shadow: 0 15px 35px rgba(0, 0, 0, 0.4);
@@ -121,7 +106,7 @@ body {
     box-sizing: border-box;
 }
 
-/* Status Indicators */
+/* Status Badges */
 .status-badge {
     position: absolute;
     top: 0;
@@ -139,70 +124,133 @@ body {
 .status-loading { background: rgba(61, 180, 242, 0.15); color: var(--accent-blue); }
 .status-offline { background: rgba(255, 74, 106, 0.15); color: var(--accent-red); }
 
-/* Center Display Text */
-.word-showcase {
-    text-align: center;
-    margin-bottom: 35px;
+/* ==========================================================================
+   MONKEYTYPE SCROLLING WORD CONTAINER
+   ========================================================================== */
+.words-wrapper {
     width: 100%;
+    height: 270px; /* Locks height to ~3 visible lines */
+    overflow: hidden;
+    position: relative;
+    margin-top: 20px;
+    margin-bottom: 20px;
+    mask-image: linear-gradient(to bottom, transparent 0%, black 15%, black 85%, transparent 100%);
+    -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 15%, black 85%, transparent 100%);
 }
 
-.kanji {
-    font-family: var(--font-body);
-    font-size: 4rem;
-    font-weight: 800;
-    letter-spacing: -1px;
-    color: var(--text-main);
-    line-height: 1.3;
-    margin-bottom: 8px;
-    text-shadow: 0 4px 12px rgba(0,0,0,0.3);
-    transition: all 0.2s ease-in-out;
-    min-height: 5.5rem;
+.words-container {
     display: flex;
+    flex-wrap: wrap;
+    gap: 16px 20px;
+    transition: transform 0.25s cubic-bezier(0.25, 1, 0.5, 1);
+    align-content: flex-start;
+}
+
+.word-item {
+    display: inline-flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
+    padding: 10px 16px;
+    background: var(--bg-input);
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.03);
+    opacity: 0.4;
+    transition: all 0.2s ease;
+    cursor: pointer;
+    min-width: 80px;
 }
 
-.meaning {
-    font-size: 1.05rem;
-    font-weight: 500;
+.word-item.active {
+    opacity: 1;
+    border-color: var(--accent-blue);
+    box-shadow: 0 0 15px rgba(61, 180, 242, 0.2);
+    transform: scale(1.04);
+}
+
+.word-item.completed {
+    opacity: 0.25;
+    filter: grayscale(80%);
+}
+
+.kanji-text {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--text-main);
+    line-height: 1.2;
+}
+
+.romaji-text {
+    font-family: 'Space Grotesk', monospace;
+    font-size: 1rem;
+    font-weight: 700;
+    letter-spacing: 1px;
+    margin-top: 4px;
     color: var(--text-muted);
 }
 
-/* Input Typing Box Display */
-.romaji-wrapper {
-    width: 100%;
-    background-color: var(--bg-input);
-    border: 1px solid rgba(255, 255, 255, 0.04);
-    padding: 18px;
-    border-radius: 14px;
-    font-family: 'Space Grotesk', monospace;
-    font-size: 2rem;
+.romaji-text.hidden, .meaning-text.hidden {
+    display: none;
+}
+
+.romaji-text .char {
+    opacity: 0.35;
+    transition: color 0.1s ease, opacity 0.1s ease;
+}
+
+.romaji-text .char.correct {
+    color: var(--accent-green);
+    opacity: 1;
+    text-shadow: 0 0 8px rgba(0, 255, 170, 0.5);
+}
+
+.romaji-text .char.current {
+    color: var(--accent-blue);
+    opacity: 1;
+    border-bottom: 2px solid var(--accent-blue);
+}
+
+.meaning-text {
+    font-size: 0.75rem;
+    color: var(--accent-blue);
+    margin-top: 4px;
+    font-weight: 600;
+}
+
+.typing-controls-hint {
+    font-family: var(--font-heading);
+    font-size: 0.7rem;
     font-weight: 700;
     letter-spacing: 1px;
-    text-align: center;
-    box-sizing: border-box;
-    box-shadow: inset 0 2px 8px rgba(0,0,0,0.2);
+    color: var(--text-muted);
+    margin-top: 5px;
 }
 
-.typed {
-    color: var(--accent-green);
-    text-shadow: 0 0 12px rgba(0, 255, 170, 0.4);
-}
+/* Dynamic Kanji Fonts */
+.kanji-text.font-modern  { font-family: var(--font-body); }
+.kanji-text.font-noto    { font-family: var(--font-noto); }
+.kanji-text.font-serif   { font-family: var(--font-serif); }
+.kanji-text.font-hina    { font-family: var(--font-hina); }
+.kanji-text.font-brush   { font-family: var(--font-brush); }
+.kanji-text.font-yomogi  { font-family: var(--font-yomogi); }
+.kanji-text.font-hachi   { font-family: var(--font-hachi); }
+.kanji-text.font-mochiy  { font-family: var(--font-mochiy); }
+.kanji-text.font-rounded { font-family: var(--font-rounded); }
+.kanji-text.font-pixel   { font-family: var(--font-pixel); }
+.kanji-text.font-carved  { font-family: var(--font-carved); }
+.kanji-text.font-bomb    { font-family: var(--font-bomb); }
+.kanji-text.font-zoo     { font-family: var(--font-zoo); }
 
-.untyped {
-    color: rgba(237, 241, 245, 0.15);
-}
-
-/* Score Footers */
+/* Score Panel */
 .score-panel {
-    margin-top: 35px;
+    margin-top: 20px;
     display: flex;
     flex-direction: column;
     align-items: center;
     gap: 4px;
     width: 100%;
     border-top: 1px solid rgba(255,255,255,0.05);
-    padding-top: 25px;
+    padding-top: 15px;
 }
 
 .score-panel .label {
@@ -214,142 +262,15 @@ body {
 }
 
 .score-panel .value {
-    font-size: 2.2rem;
+    font-size: 2rem;
     font-weight: 800;
     color: var(--accent-blue);
     font-family: var(--font-heading);
-    text-shadow: 0 0 15px rgba(61, 180, 242, 0.3);
 }
 
-/* --- DYNAMIC CLASS OVERRIDES FOR FONTS --- */
-.kanji.font-modern  { font-family: var(--font-body); font-weight: 800; }
-.kanji.font-noto    { font-family: var(--font-noto); font-weight: 700; }
-.kanji.font-serif   { font-family: var(--font-serif); font-weight: 700; }
-.kanji.font-hina    { font-family: var(--font-hina); font-weight: 400; }
-.kanji.font-brush   { font-family: var(--font-brush); font-weight: 400; }
-.kanji.font-yomogi  { font-family: var(--font-yomogi); font-weight: 400; }
-.kanji.font-hachi   { font-family: var(--font-hachi); font-weight: 400; }
-.kanji.font-mochiy  { font-family: var(--font-mochiy); font-weight: 400; }
-.kanji.font-rounded { font-family: var(--font-rounded); font-weight: 700; }
-.kanji.font-pixel   { font-family: var(--font-pixel); font-weight: 400; font-size: 3.8rem; }
-.kanji.font-carved  { font-family: var(--font-carved); font-weight: 400; }
-.kanji.font-bomb    { font-family: var(--font-bomb); font-weight: 400; }
-.kanji.font-zoo     { font-family: var(--font-zoo); font-weight: 400; font-size: 3.5rem; }
-
-/* ==========================================================================
-   DYNAMIC ROMAJI HINT TOGGLE UTILITIES
-   ========================================================================== */
-.romaji-wrapper {
-    position: relative;
-    min-height: 76px; /* Prevents card bouncing when toggling contents */
-    display: flex;
-    justify-content: center;
-    align-items: center;
-}
-
-/* Prompt Layout */
-.romaji-prompt {
-    font-family: var(--font-heading);
-    font-size: 1rem;
-    font-weight: 700;
-    letter-spacing: 2px;
-    color: var(--text-muted);
-    position: absolute;
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-/* Actual Typing Containers */
-.romaji-text-container {
-    opacity: 1;
-    transition: opacity 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-    display: inline-block;
-}
-
-/* 🌟 DYNAMIC HIDDEN TOGGLE STATE CLASSES */
-.hidden-romaji .romaji-prompt {
-    opacity: 1;
-}
-
-.hidden-romaji .romaji-text-container {
-    opacity: 0;
-}
-
-/* ==========================================================================
-   UPDATED CLICK-TO-REVEAL MEANING ENGINE (No layout shifting)
-   ========================================================================== */
-.meaning-wrapper {
-    position: relative;
-    cursor: pointer;
-    padding: 8px;
-    border-radius: 8px;
-    transition: background-color 0.2s ease;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    
-    /* 🌟 FIX: Lock the frame height so long text never moves elements below it */
-    min-height: 40px; 
-    width: 100%;
-}
-
-.meaning-wrapper:hover {
-    background-color: rgba(255, 255, 255, 0.02);
-}
-
-/* 🌟 FIX: Pull the prompt and definitions into absolute positioning 
-   layers so they float independently of the document flow */
-.meaning-prompt {
-    font-family: var(--font-heading);
-    font-size: 0.75rem;
-    font-weight: 700;
-    letter-spacing: 1.5px;
-    color: var(--accent-blue);
-    position: absolute;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    text-align: center;
-    inset: 0;
-    
-    opacity: 0 !important;
-    pointer-events: none !important;
-    transition: opacity 0.2s ease;
-}
-
-.meaning-wrapper .meaning {
-    position: absolute;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    text-align: center;
-    inset: 0;
-    font-size: 1.05rem;
-    font-weight: 500;
-    color: var(--text-muted);
-    
-    opacity: 1 !important;
-    pointer-events: auto !important;
-    transition: opacity 0.2s ease;
-}
-
-/* 🌟 FORCE TOGGLE STATES WITHOUT LAYOUT SHIFT */
-.hidden-meaning .meaning-prompt {
-    opacity: 1 !important;
-    pointer-events: auto !important;
-}
-
-.hidden-meaning .meaning {
-    opacity: 0 !important;
-    pointer-events: none !important;
-}
-
-/* ==========================================================================
-   FOOTER ACTIONS & KO-FI INTEGRATION
-   ========================================================================== */
+/* Footer & Ko-fi */
 .footer-actions {
-    margin-top: 15px;
+    margin-top: 10px;
     display: flex;
     justify-content: center;
     width: 100%;
@@ -373,21 +294,14 @@ body {
     transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* Micro-interaction signature color shift on hover */
 .kofi-btn:hover {
-    background-color: #ff5e5b; /* Ko-fi Brand Red/Coral */
+    background-color: #ff5e5b;
     color: var(--text-main);
     border-color: #ff5e5b;
     transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(255, 94, 91, 0.3);
 }
 
 .kofi-icon {
     width: 16px;
     height: 16px;
-    transition: transform 0.2s ease;
-}
-
-.kofi-btn:hover .kofi-icon {
-    transform: rotate(-5deg) scale(1.1);
 }
