@@ -1626,6 +1626,41 @@ let currentIndex = 0;
             }
         }
 
+        // What the test was, for the history list. Kana runs are counted in characters
+        // rather than words, so they are worth distinguishing from a tango word run.
+        function describeTestType() {
+            if (activeSource === "hiragana" || activeSource === "katakana") {
+                return `${activeSource} · ${testTimeSetting === "infinite" ? "infinite" : testTimeSetting + "s"}`;
+            }
+            const level = activeTangoLevel === "anki" ? "anki" : activeTangoLevel.toUpperCase();
+            return activeMode === "time"
+                ? `time · ${testTimeSetting === "infinite" ? "infinite" : testTimeSetting + "s"} · ${level}`
+                : `words · ${wordCountSetting} · ${level}`;
+        }
+
+        // Seeded runs are excluded: the words came from someone else's test, so logging
+        // them as your own result would misrepresent the history. Idled-out runs are
+        // already filtered by the caller, alongside the profile stats.
+        function recordTestInHistory({ cpm, elapsedTimeSec }) {
+            if (!currentUserToken || isSeededTest) return;
+
+            const payload = {
+                testType: describeTestType(),
+                durationSec: elapsedTimeSec,
+                cpm,
+                wpm: Math.round(cpm / 5),   // the usual five-character word
+                totalChars: correctKeystrokes + mistakesSession,
+                correctChars: correctKeystrokes,
+                mistakes: mistakesSession
+            };
+
+            fetch(`${API_BASE}/api/profile/history`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${currentUserToken}` },
+                body: JSON.stringify(payload)
+            }).catch(err => console.error("Could not save test history:", err));
+        }
+
         function finishTest() {
             clearInterval(testTimerInterval);
             isTestActive = false;
@@ -1661,6 +1696,7 @@ let currentIndex = 0;
             } else {
                 resAbandonedNote.classList.add("hidden");
                 flushProgress({ cpm });
+                recordTestInHistory({ cpm, elapsedTimeSec });
             }
 
             resultModal.classList.remove("hidden");
@@ -2824,6 +2860,37 @@ function setMode(mode, shouldReload = true) {
             });
         }
 
+        function renderTestHistory(container, rows) {
+            if (!rows.length) {
+                container.innerHTML = '<span class="history-empty">No tests recorded yet. Seeded runs and tests you idle out of are not saved.</span>';
+                return;
+            }
+
+            const cells = row => {
+                const when = new Date(row.created_at * 1000);
+                const accuracy = row.total_chars
+                    ? Math.round((row.correct_chars / row.total_chars) * 100)
+                    : 0;
+                return [
+                    `${when.toLocaleDateString()} ${when.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`,
+                    row.test_type || "—",
+                    `${row.wpm} / ${row.cpm}`,
+                    `${row.correct_chars}/${row.total_chars} (${accuracy}%)`,
+                    String(row.mistakes)
+                ];
+            };
+
+            const head = ["DATE", "TYPE", "WPM / CPM", "CORRECT", "TYPOS"];
+            container.innerHTML = `
+                <table class="history-table">
+                    <thead><tr>${head.map(h => `<th>${h}</th>`).join("")}</tr></thead>
+                    <tbody>
+                        ${rows.map(r => `<tr>${cells(r).map(c => `<td>${c}</td>`).join("")}</tr>`).join("")}
+                    </tbody>
+                </table>
+            `;
+        }
+
         async function loadProfileUI() {
             const container = document.getElementById('profile-container');
             if (!container) return;
@@ -2944,6 +3011,12 @@ function setMode(mode, shouldReload = true) {
                             <div class="auth-error" id="pw-msg"></div>
                             <button class="auth-btn" id="pw-submit-btn">UPDATE PASSWORD</button>
                         </div>
+                        <div class="profile-footer-actions">
+                            <button class="history-toggle-btn" id="history-toggle-btn">TEST HISTORY</button>
+                        </div>
+                        <div class="history-panel hidden" id="history-panel">
+                            <div class="history-body" id="history-body"></div>
+                        </div>
                     `;
 
                     const ownProfileUrl = `/user/${data.username}`;
@@ -3038,6 +3111,32 @@ function setMode(mode, shouldReload = true) {
 
                     const passwordPanel = document.getElementById('password-panel');
                     const pwMsg = document.getElementById('pw-msg');
+
+                    const historyPanel = document.getElementById('history-panel');
+                    const historyBody = document.getElementById('history-body');
+                    const historyToggleBtn = document.getElementById('history-toggle-btn');
+
+                    historyToggleBtn.onclick = async () => {
+                        if (!historyPanel.classList.contains('hidden')) {
+                            historyPanel.classList.add('hidden');
+                            return;
+                        }
+
+                        historyPanel.classList.remove('hidden');
+                        historyBody.innerHTML = '<span class="history-empty">Loading...</span>';
+
+                        try {
+                            const res = await fetch(`${API_BASE}/api/profile/history`, {
+                                headers: { 'Authorization': `Bearer ${currentUserToken}` }
+                            });
+                            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                            const { history: rows = [] } = await res.json();
+                            renderTestHistory(historyBody, rows);
+                        } catch (err) {
+                            console.error('Could not load test history:', err);
+                            historyBody.innerHTML = '<span class="history-empty is-error">Couldn\'t load your test history.</span>';
+                        }
+                    };
 
                     document.getElementById('change-pw-btn').onclick = () => {
                         passwordPanel.classList.toggle('hidden');
