@@ -261,13 +261,14 @@
         <div class="nav-drawer hidden" id="seed-drawer">
             <div class="drawer-inner flex-center">
                 <div class="seed-controls-group">
-                    <button class="nav-btn" id="copy-seed-btn" title="Copy Shareable Seed">
+                    <button class="nav-btn seed-create-btn" id="copy-seed-btn" title="Copy Shareable Seed">
                         <span>Create Seed!</span>
                     </button>
-                    <div class="custom-input-wrapper">
-                        <input type="text" id="paste-seed-input" placeholder="Load Seed!" />
-                        <button id="load-seed-btn">ロード</button>
+                    <div class="custom-input-wrapper seed-load-wrapper">
+                        <input type="text" id="paste-seed-input" placeholder="Paste Seed" />
+                        <button id="load-seed-btn">Load</button>
                     </div>
+                    <span class="seed-hint">Rebuilds a shared test from its seed — the same words in the same order, so two people can compare runs.</span>
                 </div>
             </div>
         </div>
@@ -431,7 +432,7 @@
         })();
 
         // Backend API lives on Railway, separate from this GitHub Pages-hosted frontend.
-        const API_BASE = "https://tangotype-production.up.railway.app";
+        const API_BASE = "http://localhost:3000"; /* TEMP-TEST-REVERT */
 
         let isZenMode = false;
         let mistakesSession = 0;
@@ -1847,20 +1848,19 @@ function setMode(mode, shouldReload = true) {
         // Resolves with a PNG blob shaped like the avatar slot, or null if they cancel.
         // PNG (not JPEG) so avatars with transparent backgrounds stay transparent.
         //
-        // The crop viewport copies the live aspect ratio of the avatar slot in the
-        // profile drawer rather than assuming a square, so the exported image fills
-        // that slot edge to edge (full drawer height) with no letterboxing, and what
-        // the user framed here is exactly what ends up on the profile.
+        // The crop viewport takes the live shape of the avatar slot in the profile drawer
+        // rather than assuming a square, so the export lands in that slot exactly: full
+        // drawer height, nothing letterboxed and nothing trimmed by object-fit: cover.
         function openAvatarCropper(file) {
             return new Promise(resolve => {
-                const AVATAR_FALLBACK_ASPECT = 130 / 250;
+                const AVATAR_FALLBACK_ASPECT = 165 / 260;
                 const slot = document.getElementById('avatar-wrapper');
                 const slotRect = slot ? slot.getBoundingClientRect() : null;
                 const aspect = (slotRect && slotRect.width > 0 && slotRect.height > 0)
                     ? slotRect.width / slotRect.height
                     : AVATAR_FALLBACK_ASPECT;
 
-                // Fit the viewport inside a 300x300 box while keeping the slot's shape
+                // Fit the viewport inside a 300x300 box while keeping that shape
                 const VIEW_H = Math.round(aspect >= 1 ? 300 / aspect : 300);
                 const VIEW_W = Math.round(aspect >= 1 ? 300 : 300 * aspect);
 

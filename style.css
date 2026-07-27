@@ -557,6 +557,36 @@ select:focus {
     display: flex;
     gap: 12px;
     align-items: center;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+/* The primary action in this drawer, so it gets accent fill rather than the
+   muted transparent .nav-btn treatment it inherits */
+.nav-btn.seed-create-btn {
+    background-color: var(--accent-main);
+    border-color: var(--accent-main);
+    color: var(--bg-color);
+    padding: 10px 22px;
+    font-size: 0.9rem;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+}
+
+.nav-btn.seed-create-btn:hover {
+    background-color: var(--accent-hover);
+    border-color: var(--accent-hover);
+    color: var(--bg-color);
+}
+
+.seed-load-wrapper input {
+    width: 190px;
+}
+
+.seed-hint {
+    font-size: 0.72rem;
+    line-height: 1.45;
+    color: var(--text-muted);
+    max-width: 250px;
 }
 
 /* AUTH & PROFILE STYLES */
@@ -650,7 +680,10 @@ select:focus {
 .profile-avatar-col {
     position: relative;
     flex-shrink: 0;
-    width: 130px;
+    /* A fixed width keeps the picture from feeding back into the layout: the slot's
+       height then comes purely from the stats column beside it, and the image fills
+       that height via object-fit: cover below. */
+    width: 165px;
     display: flex;
     flex-direction: column;
 }
@@ -669,9 +702,9 @@ select:focus {
     cursor: default;
 }
 
-/* cover, so an uploaded avatar fills the full height of the drawer slot instead
-   of letterboxing. The cropper already exports at this slot's aspect ratio, so
-   in practice there is nothing left to crop off. */
+/* cover, so the picture always reaches the full height of the slot. Anything the
+   cropper produced is already 4:5 and fits exactly; an older upload with a
+   different shape gives up a little off its edges rather than letterboxing. */
 .avatar-wrapper img {
     width: 100%;
     height: 100%;
