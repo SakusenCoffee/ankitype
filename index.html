@@ -982,6 +982,15 @@
         const rowCountSlider = document.getElementById("row-count-slider");
         const rowCountVal = document.getElementById("row-count-val");
         const wordsWrapper = document.getElementById("words-wrapper");
+
+        // Bound here rather than inside populateDecks(): that function returns early when
+        // AnkiConnect can't be reached, which left the slider inert for anyone not running
+        // Anki. It has nothing to do with decks.
+        rowCountSlider.addEventListener("input", (e) => {
+            rowCountSetting = e.target.value;
+            localStorage.setItem("anki_type_row_count", rowCountSetting);
+            applyRowCount();
+        });
         const KANJI_FIELDS = ["Expression", "Kanji", "Word", "Japanese", "Vocabulary-Kanji", "Front"];
         const READING_FIELDS = ["ExpressionReading", "Reading", "Furigana", "Kana", "Pronunciation", "Romaji", "Vocabulary-Kana"];
         const MEANING_FIELDS = ["MainDefinition", "Meaning", "Definition", "English", "Glossary", "Vocabulary-English", "Back"];
@@ -1722,13 +1731,56 @@ function setMode(mode, shouldReload = true) {
             return "";
         }
 
-        function applyRowCount() {
-            const rowHeight = 90 * (parseFloat(mainFontSize) / 2.8);
-            const newHeight = Math.round(rowHeight * parseInt(rowCountSetting, 10));
+        // Vertical half of .words-container's `gap: 8px 14px`
+        const WORDS_ROW_GAP = 8;
 
-            wordsWrapper.style.height = `${newHeight}px`;
+        // Reads the real geometry off the rendered words. Items wrap into implicit flex
+        // rows, so everything sharing an offsetTop is one row.
+        function measureRowMetrics() {
+            const items = wordsContainer.querySelectorAll(".word-item");
+            if (!items.length) return null;
+
+            const heightByTop = new Map();
+            items.forEach(el => {
+                const top = el.offsetTop;
+                heightByTop.set(top, Math.max(heightByTop.get(top) || 0, el.offsetHeight));
+            });
+
+            const tops = [...heightByTop.keys()].sort((a, b) => a - b);
+            if (!heightByTop.get(tops[0])) return null;
+
+            return { tops, heightAt: top => heightByTop.get(top) };
+        }
+
+        function applyRowCount() {
+            const rows = parseInt(rowCountSetting, 10) || 3;
             rowCountSlider.value = rowCountSetting;
             rowCountVal.textContent = rowCountSetting;
+
+            const m = measureRowMetrics();
+            let height;
+
+            if (m && m.tops.length >= rows) {
+                // Cut exactly at the bottom of the last wanted row. Its real offset is
+                // used rather than a row height multiplied out: sub-pixel rounding makes
+                // the step between rows vary by a pixel, and that drift accumulated into
+                // a sliver of the following row.
+                const top = m.tops[rows - 1];
+                height = top + m.heightAt(top);
+            } else if (m) {
+                // Asking for more rows than the words currently fill; extend by the
+                // average pitch so far.
+                const lastTop = m.tops[m.tops.length - 1];
+                const pitch = m.tops.length > 1
+                    ? lastTop / (m.tops.length - 1)
+                    : m.heightAt(lastTop) + WORDS_ROW_GAP;
+                height = lastTop + m.heightAt(lastTop) + (rows - m.tops.length) * pitch;
+            } else {
+                // Nothing rendered yet to measure; the old estimate holds until there is
+                height = 90 * (parseFloat(mainFontSize) / 2.8) * rows;
+            }
+
+            wordsWrapper.style.height = `${Math.ceil(height)}px`;
         }
 
         applyFontSizes();
@@ -1792,12 +1844,6 @@ function setMode(mode, shouldReload = true) {
                 option.value = deckName;
                 option.textContent = deckName.toUpperCase();
                 deckDropdown.appendChild(option);
-            });
-
-            rowCountSlider.addEventListener("input", (e) => {
-                rowCountSetting = e.target.value;
-                localStorage.setItem("anki_type_row_count", rowCountSetting);
-                applyRowCount();
             });
 
             deckDropdown.addEventListener("change", (e) => {
@@ -1981,6 +2027,9 @@ function setMode(mode, shouldReload = true) {
                 wordsContainer.appendChild(wordNode);
             });
 
+            // Re-fit now that there is real geometry to measure; the row height depends
+            // on the font sizes and on whether readings/meanings are showing.
+            applyRowCount();
             updateDisplay();
         }
 
@@ -2033,6 +2082,9 @@ function setMode(mode, shouldReload = true) {
             allRomaji.forEach(el => showRomaji ? el.classList.remove("hidden") : el.classList.add("hidden"));
             allMeaning.forEach(el => showMeaning ? el.classList.remove("hidden") : el.classList.add("hidden"));
 
+            // Showing or hiding a line changes how tall a row is, so the window has to
+            // be re-measured or it would clip mid-row
+            applyRowCount();
             updateDisplay();
         }
 
