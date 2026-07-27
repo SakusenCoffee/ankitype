@@ -615,55 +615,61 @@
             }
         }
 
-        function loadFromSeed(seedString) {
-            try {
-                const jsonStr = decodeURIComponent(atob(seedString.trim()));
-                const seedData = JSON.parse(jsonStr);
+       function loadFromSeed(seedString) {
+    try {
+        const jsonStr = decodeURIComponent(atob(seedString.trim()));
+        const seedData = JSON.parse(jsonStr);
 
-                if (!Array.isArray(seedData) || seedData.length === 0) {
-                    alert("Invalid seed format.");
-                    return;
-                }
-
-                activeWordList = seedData.map(([kanji, romaji, meaning]) => ({
-                    kanji,
-                    romaji: romaji || wanakana.toRomaji(kanji).toLowerCase().trim(),
-                    meaning: meaning || "Custom Seed"
-                }));
-
-                wordCountSetting = activeWordList.length.toString();
-                localStorage.setItem("anki_type_word_count", wordCountSetting);
-
-                if (isZenMode) {
-                    toggleZenMode();
-                }
-
-                setSource("anki");
-                setMode("words");
-
-                updateCountNavUI();
-
-                currentIndex = 0;
-                typedInput = [];
-                totalScore = 0;
-                scoreEl.textContent = totalScore;
-                totalTypedChars = 0;
-                completedItemsSession = [];
-
-                clearInterval(testTimerInterval);
-                isTestActive = false;
-
-                renderWordBlock();
-                statusEl.className = "status-badge status-online";
-                statusEl.textContent = `CUSTOM SEED (${activeWordList.length} WORDS)`;
-
-                openTab("anki");
-
-            } catch (err) {
-                console.error("Seed parsing error:", err);
-                alert("Failed to load test seed. The code may be corrupted.");
-            }
+        if (!Array.isArray(seedData) || seedData.length === 0) {
+            alert("Invalid seed format.");
+            return;
         }
+
+        activeWordList = seedData.map(([kanji, romaji, meaning]) => ({
+            kanji,
+            romaji: romaji || wanakana.toRomaji(kanji).toLowerCase().trim(),
+            meaning: meaning || "Custom Seed"
+        }));
+
+        if (isZenMode) {
+            toggleZenMode();
+        }
+
+        // Pass 'false' to prevent applyWordCountFilter from overwriting the seed array
+        setSource("anki", false);
+        setMode("time", false);
+
+        // Force test time to 15 seconds per your requirement
+        testTimeSetting = "15";
+        localStorage.setItem("anki_type_time_setting", testTimeSetting);
+
+        updateCountNavUI();
+
+        currentIndex = 0;
+        typedInput = [];
+        totalScore = 0;
+        scoreEl.textContent = totalScore;
+        totalTypedChars = 0;
+        completedItemsSession = [];
+
+        clearInterval(testTimerInterval);
+        isTestActive = false;
+
+        // Update the visual UI timer to match the 15s setting
+        timeRemaining = 15;
+        timeLeftVal.textContent = "15s";
+
+        renderWordBlock();
+        statusEl.className = "status-badge status-online";
+        statusEl.textContent = `CUSTOM SEED (${activeWordList.length} WORDS)`;
+
+        openTab("anki");
+
+    } catch (err) {
+        console.error("Seed parsing error:", err);
+        alert("Failed to load test seed. The code may be corrupted.");
+    }
+}
 
         function updatePlayTimeDisplay() {
             const totalSecs = Math.floor(activePlayTimeMs / 1000);
@@ -757,63 +763,69 @@
         }
 
         function setSource(source, shouldReload = true) {
-            activeSource = source;
-            localStorage.setItem("anki_type_source", activeSource);
+    // Automatically exit Zen Mode if another source is clicked
+    if (isZenMode) toggleZenMode();
 
-            sourceHiraganaBtn.classList.remove("active");
-            sourceKatakanaBtn.classList.remove("active");
-            sourceAnkiBtn.classList.remove("active");
+    activeSource = source;
+    localStorage.setItem("anki_type_source", activeSource);
 
-            if (source === "hiragana" || source === "katakana") {
-                if (source === "hiragana") sourceHiraganaBtn.classList.add("active");
-                if (source === "katakana") sourceKatakanaBtn.classList.add("active");
+    sourceHiraganaBtn.classList.remove("active");
+    sourceKatakanaBtn.classList.remove("active");
+    sourceAnkiBtn.classList.remove("active");
 
-                scoreLabel.textContent = "CHARS TYPED";
-                modeWordsBtn.disabled = true;
-                infiniteTimeBtn.classList.remove("hidden");
-                kanaCountGroup.classList.remove("hidden");
-                setMode("time", false);
-            } else {
-                sourceAnkiBtn.classList.add("active");
-                scoreLabel.textContent = "WORDS TYPED";
-                modeWordsBtn.disabled = false;
-                infiniteTimeBtn.classList.add("hidden");
-                kanaCountGroup.classList.add("hidden");
-                if (testTimeSetting === "infinite") {
-                    testTimeSetting = "30";
-                }
-                setMode(activeMode, false);
-            }
-            if (shouldReload) {
-                applyWordCountFilter();
-            }
+    if (source === "hiragana" || source === "katakana") {
+        if (source === "hiragana") sourceHiraganaBtn.classList.add("active");
+        if (source === "katakana") sourceKatakanaBtn.classList.add("active");
+
+        scoreLabel.textContent = "CHARS TYPED";
+        modeWordsBtn.disabled = true;
+        infiniteTimeBtn.classList.remove("hidden");
+        kanaCountGroup.classList.remove("hidden");
+        setMode("time", false);
+    } else {
+        sourceAnkiBtn.classList.add("active");
+        scoreLabel.textContent = "WORDS TYPED";
+        modeWordsBtn.disabled = false;
+        infiniteTimeBtn.classList.add("hidden");
+        kanaCountGroup.classList.add("hidden");
+        if (testTimeSetting === "infinite") {
+            testTimeSetting = "30";
         }
+        setMode(activeMode, false);
+    }
+    if (shouldReload) {
+        applyWordCountFilter();
+    }
+}
 
-        function setMode(mode, shouldReload = true) {
-            activeMode = mode;
-            localStorage.setItem("anki_type_mode", activeMode);
+function setMode(mode, shouldReload = true) {
+    // Automatically exit Zen Mode if a different mode is clicked
+    if (isZenMode) toggleZenMode();
 
-            if (mode === "words") {
-                modeWordsBtn.classList.add("active");
-                modeTimeBtn.classList.remove("active");
-                wordOptionsGroup.classList.remove("hidden");
-                timeOptionsGroup.classList.add("hidden");
-                timerDisplayPanel.style.display = "none";
-                clearInterval(testTimerInterval);
-                isTestActive = false;
-            } else {
-                modeTimeBtn.classList.add("active");
-                modeWordsBtn.classList.remove("active");
-                timeOptionsGroup.classList.remove("hidden");
-                wordOptionsGroup.classList.add("hidden");
-                timerDisplayPanel.style.display = "flex";
-                timeLeftVal.textContent = (testTimeSetting === "infinite") ? "∞" : `${testTimeSetting}s`;
-            }
-            updateCountNavUI();
-            if (shouldReload) {
-                applyWordCountFilter();
-            }
-        }
+    activeMode = mode;
+    localStorage.setItem("anki_type_mode", activeMode);
+
+    if (mode === "words") {
+        modeWordsBtn.classList.add("active");
+        modeTimeBtn.classList.remove("active");
+        wordOptionsGroup.classList.remove("hidden");
+        timeOptionsGroup.classList.add("hidden");
+        timerDisplayPanel.style.display = "none";
+        clearInterval(testTimerInterval);
+        isTestActive = false;
+    } else {
+        modeTimeBtn.classList.add("active");
+        modeWordsBtn.classList.remove("active");
+        timeOptionsGroup.classList.remove("hidden");
+        wordOptionsGroup.classList.add("hidden");
+        timerDisplayPanel.style.display = "flex";
+        timeLeftVal.textContent = (testTimeSetting === "infinite") ? "∞" : `${testTimeSetting}s`;
+    }
+    updateCountNavUI();
+    if (shouldReload) {
+        applyWordCountFilter();
+    }
+}
 
         function updateCountNavUI() {
             let activeCustomCountVal = "";
