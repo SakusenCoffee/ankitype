@@ -1175,29 +1175,118 @@ let currentIndex = 0;
         }
         applyInputBoxVisibility();
 
-        function generateSeed() {
-    let seedPayload = {
-        source: activeSource,
-        mode: isZenMode ? "zen" : activeMode,
-        data: []
-    };
+        /* ---- Workshop tokenisation -------------------------------------------------
+           wanakana only transliterates kana, so kanji came back unchanged and the seed
+           stored the kanji as its own "romaji". Japanese also has no spaces, so
+           splitting on whitespace turned a whole subtitle line into one word.
 
-    if (isZenMode) {
-        const jpTextArea = document.getElementById("jptext");
-        const textContent = jpTextArea ? jpTextArea.value.trim() : "";
-        if (!textContent) return null;
+           kuromoji solves both: it segments the sentence and gives each word a katakana
+           reading, which wanakana can then turn into romaji. Its dictionary is a large
+           download, so it is fetched on first use rather than at page load. */
 
-        seedPayload.data = textContent.split(/\s+/).filter(Boolean).map(word => {
-            let cleanedRomaji = wanakana.toRomaji(word).toLowerCase().trim();
-            return [word, cleanedRomaji, "Workshop Custom Text"];
-        });
-    } else {
-        if (!activeWordList || activeWordList.length === 0) return null;
-        seedPayload.data = activeWordList.map(w => [w.kanji, w.romaji, w.meaning]);
-    }
+        const KUROMOJI_SCRIPT = "https://cdn.jsdelivr.net/npm/kuromoji@0.1.2/build/kuromoji.js";
+        const KUROMOJI_DICT = "https://cdn.jsdelivr.net/npm/kuromoji@0.1.2/dict/";
 
-    return btoa(encodeURIComponent(JSON.stringify(seedPayload)));
-}
+        // kuromoji gives a part of speech rather than a definition, so this is what the
+        // meaning line shows for workshop words. Translated, since the rest of the UI is
+        // in English.
+        const POS_LABELS = {
+            "名詞": "Noun",
+            "動詞": "Verb",
+            "形容詞": "Adjective",
+            "副詞": "Adverb",
+            "助詞": "Particle",
+            "助動詞": "Auxiliary verb",
+            "連体詞": "Adnominal",
+            "接続詞": "Conjunction",
+            "感動詞": "Interjection",
+            "接頭詞": "Prefix",
+            "フィラー": "Filler",
+            "その他": "Other"
+        };
+
+        let tokenizerPromise = null;
+
+        function loadTokenizer() {
+            if (tokenizerPromise) return tokenizerPromise;
+
+            tokenizerPromise = new Promise((resolve, reject) => {
+                const script = document.createElement("script");
+                script.src = KUROMOJI_SCRIPT;
+                script.onerror = () => reject(new Error("Could not load the tokenizer"));
+                script.onload = () => {
+                    kuromoji.builder({ dicPath: KUROMOJI_DICT }).build((err, tokenizer) => {
+                        if (err) reject(err);
+                        else resolve(tokenizer);
+                    });
+                };
+                document.head.appendChild(script);
+            });
+
+            // Let a failed attempt be retried rather than caching the rejection forever
+            tokenizerPromise.catch(() => { tokenizerPromise = null; });
+            return tokenizerPromise;
+        }
+
+        // Splits workshop text into typable words. Entries whose reading can't be resolved
+        // to plain romaji are dropped: an untypable word would stall the test outright.
+        async function tokenizeWorkshopText(text) {
+            const tokenizer = await loadTokenizer();
+            const entries = [];
+            let skipped = 0;
+
+            for (const token of tokenizer.tokenize(text)) {
+                const surface = token.surface_form.trim();
+                if (!surface) continue;
+                if (token.pos === "記号") continue;   // punctuation and symbols
+
+                const reading = token.reading && token.reading !== "*" ? token.reading : surface;
+                const romaji = wanakana.toRomaji(reading).toLowerCase().trim();
+
+                if (!/^[a-z]+$/.test(romaji)) {
+                    skipped++;
+                    continue;
+                }
+                entries.push([surface, romaji, POS_LABELS[token.pos] || "Workshop Custom Text"]);
+            }
+
+            return { entries, skipped };
+        }
+
+        async function generateSeed() {
+            let seedPayload = {
+                source: activeSource,
+                mode: isZenMode ? "zen" : activeMode,
+                data: []
+            };
+
+            if (isZenMode) {
+                const jpTextArea = document.getElementById("jptext");
+                const textContent = jpTextArea ? jpTextArea.value.trim() : "";
+                if (!textContent) return null;
+
+                try {
+                    const { entries, skipped } = await tokenizeWorkshopText(textContent);
+                    if (!entries.length) {
+                        setFilterStatus("No typable words found in the workshop text.", true);
+                        return null;
+                    }
+                    seedPayload.data = entries;
+                    setFilterStatus(skipped
+                        ? `Seed built from ${entries.length} words (${skipped} without a usable reading were left out).`
+                        : `Seed built from ${entries.length} words.`);
+                } catch (err) {
+                    console.error("Tokenizer unavailable:", err);
+                    setFilterStatus("Couldn't load the tokenizer, so readings are unavailable.", true);
+                    return null;
+                }
+            } else {
+                if (!activeWordList || activeWordList.length === 0) return null;
+                seedPayload.data = activeWordList.map(w => [w.kanji, w.romaji, w.meaning]);
+            }
+
+            return btoa(encodeURIComponent(JSON.stringify(seedPayload)));
+        }
 
         function openTab(tabName) {
             profileDrawer.classList.add("hidden");
@@ -2306,13 +2395,26 @@ function setMode(mode, shouldReload = true) {
         wireCustomChip(customTimeBtn, customTimeInline, ["15", "30", "60", "120", "infinite"],
             () => testTimeSetting, applyTimeSetting);
 
-        copySeedBtn.addEventListener("click", () => {
-            let seed = generateSeed();
+        copySeedBtn.addEventListener("click", async () => {
+            const spanEl = copySeedBtn.querySelector("span");
+            const originalText = spanEl.textContent;
+
+            // The first workshop seed of a session waits on the dictionary download
+            if (isZenMode) {
+                copySeedBtn.disabled = true;
+                spanEl.textContent = "Reading...";
+            }
+
+            let seed;
+            try {
+                seed = await generateSeed();
+            } finally {
+                copySeedBtn.disabled = false;
+                spanEl.textContent = originalText;
+            }
             if (!seed) return;
 
             navigator.clipboard.writeText(seed).then(() => {
-                const spanEl = copySeedBtn.querySelector("span");
-                const originalText = spanEl.textContent;
                 spanEl.textContent = "コピーした!";
                 setTimeout(() => {
                     spanEl.textContent = originalText;
