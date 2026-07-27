@@ -607,7 +607,6 @@ select:focus {
     border-radius: 12px;
     overflow: hidden;
     cursor: pointer;
-    border: 2px solid var(--accent-main);
     background: transparent;
 }
 

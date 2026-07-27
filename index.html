@@ -68,6 +68,16 @@
                     <span class="kanji-seed-icon">種</span>
                     <span>SEED</span>
                 </button>
+
+                <button class="nav-btn" id="multiplayer-tab-btn" title="Multiplayer Session">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                        <circle cx="9" cy="7" r="4"></circle>
+                        <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                        <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                    </svg>
+                    <span>MULTIPLAYER</span>
+                </button>
             </div>
         </div>
 
@@ -243,6 +253,13 @@
                         <button id="load-seed-btn">ロード</button>
                     </div>
                 </div>
+            </div>
+        </div>
+
+        <!-- EXPANDABLE DRAWER: MULTIPLAYER -->
+        <div class="nav-drawer hidden" id="multiplayer-drawer">
+            <div class="drawer-inner flex-center">
+                <span class="drawer-title">MULTIPLAYER — COMING SOON</span>
             </div>
         </div>
     </nav>
@@ -422,11 +439,13 @@
                 ankiDrawer.classList.add("hidden");
                 appearanceDrawer.classList.add("hidden");
                 seedDrawer.classList.add("hidden");
+                multiplayerDrawer.classList.add("hidden");
 
                 profileTabBtn.classList.remove("active");
                 ankiTabBtn.classList.remove("active");
                 appearanceTabBtn.classList.remove("active");
                 seedTabBtn.classList.remove("active");
+                multiplayerTabBtn.classList.remove("active");
             } else {
                 zenLayout.classList.add("hidden");
                 typingAppLayout.classList.remove("hidden");
@@ -540,12 +559,14 @@ let currentIndex = 0;
         const ankiTabBtn = document.getElementById("anki-tab-btn");
         const appearanceTabBtn = document.getElementById("appearance-tab-btn");
         const seedTabBtn = document.getElementById("seed-tab-btn");
+        const multiplayerTabBtn = document.getElementById("multiplayer-tab-btn");
 
         const profileDrawer = document.getElementById("profile-drawer");
         const testOptionsDrawer = document.getElementById("test-options-drawer");
         const ankiDrawer = document.getElementById("anki-drawer");
         const appearanceDrawer = document.getElementById("appearance-drawer");
         const seedDrawer = document.getElementById("seed-drawer");
+        const multiplayerDrawer = document.getElementById("multiplayer-drawer");
 
         const modeWordsBtn = document.getElementById("mode-words-btn");
         const modeTimeBtn = document.getElementById("mode-time-btn");
@@ -649,12 +670,14 @@ let currentIndex = 0;
             ankiDrawer.classList.add("hidden");
             appearanceDrawer.classList.add("hidden");
             seedDrawer.classList.add("hidden");
+            multiplayerDrawer.classList.add("hidden");
 
             profileTabBtn.classList.remove("active");
             testOptionsTabBtn.classList.remove("active");
             ankiTabBtn.classList.remove("active");
             appearanceTabBtn.classList.remove("active");
             seedTabBtn.classList.remove("active");
+            multiplayerTabBtn.classList.remove("active");
 
             if (tabName === "profile") {
                 profileDrawer.classList.remove("hidden");
@@ -672,6 +695,9 @@ let currentIndex = 0;
             } else if (tabName === "seed") {
                 seedDrawer.classList.remove("hidden");
                 seedTabBtn.classList.add("active");
+            } else if (tabName === "multiplayer") {
+                multiplayerDrawer.classList.remove("hidden");
+                multiplayerTabBtn.classList.add("active");
             }
 
             if (tabName !== "profile" && window.location.pathname.startsWith("/user/")) {
@@ -1512,16 +1538,19 @@ function setMode(mode, shouldReload = true) {
         testOptionsTabBtn.addEventListener("click", () => openTab("test-options"));
         ankiTabBtn.addEventListener("click", () => openTab("anki"));
         appearanceTabBtn.addEventListener("click", () => openTab("appearance"));
+        multiplayerTabBtn.addEventListener("click", () => openTab("multiplayer"));
         seedTabBtn.addEventListener("click", () => {
             profileDrawer.classList.add("hidden");
             testOptionsDrawer.classList.add("hidden");
             ankiDrawer.classList.add("hidden");
             appearanceDrawer.classList.add("hidden");
+            multiplayerDrawer.classList.add("hidden");
 
             profileTabBtn.classList.remove("active");
             testOptionsTabBtn.classList.remove("active");
             ankiTabBtn.classList.remove("active");
             appearanceTabBtn.classList.remove("active");
+            multiplayerTabBtn.classList.remove("active");
 
             const isHidden = seedDrawer.classList.contains("hidden");
             if (isHidden) {
