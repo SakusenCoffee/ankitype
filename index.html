@@ -566,22 +566,28 @@ let currentIndex = 0;
         }
 
         function generateSeed() {
-            if (isZenMode) {
-                const jpTextArea = document.getElementById("jptext");
-                const textContent = jpTextArea ? jpTextArea.value.trim() : "";
-                if (!textContent) return null;
-                const seedData = textContent.split(/\s+/).filter(Boolean).map(word => {
-                    let cleanedRomaji = wanakana.toRomaji(word).toLowerCase().trim();
-                    return [word, cleanedRomaji, "Zen Mode Custom Text"];
-                });
-                return btoa(encodeURIComponent(JSON.stringify(seedData)));
-            } else {
-                if (!activeWordList || activeWordList.length === 0) return null;
-                const seedData = activeWordList.map(w => [w.kanji, w.romaji, w.meaning]);
-                const jsonStr = JSON.stringify(seedData);
-                return btoa(encodeURIComponent(jsonStr));
-            }
-        }
+    let seedPayload = {
+        source: activeSource,
+        mode: isZenMode ? "zen" : activeMode,
+        data: []
+    };
+
+    if (isZenMode) {
+        const jpTextArea = document.getElementById("jptext");
+        const textContent = jpTextArea ? jpTextArea.value.trim() : "";
+        if (!textContent) return null;
+
+        seedPayload.data = textContent.split(/\s+/).filter(Boolean).map(word => {
+            let cleanedRomaji = wanakana.toRomaji(word).toLowerCase().trim();
+            return [word, cleanedRomaji, "Zen Mode Custom Text"];
+        });
+    } else {
+        if (!activeWordList || activeWordList.length === 0) return null;
+        seedPayload.data = activeWordList.map(w => [w.kanji, w.romaji, w.meaning]);
+    }
+
+    return btoa(encodeURIComponent(JSON.stringify(seedPayload)));
+}
 
         function openTab(tabName) {
             profileDrawer.classList.add("hidden");
@@ -618,7 +624,12 @@ let currentIndex = 0;
        function loadFromSeed(seedString) {
     try {
         const jsonStr = decodeURIComponent(atob(seedString.trim()));
-        const seedData = JSON.parse(jsonStr);
+        const parsedData = JSON.parse(jsonStr);
+
+        // Check if it's an old seed (Array) or a new seed (Object) for backwards compatibility
+        const seedData = Array.isArray(parsedData) ? parsedData : parsedData.data;
+        const source = parsedData.source || "anki";
+        const mode = parsedData.mode || "words";
 
         if (!Array.isArray(seedData) || seedData.length === 0) {
             alert("Invalid seed format.");
@@ -631,27 +642,20 @@ let currentIndex = 0;
             meaning: meaning || "Custom Seed"
         }));
 
-        if (isZenMode) {
-            toggleZenMode();
+        if (mode === "zen") {
+            if (!isZenMode) toggleZenMode();
+        } else {
+            if (isZenMode) toggleZenMode();
+
+            // Pass 'false' to prevent applyWordCountFilter from overwriting the seed array
+            setSource(source, false);
+            setMode(mode, false);
+
+            wordCountSetting = "max";
+            localStorage.setItem("anki_type_word_count", "max");
+
+            updateCountNavUI();
         }
-
-        // Pass 'false' to prevent applyWordCountFilter from overwriting the seed array
-        setSource("anki", false);
-        setMode("words", true);
-
-        // Force test time to 15 seconds per your requirement
-        wordCountSetting = "max";
-        localStorage.setItem("anki_type_word_count", "max");
-
-        updateCountNavUI();
-
-        document.querySelectorAll('.mode-btn').forEach(btn => {
-            if (btn.dataset.mode === "words") {
-                btn.classList.add("active");
-            } else {
-                btn.classList.remove("active");
-            }
-        });
 
         currentIndex = 0;
         typedInput = [];
@@ -665,7 +669,7 @@ let currentIndex = 0;
 
         renderWordBlock();
         statusEl.className = "status-badge status-online";
-        statusEl.textContent = `CUSTOM SEED (${activeWordList.length} WORDS)`;
+        statusEl.textContent = `CUSTOM SEED (${activeWordList.length} ITEMS)`;
 
         openTab("test-options");
 
