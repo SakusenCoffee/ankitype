@@ -1844,12 +1844,29 @@ function setMode(mode, shouldReload = true) {
         }
 
         // Lets the user pan/zoom a freshly picked image before it is uploaded.
-        // Resolves with a square PNG blob, or null if they cancel.
+        // Resolves with a PNG blob shaped like the avatar slot, or null if they cancel.
         // PNG (not JPEG) so avatars with transparent backgrounds stay transparent.
+        //
+        // The crop viewport copies the live aspect ratio of the avatar slot in the
+        // profile drawer rather than assuming a square, so the exported image fills
+        // that slot edge to edge (full drawer height) with no letterboxing, and what
+        // the user framed here is exactly what ends up on the profile.
         function openAvatarCropper(file) {
             return new Promise(resolve => {
-                const VIEW = 280;   // on-screen crop viewport, in px
-                const OUT = 512;    // exported avatar resolution, in px
+                const AVATAR_FALLBACK_ASPECT = 130 / 250;
+                const slot = document.getElementById('avatar-wrapper');
+                const slotRect = slot ? slot.getBoundingClientRect() : null;
+                const aspect = (slotRect && slotRect.width > 0 && slotRect.height > 0)
+                    ? slotRect.width / slotRect.height
+                    : AVATAR_FALLBACK_ASPECT;
+
+                // Fit the viewport inside a 300x300 box while keeping the slot's shape
+                const VIEW_H = Math.round(aspect >= 1 ? 300 / aspect : 300);
+                const VIEW_W = Math.round(aspect >= 1 ? 300 : 300 * aspect);
+
+                // Export at 512 on the long edge
+                const OUT_H = aspect >= 1 ? Math.round(512 / aspect) : 512;
+                const OUT_W = aspect >= 1 ? 512 : Math.round(512 * aspect);
 
                 const objectUrl = URL.createObjectURL(file);
                 const img = new Image();
@@ -1865,7 +1882,7 @@ function setMode(mode, shouldReload = true) {
                     overlay.innerHTML = `
                         <div class="cropper-box">
                             <span class="drawer-title">ADJUST AVATAR</span>
-                            <canvas class="cropper-canvas" id="cropper-canvas" width="${VIEW}" height="${VIEW}"></canvas>
+                            <canvas class="cropper-canvas" id="cropper-canvas" width="${VIEW_W}" height="${VIEW_H}" style="width:${VIEW_W}px;height:${VIEW_H}px;"></canvas>
                             <div class="cropper-row">
                                 <label for="cropper-zoom">ZOOM</label>
                                 <input type="range" id="cropper-zoom" min="1" max="4" step="0.01" value="1" />
@@ -1884,22 +1901,22 @@ function setMode(mode, shouldReload = true) {
                     const zoomInput = overlay.querySelector('#cropper-zoom');
 
                     // "cover" the viewport at zoom 1 so there are never empty edges
-                    const baseScale = Math.max(VIEW / img.naturalWidth, VIEW / img.naturalHeight);
+                    const baseScale = Math.max(VIEW_W / img.naturalWidth, VIEW_H / img.naturalHeight);
                     let zoom = 1;
                     let scale = baseScale;
-                    let ox = (VIEW - img.naturalWidth * scale) / 2;
-                    let oy = (VIEW - img.naturalHeight * scale) / 2;
+                    let ox = (VIEW_W - img.naturalWidth * scale) / 2;
+                    let oy = (VIEW_H - img.naturalHeight * scale) / 2;
 
                     const clamp = () => {
                         const drawW = img.naturalWidth * scale;
                         const drawH = img.naturalHeight * scale;
-                        ox = Math.min(0, Math.max(VIEW - drawW, ox));
-                        oy = Math.min(0, Math.max(VIEW - drawH, oy));
+                        ox = Math.min(0, Math.max(VIEW_W - drawW, ox));
+                        oy = Math.min(0, Math.max(VIEW_H - drawH, oy));
                     };
 
                     const draw = () => {
                         clamp();
-                        ctx.clearRect(0, 0, VIEW, VIEW);
+                        ctx.clearRect(0, 0, VIEW_W, VIEW_H);
                         ctx.drawImage(img, ox, oy, img.naturalWidth * scale, img.naturalHeight * scale);
                     };
 
@@ -1908,8 +1925,8 @@ function setMode(mode, shouldReload = true) {
                         zoom = Math.min(4, Math.max(1, newZoom));
                         scale = baseScale * zoom;
                         // Keep whatever is under the viewport centre pinned while zooming
-                        ox = VIEW / 2 - (VIEW / 2 - ox) * (scale / prevScale);
-                        oy = VIEW / 2 - (VIEW / 2 - oy) * (scale / prevScale);
+                        ox = VIEW_W / 2 - (VIEW_W / 2 - ox) * (scale / prevScale);
+                        oy = VIEW_H / 2 - (VIEW_H / 2 - oy) * (scale / prevScale);
                         zoomInput.value = zoom;
                         draw();
                     };
@@ -1937,8 +1954,12 @@ function setMode(mode, shouldReload = true) {
 
                     canvas.addEventListener('pointermove', e => {
                         if (!dragging) return;
-                        ox += e.clientX - lastX;
-                        oy += e.clientY - lastY;
+                        // On a narrow screen max-width shrinks the canvas below its
+                        // backing size, so convert CSS pixels moved into canvas pixels
+                        const displayed = canvas.getBoundingClientRect().width || VIEW_W;
+                        const pxRatio = VIEW_W / displayed;
+                        ox += (e.clientX - lastX) * pxRatio;
+                        oy += (e.clientY - lastY) * pxRatio;
                         lastX = e.clientX;
                         lastY = e.clientY;
                         draw();
@@ -1971,9 +1992,9 @@ function setMode(mode, shouldReload = true) {
 
                     overlay.querySelector('#cropper-save').onclick = () => {
                         const out = document.createElement('canvas');
-                        out.width = OUT;
-                        out.height = OUT;
-                        const ratio = OUT / VIEW;
+                        out.width = OUT_W;
+                        out.height = OUT_H;
+                        const ratio = OUT_H / VIEW_H;
                         out.getContext('2d').drawImage(
                             img,
                             ox * ratio,

@@ -669,10 +669,13 @@ select:focus {
     cursor: default;
 }
 
+/* cover, so an uploaded avatar fills the full height of the drawer slot instead
+   of letterboxing. The cropper already exports at this slot's aspect ratio, so
+   in practice there is nothing left to crop off. */
 .avatar-wrapper img {
     width: 100%;
     height: 100%;
-    object-fit: contain;
+    object-fit: cover;
     background: transparent;
 }
 
@@ -838,9 +841,8 @@ select:focus {
     max-width: 100%;
 }
 
+/* Width/height come from inline styles so the viewport matches the avatar slot's shape */
 .cropper-canvas {
-    width: 280px;
-    height: 280px;
     max-width: 100%;
     border-radius: 10px;
     background: var(--bg-color);
