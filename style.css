@@ -469,6 +469,29 @@ body {
     cursor: not-allowed;
 }
 
+/* Takes the place of the "custom" chip while it is being edited, so it has to
+   match the chip's metrics exactly or the row shifts as you type into it. */
+.custom-inline-input {
+    width: 62px;
+    padding: 6px 10px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    font-family: inherit;
+    border-radius: 6px;
+    border: 1px solid var(--accent-main);
+    background-color: var(--nav-bg);
+    color: var(--text-primary);
+    outline: none;
+    text-align: center;
+    -moz-appearance: textfield;
+}
+
+.custom-inline-input::-webkit-outer-spin-button,
+.custom-inline-input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
 .selector-container {
     display: flex;
     flex-direction: column;
@@ -1131,6 +1154,25 @@ select:focus {
     font-size: 1.1rem;
     font-weight: 800;
     color: var(--accent-main);
+}
+
+/* Only shown for endless tests (infinite time / max words), where Ctrl+Enter is
+   the sole way to stop */
+.endless-hint {
+    font-size: 0.6rem;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    color: var(--text-muted);
+    margin-top: 2px;
+    white-space: nowrap;
+}
+
+.abandoned-note {
+    margin: 0 0 4px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--accent-red);
+    text-align: center;
 }
 
 .kofi-btn-icon {
