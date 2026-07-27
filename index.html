@@ -102,7 +102,7 @@
                 <div class="count-selector-group">
                     <button class="mode-btn" id="mode-words-btn">words</button>
                     <button class="mode-btn active" id="mode-time-btn">time</button>
-                    <button class="mode-btn" id="mode-zen-btn">zen</button>
+                    <button class="mode-btn" id="mode-zen-btn">workshop</button>
                 </div>
                 <div class="selector-divider"></div>
                 <div class="count-selector-group">
@@ -268,7 +268,7 @@
                         <input type="text" id="paste-seed-input" placeholder="Paste Seed" />
                         <button id="load-seed-btn">Load</button>
                     </div>
-                    <span class="seed-hint">Rebuilds a shared test from its seed — the same words in the same order, so two people can compare runs.</span>
+                    <span class="seed-hint">Create a shareable seed to replicate the current loaded test. Seeds generated from the workshop will load as a custom test.</span>
                 </div>
             </div>
         </div>
@@ -313,11 +313,12 @@
         </div>
     </div>
 
-    <!-- ZEN MODE LAYOUT (MOJIKAZU COUNTER) -->
+    <!-- WORKSHOP LAYOUT (MOJIKAZU COUNTER) -->
     <div class="zen-layout hidden" id="zen-layout">
         <div class="zen-container">
             <div id="app-wrapper">
                 <textarea id="jptext" class="loading-state" disabled placeholder="Loading Python Engine..."></textarea>
+                <div class="workshop-drop-hint" id="workshop-drop-hint">Drop subtitle or text files to import their Japanese</div>
                 <div id="loader-overlay">
                     <div id="loader-content">
                         <div class="sakura-wrapper">
@@ -330,6 +331,8 @@
                     </div>
                 </div>
             </div>
+
+            <div class="workshop-import-status" id="workshop-import-status"></div>
 
             <div class="counter-container">
                 <div id="total" class="counter-card">
@@ -432,7 +435,7 @@
         })();
 
         // Backend API lives on Railway, separate from this GitHub Pages-hosted frontend.
-        const API_BASE = "http://localhost:3000"; /* TEMP-TEST-REVERT */
+        const API_BASE = "https://tangotype-production.up.railway.app";
 
         let isZenMode = false;
         let mistakesSession = 0;
@@ -477,6 +480,166 @@
 
         modeZenBtn.addEventListener("click", toggleZenMode);
         if (zenTabBtn) zenTabBtn.addEventListener("click", toggleZenMode);
+
+        /* ---- Workshop file import -------------------------------------------------
+           Drop subtitles or any text-based document onto the workshop and pull the
+           Japanese out of it. Everything is parsed in-browser; nothing is uploaded. */
+
+        const JP_CHAR_RE = /[\u3040-\u309f\u30a0-\u30ff\u4e00-\u9faf\u3400-\u4dbf]/;
+
+        function stripMarkupTags(text) {
+            return text.replace(/<[^>]*>/g, "");
+        }
+
+        // SRT / VTT / SBV: keep the caption text, drop cue numbers and timing lines
+        function parseCueSubtitles(text) {
+            return text
+                .split(/\r?\n/)
+                .filter(line => {
+                    const t = line.trim();
+                    if (!t) return false;
+                    if (/^WEBVTT/i.test(t)) return false;
+                    if (/^NOTE\b/i.test(t)) return false;
+                    if (/^\d+$/.test(t)) return false;
+                    if (t.includes("-->")) return false;
+                    return true;
+                })
+                .map(line => stripMarkupTags(line))
+                .join("\n");
+        }
+
+        // ASS / SSA: only "Dialogue:" rows carry text, and it is the 10th comma field.
+        // Style overrides sit in {braces}; \N and \n are the format's line breaks.
+        function parseAssSubtitles(text) {
+            return text
+                .split(/\r?\n/)
+                .filter(line => /^Dialogue\s*:/i.test(line.trim()))
+                .map(line => {
+                    const body = line.slice(line.indexOf(":") + 1);
+                    return body
+                        .split(",")
+                        .slice(9)
+                        .join(",")
+                        .replace(/\{[^}]*\}/g, "")
+                        .replace(/\\[Nnh]/g, "\n");
+                })
+                .join("\n");
+        }
+
+        function parseImportedDocument(filename, text) {
+            const ext = (filename.split(".").pop() || "").toLowerCase();
+            if (ext === "ass" || ext === "ssa") return parseAssSubtitles(text);
+            if (["srt", "vtt", "sbv", "sub"].includes(ext)) return parseCueSubtitles(text);
+            if (["html", "htm", "xml"].includes(ext)) return stripMarkupTags(text);
+            return text;
+        }
+
+        // Keep only lines that actually contain Japanese, which also strips the
+        // timestamps, speaker tags and translation lines that ride along in subtitles
+        function extractJapaneseLines(text) {
+            const lines = text
+                .split(/\r?\n/)
+                .map(l => l.trim())
+                .filter(l => JP_CHAR_RE.test(l));
+            return lines.filter((line, i) => line !== lines[i - 1]).join("\n");
+        }
+
+        // .docx/.pdf and friends are archives or binaries, so reading them as text
+        // yields mojibake rather than anything useful. Detect and skip them.
+        function looksBinary(text) {
+            if (text.includes("\u0000")) return true;
+            const sample = text.slice(0, 4000);
+            if (!sample.length) return false;
+            let replacementChars = 0;
+            for (const ch of sample) if (ch === "\ufffd") replacementChars++;
+            return replacementChars / sample.length > 0.05;
+        }
+
+        const workshopDropZone = document.getElementById("app-wrapper");
+        const workshopImportStatus = document.getElementById("workshop-import-status");
+
+        function setWorkshopStatus(message, isError = false) {
+            if (!workshopImportStatus) return;
+            workshopImportStatus.textContent = message;
+            workshopImportStatus.classList.toggle("is-error", isError);
+        }
+
+        async function importWorkshopFiles(files) {
+            const jpTextArea = document.getElementById("jptext");
+            if (!jpTextArea || !files.length) return;
+
+            const chunks = [];
+            const skipped = [];
+            let imported = 0;
+
+            for (const file of files) {
+                let raw;
+                try {
+                    raw = await file.text();
+                } catch (err) {
+                    console.error("Could not read dropped file:", file.name, err);
+                    skipped.push(file.name);
+                    continue;
+                }
+
+                if (looksBinary(raw)) {
+                    skipped.push(file.name);
+                    continue;
+                }
+
+                const japanese = extractJapaneseLines(parseImportedDocument(file.name, raw));
+                if (japanese) {
+                    chunks.push(japanese);
+                    imported++;
+                } else {
+                    skipped.push(file.name);
+                }
+            }
+
+            if (chunks.length) {
+                const addition = chunks.join("\n");
+                const existing = jpTextArea.value.trim();
+                jpTextArea.value = existing ? `${existing}\n${addition}` : addition;
+                // PyScript recounts on "input", which assigning .value does not fire
+                jpTextArea.dispatchEvent(new Event("input", { bubbles: true }));
+            }
+
+            if (imported && skipped.length) {
+                setWorkshopStatus(`Imported ${imported} file(s). No Japanese found in: ${skipped.join(", ")}`);
+            } else if (imported) {
+                setWorkshopStatus(`Imported Japanese text from ${imported} file(s).`);
+            } else {
+                setWorkshopStatus(`No Japanese text found in: ${skipped.join(", ")}`, true);
+            }
+        }
+
+        if (workshopDropZone) {
+            const isFileDrag = e => Array.from(e.dataTransfer?.types || []).includes("Files");
+
+            ["dragenter", "dragover"].forEach(evt => {
+                workshopDropZone.addEventListener(evt, e => {
+                    if (!isFileDrag(e)) return;
+                    e.preventDefault();
+                    e.dataTransfer.dropEffect = "copy";
+                    workshopDropZone.classList.add("drag-over");
+                });
+            });
+
+            workshopDropZone.addEventListener("dragleave", e => {
+                // Fires when crossing onto a child too, so only clear on a real exit
+                if (!workshopDropZone.contains(e.relatedTarget)) {
+                    workshopDropZone.classList.remove("drag-over");
+                }
+            });
+
+            workshopDropZone.addEventListener("drop", e => {
+                if (!isFileDrag(e)) return;
+                e.preventDefault();
+                workshopDropZone.classList.remove("drag-over");
+                setWorkshopStatus("Reading files...");
+                importWorkshopFiles(Array.from(e.dataTransfer.files));
+            });
+        }
 
         let rowCountSetting = localStorage.getItem("anki_type_row_count") || "3";
 
@@ -674,7 +837,7 @@ let currentIndex = 0;
 
         seedPayload.data = textContent.split(/\s+/).filter(Boolean).map(word => {
             let cleanedRomaji = wanakana.toRomaji(word).toLowerCase().trim();
-            return [word, cleanedRomaji, "Zen Mode Custom Text"];
+            return [word, cleanedRomaji, "Workshop Custom Text"];
         });
     } else {
         if (!activeWordList || activeWordList.length === 0) return null;
@@ -740,11 +903,13 @@ let currentIndex = 0;
             return;
         }
 
-        // Always exit Zen Mode when loading a seed
+        // Always exit the workshop when loading a seed
         if (isZenMode) toggleZenMode();
 
-        // If the seed was generated from Zen Mode, force it to Words mode and Tango source
-        if (mode === "zen") {
+        // If the seed came from the workshop, force it to Words mode and Tango source.
+        // "zen" is the workshop's old name and stays the on-the-wire token so seeds
+        // shared before the rename keep working; both spellings are accepted.
+        if (mode === "zen" || mode === "workshop") {
             mode = "words";
             source = "tango";
         }
@@ -955,7 +1120,7 @@ let currentIndex = 0;
         }
 
         function setSource(source, shouldReload = true) {
-    // Automatically exit Zen Mode if another source is clicked
+    // Automatically exit the workshop if another source is clicked
     if (isZenMode) toggleZenMode();
 
     // Legacy alias: old seeds/localStorage may still reference "anki" as a source
@@ -1088,7 +1253,7 @@ function finalizeTangoJsonLoad(level) {
 }
 
 function setMode(mode, shouldReload = true) {
-    // Automatically exit Zen Mode if a different mode is clicked
+    // Automatically exit the workshop if a different mode is clicked
     if (isZenMode) toggleZenMode();
 
     activeMode = mode;

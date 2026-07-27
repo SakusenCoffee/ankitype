@@ -50,7 +50,7 @@ def init():
     if area and overlay and bar:
         area.classList.add("ready")
         area.removeAttribute("disabled")
-        area.placeholder = "Paste Japanese text here..."
+        area.placeholder = "Paste Japanese text here, or drop in a subtitle or text file..."
 
         bar.style.width = "100%"
 

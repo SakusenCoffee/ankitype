@@ -561,15 +561,15 @@ select:focus {
     justify-content: center;
 }
 
-/* The primary action in this drawer, so it gets accent fill rather than the
-   muted transparent .nav-btn treatment it inherits */
+/* The primary action in this drawer, so it stands out by accent fill rather than
+   by size — it sits at the same height as the Load button beside it */
 .nav-btn.seed-create-btn {
     background-color: var(--accent-main);
     border-color: var(--accent-main);
     color: var(--bg-color);
-    padding: 10px 22px;
-    font-size: 0.9rem;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+    padding: 6px 16px;
+    font-size: 0.8rem;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
 }
 
 .nav-btn.seed-create-btn:hover {
@@ -1207,6 +1207,42 @@ z-index: 5;
 #jptext:focus {
 border-color: var(--accent-main);
 box-shadow: 0 0 0 2px rgba(83, 155, 245, 0.2);
+}
+
+/* WORKSHOP FILE IMPORT */
+.workshop-drop-hint {
+    position: absolute;
+    inset: 0;
+    z-index: 6;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 20px;
+    border: 2px dashed var(--accent-main);
+    border-radius: 16px;
+    background-color: var(--card-bg);
+    color: var(--accent-main);
+    font-weight: 700;
+    font-size: 0.9rem;
+    pointer-events: none;
+}
+
+#app-wrapper.drag-over .workshop-drop-hint {
+    display: flex;
+}
+
+.workshop-import-status {
+    min-height: 18px;
+    margin-top: 8px;
+    font-size: 0.78rem;
+    line-height: 1.4;
+    color: var(--text-muted);
+    text-align: center;
+}
+
+.workshop-import-status.is-error {
+    color: var(--accent-red);
 }
 
 #loader-overlay {
