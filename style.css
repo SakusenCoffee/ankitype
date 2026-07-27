@@ -464,9 +464,15 @@ body {
     color: var(--bg-color);
 }
 
-.mode-btn:disabled {
+.mode-btn:disabled,
+.tango-level-btn:disabled {
     opacity: 0.3;
     cursor: not-allowed;
+}
+
+/* Locked chips must not light up on hover as though they were still clickable */
+.tango-level-btn:disabled:hover {
+    color: var(--text-muted);
 }
 
 /* Takes the place of the "custom" chip while it is being edited, so it has to
@@ -1175,21 +1181,6 @@ select:focus {
     text-align: center;
 }
 
-.kofi-btn-icon {
-    color: var(--text-muted);
-    display: flex;
-    align-items: center;
-    transition: color 0.2s ease;
-}
-
-.kofi-btn-icon:hover {
-    color: #ff5e5b;
-}
-
-.kofi-icon {
-    width: 20px;
-    height: 20px;
-}
 
 /* ZEN MODE (MOJIKAZU COUNTER STYLES) */
 .zen-layout {
@@ -1810,20 +1801,3 @@ gap: 12px;
     height: 15px;
 }
 
-.app-footer .kofi-btn-icon {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    font-size: 0.85rem;
-    font-weight: 700;
-    text-decoration: none;
-    background-color: rgba(255, 94, 91, 0.1);
-    color: #ff5e5b;
-    padding: 6px 12px;
-    border-radius: 8px;
-    border: 1px solid rgba(255, 94, 91, 0.2);
-}
-
-.app-footer .kofi-btn-icon:hover {
-    background-color: rgba(255, 94, 91, 0.2);
-}

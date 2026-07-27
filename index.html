@@ -71,7 +71,7 @@
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"></path>
                     </svg>
-                    <span>APPEARANCE</span>
+                    <span>CONFIG</span>
                 </button>
 
                 <button class="nav-btn" id="seed-tab-btn" title="Seed Options">
@@ -112,7 +112,7 @@
                 </div>
                 <div class="selector-divider"></div>
                 <div class="count-selector-group hidden" id="tango-level-group">
-                    <button class="tango-level-btn active" data-tango-level="anki">anki</button>
+                    <button class="tango-level-btn active" data-tango-level="anki" id="tango-level-anki-btn" disabled title="Connect Anki to use your own decks — see the ANKI tab">Anki</button>
                     <button class="tango-level-btn" data-tango-level="n5">N5</button>
                     <button class="tango-level-btn" data-tango-level="n4">N4</button>
                     <button class="tango-level-btn" data-tango-level="n3">N3</button>
@@ -448,8 +448,15 @@
                     </svg>
                     GitHub
                 </a>
-                <a href="https://ko-fi.com/mojikazu" target="_blank" rel="noopener noreferrer" class="kofi-btn-icon" title="Support via Ko-fi">
-                    <svg class="kofi-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <a href="mailto:contact@tangotype.com" class="footer-link" title="Email contact@tangotype.com">
+                    <svg class="footer-link-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="2" y="4" width="20" height="16" rx="2"></rect>
+                        <path d="m2 7 10 6 10-6"></path>
+                    </svg>
+                    Contact
+                </a>
+                <a href="https://ko-fi.com/mojikazu" target="_blank" rel="noopener noreferrer" class="footer-link" title="Support via Ko-fi">
+                    <svg class="footer-link-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M18 8h1a4 4 0 0 1 0 8h-1"></path>
                         <path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"></path>
                         <line x1="6" y1="1" x2="6" y2="4"></line>
@@ -1096,6 +1103,7 @@ let currentIndex = 0;
         const kanaCountBtns = document.querySelectorAll(".kana-count-btn");
         const tangoLevelBtns = document.querySelectorAll(".tango-level-btn");
         const infiniteTimeBtn = document.getElementById("infinite-time-btn");
+        const ankiLevelBtn = document.getElementById("tango-level-anki-btn");
 
         const customCountBtn = document.getElementById("custom-count-btn");
         const customCountInline = document.getElementById("custom-count-inline");
@@ -1739,6 +1747,22 @@ function setMode(mode, shouldReload = true) {
             }
         }
 
+        // The Anki word source only works once AnkiConnect answers, so the level chip is
+        // locked until then. Anyone already sitting on it falls back to N5 rather than
+        // being left with an empty word list and no obvious reason why.
+        function setAnkiLevelAvailable(available) {
+            if (!ankiLevelBtn) return;
+
+            ankiLevelBtn.disabled = !available;
+            ankiLevelBtn.title = available
+                ? "Use your own Anki decks"
+                : "Connect Anki to use your own decks — see the ANKI tab";
+
+            if (!available && activeTangoLevel === "anki") {
+                setTangoLevel("n5", activeSource === "tango");
+            }
+        }
+
         async function populateDecks() {
             const response = await fetchFromAnki("deckNames");
             if (!response || !response.result) {
@@ -1748,11 +1772,19 @@ function setMode(mode, shouldReload = true) {
                 // A blocked CORS origin is indistinguishable from Anki being closed
                 // from here, so the warning covers both cases.
                 ankiWarningEl.classList.remove("hidden");
+                setAnkiLevelAvailable(false);
                 return;
             }
 
             ankiWarningEl.classList.add("hidden");
+            setAnkiLevelAvailable(true);
             const decks = response.result;
+
+            // Clear the offline badge on connect. Loading a deck replaces this with the
+            // track count; without it the badge kept reading OFFLINE after a good connect.
+            statusEl.className = "status-badge status-online";
+            statusEl.textContent = `${decks.length} DECK(S) FOUND`;
+
             deckDropdown.innerHTML = "";
 
             decks.forEach(deckName => {
