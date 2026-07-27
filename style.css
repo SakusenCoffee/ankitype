@@ -993,3 +993,43 @@ gap: 12px;
 .close-modal-btn:hover {
     background-color: var(--accent-hover);
 }
+
+/* Footer Styles */
+.app-footer {
+    width: 100%;
+    margin-top: auto;
+    padding: 16px 20px;
+    background-color: var(--nav-bg);
+    border-top: 1px solid var(--border-color);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 10;
+}
+
+.footer-content {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.footer-text {
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: var(--text-muted);
+}
+
+.app-footer .kofi-btn-icon {
+    font-size: 0.85rem;
+    font-weight: 700;
+    text-decoration: none;
+    background-color: rgba(255, 94, 91, 0.1);
+    color: #ff5e5b;
+    padding: 6px 12px;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 94, 91, 0.2);
+}
+
+.app-footer .kofi-btn-icon:hover {
+    background-color: rgba(255, 94, 91, 0.2);
+}

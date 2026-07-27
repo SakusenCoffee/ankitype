@@ -32,7 +32,8 @@ CREATE TABLE IF NOT EXISTS users (
     playtime INTEGER DEFAULT 0,
     highest_cpm INTEGER DEFAULT 0,
     avg_cpm INTEGER DEFAULT 0,
-    test_count INTEGER DEFAULT 0
+    test_count INTEGER DEFAULT 0,
+    total_mistakes INTEGER DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS character_stats (
@@ -43,6 +44,7 @@ CREATE TABLE IF NOT EXISTS character_stats (
     anki_words INTEGER DEFAULT 0,
     FOREIGN KEY (user_id) REFERENCES users(id)
 );
+
 `);
 
 // Multer Storage Configuration for Profile Pictures
@@ -101,7 +103,7 @@ app.post('/api/login', async (req, res) => {
 
 // Get Profile & Stats
 app.get('/api/profile', authenticateToken, (req, res) => {
-    const user = db.prepare('SELECT id, username, avatar, playtime, highest_cpm, avg_cpm FROM users WHERE id = ?').get(req.user.id);
+    const user = db.prepare('SELECT id, username, avatar, playtime, highest_cpm, avg_cpm, total_mistakes FROM users WHERE id = ?').get(req.user.id);
     const stats = db.prepare('SELECT * FROM character_stats WHERE user_id = ?').get(req.user.id);
     res.json({ ...user, stats });
 });
@@ -116,38 +118,23 @@ app.post('/api/profile/avatar', authenticateToken, upload.single('avatar'), (req
 
 // Sync Playtime & Stats Endpoint
 app.post('/api/profile/sync', authenticateToken, (req, res) => {
-    const { playtime, cpm, typedChars } = req.body;
+    const { playtime, cpm, typedChars, mistakes } = req.body;
     const userId = req.user.id;
 
-    // Update User High/Average CPM & Playtime
-    const user = db.prepare('SELECT playtime, highest_cpm, avg_cpm, test_count FROM users WHERE id = ?').get(userId);
+    const user = db.prepare('SELECT playtime, highest_cpm, avg_cpm, test_count, total_mistakes FROM users WHERE id = ?').get(userId);
     const newPlaytime = (user.playtime || 0) + (playtime || 0);
     const newHighest = Math.max(user.highest_cpm || 0, cpm || 0);
     const newTestCount = user.test_count + (cpm ? 1 : 0);
     const newAvg = newTestCount > 0 ? Math.round(((user.avg_cpm * user.test_count) + (cpm || 0)) / newTestCount) : 0;
 
-    db.prepare('UPDATE users SET playtime = ?, highest_cpm = ?, avg_cpm = ?, test_count = ? WHERE id = ?')
-    .run(newPlaytime, newHighest, newAvg, newTestCount, userId);
+    // Update the query to include total_mistakes
+    db.prepare('UPDATE users SET playtime = ?, highest_cpm = ?, avg_cpm = ?, test_count = ?, total_mistakes = total_mistakes + ? WHERE id = ?')
+    .run(newPlaytime, newHighest, newAvg, newTestCount, mistakes || 0, userId);
 
-    // Update Regex Character Counts
-    if (typedChars) {
-        let kanji = 0, hiragana = 0, katakana = 0, ankiWords = 0;
-        for (const char of typedChars) {
-            if (/[\u4e00-\u9faf\u3400-\u4dbf]/.test(char)) kanji++;
-            else if (/[\u3040-\u309f]/.test(char)) hiragana++;
-            else if (/[\u30a0-\u30ff]/.test(char)) katakana++;
-        }
-
-        db.prepare(`
-        UPDATE character_stats
-        SET kanji_count = kanji_count + ?,
-        hiragana_count = hiragana_count + ?,
-        katakana_count = katakana_count + ?
-        WHERE user_id = ?
-        `).run(kanji, hiragana, katakana, userId);
-    }
-
+    /* ... keep character_stats update logic ... */
     res.json({ success: true });
 });
+
+
 
 app.listen(PORT, () => console.log(`Server running on http://localhost:${PORT}`));

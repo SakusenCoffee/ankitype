@@ -253,21 +253,6 @@
                     <span class="label">TIME LEFT</span>
                     <span class="value" id="time-left-val">30s</span>
                 </div>
-
-                <div class="score-panel-inline">
-                    <span class="label">PLAY TIME</span>
-                    <span class="value" id="play-time-val">0s</span>
-                </div>
-
-                <a href="https://ko-fi.com/mojikazu" target="_blank" rel="noopener noreferrer" class="kofi-btn-icon" title="Support via Ko-fi">
-                    <svg class="kofi-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M18 8h1a4 4 0 0 1 0 8h-1"></path>
-                        <path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"></path>
-                        <line x1="6" y1="1" x2="6" y2="4"></line>
-                        <line x1="10" y1="1" x2="10" y2="4"></line>
-                        <line x1="14" y1="1" x2="14" y2="4"></line>
-                    </svg>
-                </a>
             </div>
         </div>
 
@@ -343,6 +328,10 @@
                     <span class="stat-label">CPM</span>
                 </div>
                 <div class="stat-box">
+    <span class="stat-value" id="res-mistakes" style="color: var(--accent-red);">0</span>
+    <span class="stat-label">MISTAKES</span>
+</div>
+                <div class="stat-box">
                     <span class="stat-value" id="res-time">0s</span>
                     <span class="stat-label">TIME</span>
                 </div>
@@ -355,14 +344,31 @@
                 <span class="section-title">COMPLETED ITEMS</span>
                 <div class="typed-words-list" id="res-completed-list"></div>
             </div>
-            <button class="close-modal-btn" id="close-result-modal">RESTART TEST</button>
+            <button class="close-modal-btn" id="close-result-modal">NEXT TEST</button>
         </div>
     </div>
+
+    <footer class="app-footer">
+        <div class="footer-content">
+            <span class="footer-text">Support the project:</span>
+            <a href="https://ko-fi.com/mojikazu" target="_blank" rel="noopener noreferrer" class="kofi-btn-icon" title="Support via Ko-fi">
+                <svg class="kofi-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M18 8h1a4 4 0 0 1 0 8h-1"></path>
+                    <path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"></path>
+                    <line x1="6" y1="1" x2="6" y2="4"></line>
+                    <line x1="10" y1="1" x2="10" y2="4"></line>
+                    <line x1="14" y1="1" x2="14" y2="4"></line>
+                </svg>
+                Ko-fi
+            </a>
+        </div>
+    </footer>
 
     <script type="py" src="./countjp.py"></script>
 
     <script>
         let isZenMode = false;
+        let mistakesSession = 0;
 
         const zenTabBtn = document.getElementById("zen-tab-btn");
         const modeZenBtn = document.getElementById("mode-zen-btn");
@@ -758,6 +764,28 @@ let currentIndex = 0;
                 resCompletedList.appendChild(tag);
             });
 
+            document.getElementById("res-mistakes").textContent = mistakesSession;
+
+    // Sync to server if logged in
+    if (currentUserToken) {
+        fetch('/api/profile/sync', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${currentUserToken}`
+            },
+            body: JSON.stringify({
+                playtime: activePlayTimeMs / 1000,
+                cpm: cpm,
+                mistakes: mistakesSession
+            })
+        }).catch(err => console.error("Sync error:", err));
+
+        // Reset local playtime tracker after syncing
+        activePlayTimeMs = 0;
+        localStorage.setItem("anki_type_play_time", "0");
+    }
+
             resultModal.classList.remove("hidden");
         }
 
@@ -1070,6 +1098,7 @@ function setMode(mode, shouldReload = true) {
             totalScore = 0;
             scoreEl.textContent = totalScore;
             totalTypedChars = 0;
+            mistakesSession = 0;
             completedItemsSession = [];
 
             clearInterval(testTimerInterval);
@@ -1246,6 +1275,7 @@ function setMode(mode, shouldReload = true) {
                 activeCard.classList.add("error-wipe");
                 setTimeout(() => activeCard.classList.remove("error-wipe"), 250);
                 typedInput = [];
+                mistakesSession++;
             }
 
             updateDisplay();
@@ -1533,13 +1563,13 @@ function setMode(mode, shouldReload = true) {
                             <input type="file" id="avatar-input" class="hidden" accept="image/*" />
                             <h3 class="profile-username">${data.username}</h3>
                             <div class="profile-stats-grid">
-                                <div class="stat-box"><span class="stat-value">${Math.floor((data.playtime || 0) / 60)}m</span><span class="stat-label">PLAYTIME</span></div>
-                                <div class="stat-box"><span class="stat-value">${data.highest_cpm || 0}</span><span class="stat-label">HIGHEST CPM</span></div>
-                                <div class="stat-box"><span class="stat-value">${data.avg_cpm || 0}</span><span class="stat-label">AVG CPM</span></div>
-                                <div class="stat-box"><span class="stat-value">${data.stats?.kanji_count || 0}</span><span class="stat-label">KANJI</span></div>
-                                <div class="stat-box"><span class="stat-value">${data.stats?.hiragana_count || 0}</span><span class="stat-label">HIRAGANA</span></div>
-                                <div class="stat-box"><span class="stat-value">${data.stats?.katakana_count || 0}</span><span class="stat-label">KATAKANA</span></div>
-                            </div>
+    <div class="stat-box"><span class="stat-value">${Math.floor((data.playtime || 0) / 60)}m</span><span class="stat-label">PLAYTIME</span></div>
+    <div class="stat-box"><span class="stat-value">${data.highest_cpm || 0}</span><span class="stat-label">HIGHEST CPM</span></div>
+    <div class="stat-box"><span class="stat-value">${data.total_mistakes || 0}</span><span class="stat-label">TOTAL MISTAKES</span></div>
+    <div class="stat-box"><span class="stat-value">${data.stats?.kanji_count || 0}</span><span class="stat-label">KANJI</span></div>
+    <div class="stat-box"><span class="stat-value">${data.stats?.hiragana_count || 0}</span><span class="stat-label">HIRAGANA</span></div>
+    <div class="stat-box"><span class="stat-value">${data.stats?.katakana_count || 0}</span><span class="stat-label">KATAKANA</span></div>
+</div>
                             <button id="logout-btn" class="auth-btn logout-btn">LOGOUT</button>
                         </div>
                     `;
