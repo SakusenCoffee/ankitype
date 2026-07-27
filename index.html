@@ -390,6 +390,9 @@
     <script type="py" src="./countjp.py"></script>
 
     <script>
+        // Backend API lives on Railway, separate from this GitHub Pages-hosted frontend.
+        const API_BASE = "https://tangotype-production.up.railway.app";
+
         let isZenMode = false;
         let mistakesSession = 0;
 
@@ -801,7 +804,7 @@ let currentIndex = 0;
 
     // Sync to server if logged in
     if (currentUserToken) {
-        fetch('/api/profile/sync', {
+        fetch(`${API_BASE}/api/profile/sync`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -1676,7 +1679,7 @@ function setMode(mode, shouldReload = true) {
                         return;
                     }
 
-                    const endpoint = confirm ? '/api/register' : '/api/login';
+                    const endpoint = confirm ? `${API_BASE}/api/register` : `${API_BASE}/api/login`;
                     try {
                         const res = await fetch(endpoint, {
                             method: 'POST',
@@ -1698,7 +1701,7 @@ function setMode(mode, shouldReload = true) {
                 };
             } else {
                 try {
-                    const res = await fetch('/api/profile', {
+                    const res = await fetch(`${API_BASE}/api/profile`, {
                         headers: { 'Authorization': `Bearer ${currentUserToken}` }
                     });
 
@@ -1714,7 +1717,7 @@ function setMode(mode, shouldReload = true) {
                     container.innerHTML = `
                         <div class="profile-card">
                             <div class="avatar-wrapper" onclick="document.getElementById('avatar-input').click()">
-                                <img src="${data.avatar}" id="profile-avatar-img" alt="Avatar"/>
+                                <img src="${API_BASE}${data.avatar}" id="profile-avatar-img" alt="Avatar"/>
                                 <div class="avatar-overlay">EDIT</div>
                             </div>
                             <input type="file" id="avatar-input" class="hidden" accept="image/*" />
@@ -1736,14 +1739,14 @@ function setMode(mode, shouldReload = true) {
                         const formData = new FormData();
                         formData.append('avatar', e.target.files[0]);
 
-                        const uploadRes = await fetch('/api/profile/avatar', {
+                        const uploadRes = await fetch(`${API_BASE}/api/profile/avatar`, {
                             method: 'POST',
                             headers: { 'Authorization': `Bearer ${currentUserToken}` },
                             body: formData
                         });
                         const uploadData = await uploadRes.json();
                         if (uploadData.avatar) {
-                            document.getElementById('profile-avatar-img').src = uploadData.avatar;
+                            document.getElementById('profile-avatar-img').src = `${API_BASE}${uploadData.avatar}`;
                         }
                     };
 

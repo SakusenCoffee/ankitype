@@ -1,3 +1,5 @@
+require('dotenv').config();
+
 const express = require('express');
 const Database = require('better-sqlite3');
 const bcrypt = require('bcryptjs');
@@ -9,20 +11,46 @@ const fs = require('fs');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const JWT_SECRET = 'anki-type-secret-key-change-me';
+
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+    console.error('JWT_SECRET environment variable is required.');
+    process.exit(1);
+}
+
+// DATA_DIR should point at a persistent volume mount in production
+// (the container filesystem is wiped on every redeploy otherwise).
+const DATA_DIR = process.env.DATA_DIR || __dirname;
 
 // Setup Uploads Directory
-const uploadDir = path.join(__dirname, 'uploads');
-if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir);
+const uploadDir = path.join(DATA_DIR, 'uploads');
+if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
+
+// Seed the default avatar into the (possibly fresh) uploads dir from the
+// bundled repo asset, since a new volume mount starts out empty.
+const defaultAvatarDest = path.join(uploadDir, 'default.png');
+if (!fs.existsSync(defaultAvatarDest)) {
+    fs.copyFileSync(path.join(__dirname, 'default-avatar.png'), defaultAvatarDest);
+}
+
+// Allowed frontend origins for CORS (comma-separated env override)
+const allowedOrigins = process.env.ALLOWED_ORIGINS
+    ? process.env.ALLOWED_ORIGINS.split(',').map(s => s.trim())
+    : ['https://tangotype.com', 'https://www.tangotype.com', 'http://localhost:3000', 'http://127.0.0.1:3000'];
 
 // Middleware
-app.use(cors());
+app.use(cors({
+    origin: (origin, callback) => {
+        if (!origin || allowedOrigins.includes(origin)) return callback(null, true);
+        callback(new Error('Not allowed by CORS'));
+    }
+}));
 app.use(express.json());
 app.use('/uploads', express.static(uploadDir));
 app.use(express.static(__dirname));
 
 // Database Initialization
-const db = new Database('ankitype.db');
+const db = new Database(path.join(DATA_DIR, 'ankitype.db'));
 db.exec(`
 CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
