@@ -264,7 +264,7 @@ body {
     background-color: var(--accent-main);
     border-radius: 50%;
     display: inline-block;
-    font-size: 2rem;
+    font-size: 3rem;
 }
 
 .nav-actions {
