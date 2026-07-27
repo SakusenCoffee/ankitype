@@ -1206,6 +1206,72 @@ let currentIndex = 0;
         };
 
         let tokenizerPromise = null;
+        let meaningLookupPromise = null;
+
+        /* The JLPT word lists carry English glosses, so workshop words that appear in them
+           can show a real definition instead of just a part of speech. Levels are merged
+           lowest first, so when a word appears in several the most elementary sense wins.
+           Loaded on demand alongside the tokenizer; ~550KB across the five files. */
+        function loadMeaningLookup() {
+            if (meaningLookupPromise) return meaningLookupPromise;
+
+            meaningLookupPromise = (async () => {
+                const levels = ["n5", "n4", "n3", "n2", "n1"];
+                const lists = await Promise.all(levels.map(async level => {
+                    try {
+                        const res = await fetch(`/${level}.json`);
+                        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                        return await res.json();
+                    } catch (err) {
+                        console.error(`Could not load ${level}.json for meanings:`, err);
+                        return [];
+                    }
+                }));
+
+                // byWord is keyed on the written form, byReading on the kana, so a word
+                // written in kana in the subtitle still finds its entry.
+                const byWord = new Map();
+                const byReading = new Map();
+
+                lists.forEach(entries => {
+                    entries.forEach(item => {
+                        if (!item || !item.meaning) return;
+                        if (item.kanji && !byWord.has(item.kanji)) byWord.set(item.kanji, item.meaning);
+                        if (item.reading && !byReading.has(item.reading)) byReading.set(item.reading, item.meaning);
+                    });
+                });
+
+                return { byWord, byReading };
+            })();
+
+            meaningLookupPromise.catch(() => { meaningLookupPromise = null; });
+            return meaningLookupPromise;
+        }
+
+        // Only these get the kana fallback below; see why in lookupMeaning
+        const CONTENT_POS = new Set(["名詞", "動詞", "形容詞", "副詞"]);
+
+        // Written form first, then the dictionary form so conjugations resolve (します →
+        // する). Part of speech is the fallback when nothing matches.
+        function lookupMeaning(token, lookup) {
+            if (!lookup) return null;
+
+            const direct = lookup.byWord.get(token.surface_form)
+                || (token.basic_form && token.basic_form !== "*" && lookup.byWord.get(token.basic_form));
+            if (direct) return direct;
+
+            // Matching on kana alone is only safe for multi-character content words.
+            // Japanese is full of homophones, so a bare particle collides with an
+            // unrelated noun sharing its sound: は would be glossed "tooth" (歯),
+            // に "two" (二), た "other" (他). Better no definition than a wrong one.
+            const canMatchOnReading = CONTENT_POS.has(token.pos)
+                && token.surface_form.length > 1
+                && token.reading && token.reading !== "*";
+
+            return canMatchOnReading
+                ? lookup.byReading.get(wanakana.toHiragana(token.reading)) || null
+                : null;
+        }
 
         function loadTokenizer() {
             if (tokenizerPromise) return tokenizerPromise;
@@ -1231,9 +1297,15 @@ let currentIndex = 0;
         // Splits workshop text into typable words. Entries whose reading can't be resolved
         // to plain romaji are dropped: an untypable word would stall the test outright.
         async function tokenizeWorkshopText(text) {
-            const tokenizer = await loadTokenizer();
+            // Meanings are a nicety, so a failed lookup must not sink the whole seed
+            const [tokenizer, lookup] = await Promise.all([
+                loadTokenizer(),
+                loadMeaningLookup().catch(() => null)
+            ]);
+
             const entries = [];
             let skipped = 0;
+            let defined = 0;
 
             for (const token of tokenizer.tokenize(text)) {
                 const surface = token.surface_form.trim();
@@ -1247,10 +1319,17 @@ let currentIndex = 0;
                     skipped++;
                     continue;
                 }
-                entries.push([surface, romaji, POS_LABELS[token.pos] || "Workshop Custom Text"]);
+                const meaning = lookupMeaning(token, lookup);
+                if (meaning) defined++;
+
+                entries.push([
+                    surface,
+                    romaji,
+                    meaning || POS_LABELS[token.pos] || "Workshop Custom Text"
+                ]);
             }
 
-            return { entries, skipped };
+            return { entries, skipped, defined };
         }
 
         async function generateSeed() {
@@ -1266,15 +1345,17 @@ let currentIndex = 0;
                 if (!textContent) return null;
 
                 try {
-                    const { entries, skipped } = await tokenizeWorkshopText(textContent);
+                    const { entries, skipped, defined } = await tokenizeWorkshopText(textContent);
                     if (!entries.length) {
                         setFilterStatus("No typable words found in the workshop text.", true);
                         return null;
                     }
                     seedPayload.data = entries;
-                    setFilterStatus(skipped
-                        ? `Seed built from ${entries.length} words (${skipped} without a usable reading were left out).`
-                        : `Seed built from ${entries.length} words.`);
+
+                    const parts = [`Seed built from ${entries.length} words`];
+                    parts.push(`${defined} with JLPT definitions`);
+                    if (skipped) parts.push(`${skipped} without a usable reading left out`);
+                    setFilterStatus(parts.join(" · ") + ".");
                 } catch (err) {
                     console.error("Tokenizer unavailable:", err);
                     setFilterStatus("Couldn't load the tokenizer, so readings are unavailable.", true);
