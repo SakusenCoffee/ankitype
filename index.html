@@ -408,7 +408,7 @@
     <div class="modal-overlay hidden" id="result-modal">
         <div class="modal-card">
             <h2 class="modal-title">TEST COMPLETE</h2>
-            <p class="abandoned-note hidden" id="res-abandoned-note">Idled out — this test wasn't added to your profile stats.</p>
+            <p class="abandoned-note hidden" id="res-abandoned-note">Idled out — your typing time and characters were saved, but this run wasn't counted towards your CPM.</p>
             <div class="stats-grid">
                 <div class="stat-box">
                     <span class="stat-value" id="res-cpm">0</span>
@@ -523,67 +523,10 @@
         if (zenTabBtn) zenTabBtn.addEventListener("click", toggleZenMode);
 
         /* ---- Workshop file import -------------------------------------------------
-           Drop subtitles or any text-based document onto the workshop and pull the
-           Japanese out of it. Everything is parsed in-browser; nothing is uploaded. */
-
-        const JP_CHAR_RE = /[\u3040-\u309f\u30a0-\u30ff\u4e00-\u9faf\u3400-\u4dbf]/;
-
-        function stripMarkupTags(text) {
-            return text.replace(/<[^>]*>/g, "");
-        }
-
-        // SRT / VTT / SBV: keep the caption text, drop cue numbers and timing lines
-        function parseCueSubtitles(text) {
-            return text
-                .split(/\r?\n/)
-                .filter(line => {
-                    const t = line.trim();
-                    if (!t) return false;
-                    if (/^WEBVTT/i.test(t)) return false;
-                    if (/^NOTE\b/i.test(t)) return false;
-                    if (/^\d+$/.test(t)) return false;
-                    if (t.includes("-->")) return false;
-                    return true;
-                })
-                .map(line => stripMarkupTags(line))
-                .join("\n");
-        }
-
-        // ASS / SSA: only "Dialogue:" rows carry text, and it is the 10th comma field.
-        // Style overrides sit in {braces}; \N and \n are the format's line breaks.
-        function parseAssSubtitles(text) {
-            return text
-                .split(/\r?\n/)
-                .filter(line => /^Dialogue\s*:/i.test(line.trim()))
-                .map(line => {
-                    const body = line.slice(line.indexOf(":") + 1);
-                    return body
-                        .split(",")
-                        .slice(9)
-                        .join(",")
-                        .replace(/\{[^}]*\}/g, "")
-                        .replace(/\\[Nnh]/g, "\n");
-                })
-                .join("\n");
-        }
-
-        function parseImportedDocument(filename, text) {
-            const ext = (filename.split(".").pop() || "").toLowerCase();
-            if (ext === "ass" || ext === "ssa") return parseAssSubtitles(text);
-            if (["srt", "vtt", "sbv", "sub"].includes(ext)) return parseCueSubtitles(text);
-            if (["html", "htm", "xml"].includes(ext)) return stripMarkupTags(text);
-            return text;
-        }
-
-        // Keep only lines that actually contain Japanese, which also strips the
-        // timestamps, speaker tags and translation lines that ride along in subtitles
-        function extractJapaneseLines(text) {
-            const lines = text
-                .split(/\r?\n/)
-                .map(l => l.trim())
-                .filter(l => JP_CHAR_RE.test(l));
-            return lines.filter((line, i) => line !== lines[i - 1]).join("\n");
-        }
+           Dropped files land in the textarea verbatim, so nothing is thrown away before
+           the user has seen it. Cleaning up timestamps, speaker labels and the like is
+           left to the regex filters, which is what they are there for. Files are read
+           in-browser; nothing is uploaded. */
 
         // .docx/.pdf and friends are archives or binaries, so reading them as text
         // yields mojibake rather than anything useful. Detect and skip them.
@@ -628,13 +571,9 @@
                     continue;
                 }
 
-                const japanese = extractJapaneseLines(parseImportedDocument(file.name, raw));
-                if (japanese) {
-                    chunks.push(japanese);
-                    imported++;
-                } else {
-                    skipped.push(file.name);
-                }
+                // Verbatim: the regex filters are what trims it down afterwards
+                chunks.push(raw.replace(/\r\n/g, "\n").trim());
+                imported++;
             }
 
             if (chunks.length) {
@@ -648,11 +587,11 @@
             }
 
             if (imported && skipped.length) {
-                setWorkshopStatus(`Imported ${imported} file(s). No Japanese found in: ${skipped.join(", ")}`);
+                setWorkshopStatus(`Imported ${imported} file(s). Couldn't read: ${skipped.join(", ")}`);
             } else if (imported) {
-                setWorkshopStatus(`Imported Japanese text from ${imported} file(s).`);
+                setWorkshopStatus(`Imported ${imported} file(s) — use the text filters to clean it up.`);
             } else {
-                setWorkshopStatus(`No Japanese text found in: ${skipped.join(", ")}`, true);
+                setWorkshopStatus(`Couldn't read as text: ${skipped.join(", ")}`, true);
             }
         }
 
@@ -691,11 +630,43 @@
 
         const BUILTIN_TEXT_FILTERS = [
             {
+                // SRT/VTT scaffolding: cue numbers, "00:00:01,000 --> 00:00:04,000"
+                // timing lines, and the WEBVTT/NOTE headers
+                id: "builtin-sub-timing",
+                name: "Subtitle timing",
+                pattern: "^\\d+$\\n?|^.*-->.*$\\n?|^WEBVTT.*$\\n?|^NOTE\\b.*$\\n?",
+                flags: "gm",
+                replacement: ""
+            },
+            {
+                // ASS/SSA: drop every line that isn't dialogue, then the nine metadata
+                // fields in front of the text. Run them in that order.
+                id: "builtin-ass-keep-dialogue",
+                name: "ASS: keep dialogue",
+                pattern: "^(?!Dialogue\\s*:).*$\\n?",
+                flags: "gm",
+                replacement: ""
+            },
+            {
+                id: "builtin-ass-strip-prefix",
+                name: "ASS: strip prefix",
+                pattern: "^Dialogue\\s*:\\s*(?:[^,]*,){9}",
+                flags: "gm",
+                replacement: ""
+            },
+            {
+                id: "builtin-ass-linebreaks",
+                name: "ASS: line breaks",
+                pattern: "\\\\[Nnh]",
+                flags: "g",
+                replacement: "\n"
+            },
+            {
                 // Speaker labels in subtitles usually sit in lenticular brackets
                 // (【名前】); this clears those and every other bracketed aside with them
                 id: "builtin-names",
                 name: "Strip names & brackets",
-                pattern: "【[^】]*】|〔[^〕]*〕|〖[^〗]*〗|〘[^〙]*〙|〚[^〛]*〛|［[^］]*］|（[^）]*）|\\([^)]*\\)|\\[[^\\]]*\\]|＜[^＞]*＞|<[^>]*>",
+                pattern: "【[^】]*】|〔[^〕]*〕|〖[^〗]*〗|〘[^〙]*〙|〚[^〛]*〛|［[^］]*］|（[^）]*）|\\([^)]*\\)|\\[[^\\]]*\\]|＜[^＞]*＞|<[^>]*>|\\{[^}]*\\}|｛[^｝]*｝",
                 flags: "g",
                 replacement: ""
             },
@@ -1348,12 +1319,6 @@ let currentIndex = 0;
             return lastTypingTimestamp === 0 || (Date.now() - lastTypingTimestamp) > IDLE_TIMEOUT_MS;
         }
 
-        // Same bookkeeping as a flush, minus the request: the pending deltas are thrown
-        // away so they can't be counted by a later flush either.
-        function discardPendingProgress() {
-            resetSyncedCounters();
-        }
-
         function resetSyncedCounters() {
             activePlayTimeMs = 0;
             localStorage.setItem("anki_type_play_time", "0");
@@ -1367,11 +1332,14 @@ let currentIndex = 0;
         // Sends whatever playtime/stats/mistakes have accumulated since the last flush.
         // Deltas only (server adds them on top of stored totals), so counters reset
         // locally right after sending to avoid double-counting on the next flush.
+        // Returns a promise so callers that are about to read the profile back can wait
+        // for the write to land first.
         function flushProgress({ useBeacon = false, cpm } = {}) {
-            if (!currentUserToken) return;
-            if (!hasPendingSyncData() && (cpm === undefined || cpm === null)) return;
+            if (!currentUserToken) return Promise.resolve();
+            if (!hasPendingSyncData() && (cpm === undefined || cpm === null)) return Promise.resolve();
 
             const payload = buildSyncPayload(cpm);
+            let request = Promise.resolve();
 
             if (useBeacon && navigator.sendBeacon) {
                 navigator.sendBeacon(
@@ -1379,7 +1347,7 @@ let currentIndex = 0;
                     new Blob([JSON.stringify({ ...payload, token: currentUserToken })], { type: 'application/json' })
                 );
             } else {
-                fetch(`${API_BASE}/api/profile/sync`, {
+                request = fetch(`${API_BASE}/api/profile/sync`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${currentUserToken}` },
                     body: JSON.stringify(payload)
@@ -1387,6 +1355,7 @@ let currentIndex = 0;
             }
 
             resetSyncedCounters();
+            return request;
         }
 
         // Global play time tracker: accumulates whenever the user is actively typing
@@ -1405,9 +1374,10 @@ let currentIndex = 0;
                 localStorage.setItem("anki_type_play_time", activePlayTimeMs.toString());
             } else if (isPlayTimerActive) {
                 isPlayTimerActive = false;
-                // Mid-test the flush is held back: if the user never comes back, the test
-                // is abandoned and finishTest() drops this progress instead of sending it.
-                if (!isTestActive) flushProgress();
+                // Always flushed, mid-test included. Playtime and character counts are
+                // earned by typing and belong to the profile whether or not the test
+                // around them is ever completed; only the CPM result is conditional.
+                flushProgress();
             }
         }, 100);
 
@@ -1481,8 +1451,11 @@ let currentIndex = 0;
             // profile at all. No CPM (so it can't drag the average down or inflate the
             // test count), and the playtime and character counts it accrued are dropped
             // rather than flushed, since the mid-test flush was held back for exactly this.
+            // Idling out only disqualifies the CPM result, which would otherwise be
+            // measured against dead time and drag the average down. The typing that did
+            // happen still counts, so playtime and character totals are flushed either way.
             if (testWasAbandoned()) {
-                discardPendingProgress();
+                flushProgress();
                 resAbandonedNote.classList.remove("hidden");
             } else {
                 resAbandonedNote.classList.add("hidden");
@@ -2632,6 +2605,10 @@ function setMode(mode, shouldReload = true) {
                 };
             } else {
                 try {
+                    // Send anything still pending first, or opening this tab right after
+                    // typing would show totals that don't include what was just typed.
+                    await flushProgress();
+
                     const res = await fetch(`${API_BASE}/api/profile`, {
                         headers: { 'Authorization': `Bearer ${currentUserToken}` }
                     });
