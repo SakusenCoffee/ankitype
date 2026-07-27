@@ -364,7 +364,7 @@
     <script>
         let isZenMode = false;
 
-        const zenTabBtn = document.getElementById("zen-tab-btn"); // Kept as reference if used elsewhere, or hook into the new test options button
+        const zenTabBtn = document.getElementById("zen-tab-btn");
         const modeZenBtn = document.getElementById("mode-zen-btn");
         const typingAppLayout = document.getElementById("typing-app-layout");
         const zenLayout = document.getElementById("zen-layout");
@@ -392,7 +392,11 @@
                 zenLayout.classList.add("hidden");
                 typingAppLayout.classList.remove("hidden");
                 modeZenBtn.classList.remove("active");
-                modeWordsBtn.classList.add("active");
+                if (activeMode === "words") {
+                    modeWordsBtn.classList.add("active");
+                } else {
+                    modeTimeBtn.classList.add("active");
+                }
             }
         }
 
@@ -411,7 +415,7 @@
         const HIRAGANA_CHARS = [
             'あ','い','う','え','お','か','き','く','け','こ','さ','し','す','せ','そ','た','ち','つ','て','と',
             'な','に','ぬ','ね','の','は','ひ','ふ','へ','ほ','ま','み','む','め','も','や','ゆ','よ','ら','り',
-            'る','れ','ろ','わ','を','ん','が','ぎ','ぐ','げ','ご','ざ','じ','ず','ぜ','ぞ','だ','ぢ','づ','で',
+            'る','れ','ろ','わ','를','ん','が','ぎ','ぐ','げ','ご','ざ','じ','ず','ぜ','ぞ','だ','ぢ','づ','で',
             'ど','ば','び','ぶ','べ','ぼ','ぱ','ぴ','ぷ','ぺ','ぽ','きゃ','きゅ','きょ','しゃ','しゅ','しょ',
             'ちゃ','ちゅ','ちょ','にゃ','にゅ','にょ','ひゃ','ひゅ','ひょ','みゃ','みゅ','みょ','りゃ','りゅ',
             'りょ','ぎゃ','ぎゅ','ぎょ','じゃ','じゅ','じょ','びゃ','びゅ','びょ','ぴゃ','ぴゅ','ぴょ','って',
@@ -562,15 +566,24 @@
         }
 
         function generateSeed() {
-            if (!activeWordList || activeWordList.length === 0) return null;
-            const seedData = activeWordList.map(w => [w.kanji, w.romaji, w.meaning]);
-            const jsonStr = JSON.stringify(seedData);
-            return btoa(encodeURIComponent(jsonStr));
+            if (isZenMode) {
+                const jpTextArea = document.getElementById("jptext");
+                const textContent = jpTextArea ? jpTextArea.value.trim() : "";
+                if (!textContent) return null;
+                const seedData = textContent.split(/\s+/).filter(Boolean).map(word => {
+                    let cleanedRomaji = wanakana.toRomaji(word).toLowerCase().trim();
+                    return [word, cleanedRomaji, "Zen Mode Custom Text"];
+                });
+                return btoa(encodeURIComponent(JSON.stringify(seedData)));
+            } else {
+                if (!activeWordList || activeWordList.length === 0) return null;
+                const seedData = activeWordList.map(w => [w.kanji, w.romaji, w.meaning]);
+                const jsonStr = JSON.stringify(seedData);
+                return btoa(encodeURIComponent(jsonStr));
+            }
         }
 
         function openTab(tabName) {
-            if (isZenMode) toggleZenMode();
-
             profileDrawer.classList.add("hidden");
             testOptionsDrawer.classList.add("hidden");
             ankiDrawer.classList.add("hidden");
@@ -614,12 +627,16 @@
 
                 activeWordList = seedData.map(([kanji, romaji, meaning]) => ({
                     kanji,
-                    romaji,
-                    meaning
+                    romaji: romaji || wanakana.toRomaji(kanji).toLowerCase().trim(),
+                    meaning: meaning || "Custom Seed"
                 }));
 
                 wordCountSetting = activeWordList.length.toString();
                 localStorage.setItem("anki_type_word_count", wordCountSetting);
+
+                if (isZenMode) {
+                    toggleZenMode();
+                }
 
                 setSource("anki");
                 setMode("words");
@@ -739,7 +756,7 @@
             localStorage.setItem("anki_type_stats", JSON.stringify(stats));
         }
 
-        function setSource(source) {
+        function setSource(source, shouldReload = true) {
             activeSource = source;
             localStorage.setItem("anki_type_source", activeSource);
 
@@ -755,7 +772,7 @@
                 modeWordsBtn.disabled = true;
                 infiniteTimeBtn.classList.remove("hidden");
                 kanaCountGroup.classList.remove("hidden");
-                setMode("time");
+                setMode("time", false);
             } else {
                 sourceAnkiBtn.classList.add("active");
                 scoreLabel.textContent = "WORDS TYPED";
@@ -765,12 +782,14 @@
                 if (testTimeSetting === "infinite") {
                     testTimeSetting = "30";
                 }
-                setMode(activeMode);
+                setMode(activeMode, false);
             }
-            applyWordCountFilter();
+            if (shouldReload) {
+                applyWordCountFilter();
+            }
         }
 
-        function setMode(mode) {
+        function setMode(mode, shouldReload = true) {
             activeMode = mode;
             localStorage.setItem("anki_type_mode", activeMode);
 
@@ -791,7 +810,9 @@
                 timeLeftVal.textContent = (testTimeSetting === "infinite") ? "∞" : `${testTimeSetting}s`;
             }
             updateCountNavUI();
-            applyWordCountFilter();
+            if (shouldReload) {
+                applyWordCountFilter();
+            }
         }
 
         function updateCountNavUI() {
@@ -1203,7 +1224,6 @@
         ankiTabBtn.addEventListener("click", () => openTab("anki"));
         appearanceTabBtn.addEventListener("click", () => openTab("appearance"));
         seedTabBtn.addEventListener("click", () => {
-            // Close other drawers except keep zen layout active if we are in zen mode
             profileDrawer.classList.add("hidden");
             testOptionsDrawer.classList.add("hidden");
             ankiDrawer.classList.add("hidden");
@@ -1224,12 +1244,12 @@
             }
         });
 
-        modeWordsBtn.addEventListener("click", () => setMode("words"));
-        modeTimeBtn.addEventListener("click", () => setMode("time"));
+        modeWordsBtn.addEventListener("click", () => setMode("words", false));
+        modeTimeBtn.addEventListener("click", () => setMode("time", false));
 
-        sourceHiraganaBtn.addEventListener("click", () => setSource("hiragana"));
-        sourceKatakanaBtn.addEventListener("click", () => setSource("katakana"));
-        sourceAnkiBtn.addEventListener("click", () => setSource("anki"));
+        sourceHiraganaBtn.addEventListener("click", () => setSource("hiragana", true));
+        sourceKatakanaBtn.addEventListener("click", () => setSource("katakana", true));
+        sourceAnkiBtn.addEventListener("click", () => setSource("anki", true));
 
         countBtns.forEach(btn => {
             btn.addEventListener("click", () => {
@@ -1323,15 +1343,7 @@
         });
 
         copySeedBtn.addEventListener("click", () => {
-            let seed = "";
-            if (isZenMode) {
-                const jpTextArea = document.getElementById("jptext");
-                const textContent = jpTextArea ? jpTextArea.value : "";
-                if (!textContent) return;
-                seed = btoa(encodeURIComponent(textContent));
-            } else {
-                seed = generateSeed();
-            }
+            let seed = generateSeed();
             if (!seed) return;
 
             navigator.clipboard.writeText(seed).then(() => {
