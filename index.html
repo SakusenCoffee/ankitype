@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tango Type</title>
+    <title>Anki Type</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;700;800&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
@@ -11,16 +11,6 @@
     <script src="https://cdn.jsdelivr.net/npm/wanakana@5.3.1/wanakana.min.js"></script>
     <script type="module" src="https://pyscript.net/releases/2024.3.1/core.js"></script>
     <link rel="stylesheet" href="style.css">
-
-    <!-- Google tag (gtag.js) -->
-<script async src="https://www.googletagmanager.com/gtag/js?id=G-Z9714FD6YK"></script>
-<script>
-  window.dataLayer = window.dataLayer || [];
-  function gtag(){dataLayer.push(arguments);}
-  gtag('js', new Date());
-
-  gtag('config', 'G-Z9714FD6YK');
-</script>
 </head>
 <body>
 
@@ -29,7 +19,8 @@
         <div class="nav-content">
             <div class="nav-left-group">
                 <div class="nav-brand">
-                    <span class="logo-dot"></span>単語タイプ
+                    <span class="logo-dot"></span>
+                    <span class="logo-text">単語タイプ</span>
                 </div>
             </div>
 
@@ -89,16 +80,24 @@
         <div class="nav-drawer" id="test-options-drawer">
             <div class="drawer-inner word-count-nav">
                 <div class="count-selector-group">
-                    <button class="source-btn" id="source-hiragana-btn">hiragana</button>
-                    <button class="source-btn" id="source-katakana-btn">katakana</button>
-                    <button class="source-btn active" id="source-anki-btn">anki</button>
-                </div>
-                <div class="selector-divider"></div>
-
-                <div class="count-selector-group">
                     <button class="mode-btn active" id="mode-words-btn">words</button>
                     <button class="mode-btn" id="mode-time-btn">time</button>
                     <button class="mode-btn" id="mode-zen-btn">zen</button>
+                </div>
+                <div class="selector-divider"></div>
+                <div class="count-selector-group">
+                    <button class="source-btn" id="source-hiragana-btn">hiragana</button>
+                    <button class="source-btn" id="source-katakana-btn">katakana</button>
+                    <button class="source-btn active" id="source-tango-btn">tango</button>
+                </div>
+                <div class="selector-divider"></div>
+                <div class="count-selector-group" id="tango-level-group">
+                    <button class="tango-level-btn active" data-tango-level="anki">anki</button>
+                    <button class="tango-level-btn" data-tango-level="n5">N5</button>
+                    <button class="tango-level-btn" data-tango-level="n4">N4</button>
+                    <button class="tango-level-btn" data-tango-level="n3">N3</button>
+                    <button class="tango-level-btn" data-tango-level="n2">N2</button>
+                    <button class="tango-level-btn" data-tango-level="n1">N1</button>
                 </div>
                 <div class="selector-divider"></div>
                 <div class="count-selector-group" id="word-options-group">
@@ -363,17 +362,28 @@
 
     <footer class="app-footer">
         <div class="footer-content">
-            <span class="footer-text">Support the project:</span>
-            <a href="https://ko-fi.com/mojikazu" target="_blank" rel="noopener noreferrer" class="kofi-btn-icon" title="Support via Ko-fi">
-                <svg class="kofi-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M18 8h1a4 4 0 0 1 0 8h-1"></path>
-                    <path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"></path>
-                    <line x1="6" y1="1" x2="6" y2="4"></line>
-                    <line x1="10" y1="1" x2="10" y2="4"></line>
-                    <line x1="14" y1="1" x2="14" y2="4"></line>
-                </svg>
-                Ko-fi
-            </a>
+            <div class="footer-left">
+                <span class="footer-brand">単語タイプ</span>
+                <span class="footer-copyright">&copy; <span id="footer-year"></span> Tango Type. All rights reserved.</span>
+            </div>
+            <div class="footer-right">
+                <a href="https://github.com/SakusenCoffee/tangotype" target="_blank" rel="noopener noreferrer" class="footer-link" title="View source on GitHub">
+                    <svg class="footer-link-icon" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12 .5C5.65.5.5 5.65.5 12c0 5.08 3.29 9.39 7.86 10.91.58.11.79-.25.79-.56 0-.27-.01-1.17-.02-2.12-3.2.7-3.88-1.36-3.88-1.36-.52-1.34-1.28-1.69-1.28-1.69-1.04-.72.08-.7.08-.7 1.15.08 1.76 1.19 1.76 1.19 1.03 1.76 2.69 1.25 3.35.96.1-.75.4-1.25.73-1.54-2.55-.29-5.24-1.28-5.24-5.7 0-1.26.45-2.29 1.19-3.1-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.18 1.18a11.1 11.1 0 0 1 5.79 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.81 1.19 1.84 1.19 3.1 0 4.43-2.69 5.41-5.25 5.69.41.36.78 1.06.78 2.14 0 1.55-.01 2.79-.01 3.17 0 .31.21.68.8.56A10.51 10.51 0 0 0 23.5 12C23.5 5.65 18.35.5 12 .5z"></path>
+                    </svg>
+                    GitHub
+                </a>
+                <a href="https://ko-fi.com/mojikazu" target="_blank" rel="noopener noreferrer" class="kofi-btn-icon" title="Support via Ko-fi">
+                    <svg class="kofi-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M18 8h1a4 4 0 0 1 0 8h-1"></path>
+                        <path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"></path>
+                        <line x1="6" y1="1" x2="6" y2="4"></line>
+                        <line x1="10" y1="1" x2="10" y2="4"></line>
+                        <line x1="14" y1="1" x2="14" y2="4"></line>
+                    </svg>
+                    Ko-fi
+                </a>
+            </div>
         </div>
     </footer>
 
@@ -452,6 +462,8 @@
         ];
 
         let masterDeckList = [];
+let ankiDeckCache = [];
+let tangoJsonCache = {};
 let currentSessionDeck = []; // Add this to store the unshuffled test session
 let activeWordList = [];
 let currentIndex = 0;
@@ -461,7 +473,9 @@ let currentIndex = 0;
         let showMeaning = false;
 
         let activeMode = localStorage.getItem("anki_type_mode") || "words";
-        let activeSource = localStorage.getItem("anki_type_source") || "anki";
+        let activeSource = localStorage.getItem("anki_type_source") || "tango";
+        if (activeSource === "anki") activeSource = "tango"; // legacy alias
+        let activeTangoLevel = localStorage.getItem("anki_type_tango_level") || "anki";
         let wordCountSetting = localStorage.getItem("anki_type_word_count") || "max";
         let testTimeSetting = localStorage.getItem("anki_type_time_setting") || "30";
         let kanaCountSetting = localStorage.getItem("anki_type_kana_count") || "25";
@@ -491,6 +505,7 @@ let currentIndex = 0;
         let currentFontClass = localStorage.getItem("anki_type_font") || "font-modern";
         let currentTheme = localStorage.getItem("anki_type_theme") || "dark-slate";
         let savedSelectedDeck = localStorage.getItem("anki_type_deck") || "";
+        let initialSeedParam = new URLSearchParams(window.location.search).get("seed");
 
         function isKanji(ch) { return /[\u4e00-\u9faf\u3400-\u4dbf]/.test(ch); }
         function isHiragana(ch) { return /[\u3040-\u309f]/.test(ch); }
@@ -526,15 +541,17 @@ let currentIndex = 0;
         const modeTimeBtn = document.getElementById("mode-time-btn");
         const sourceHiraganaBtn = document.getElementById("source-hiragana-btn");
         const sourceKatakanaBtn = document.getElementById("source-katakana-btn");
-        const sourceAnkiBtn = document.getElementById("source-anki-btn");
+        const sourceTangoBtn = document.getElementById("source-tango-btn");
 
         const wordOptionsGroup = document.getElementById("word-options-group");
         const timeOptionsGroup = document.getElementById("time-options-group");
         const kanaCountGroup = document.getElementById("kana-count-group");
+        const tangoLevelGroup = document.getElementById("tango-level-group");
 
         const countBtns = document.querySelectorAll(".count-btn");
         const timeBtns = document.querySelectorAll(".time-btn");
         const kanaCountBtns = document.querySelectorAll(".kana-count-btn");
+        const tangoLevelBtns = document.querySelectorAll(".tango-level-btn");
         const infiniteTimeBtn = document.getElementById("infinite-time-btn");
 
         const customCountInputWrapper = document.getElementById("custom-count-input-wrapper");
@@ -666,10 +683,10 @@ let currentIndex = 0;
         // Always exit Zen Mode when loading a seed
         if (isZenMode) toggleZenMode();
 
-        // If the seed was generated from Zen Mode, force it to Words mode and Anki source
+        // If the seed was generated from Zen Mode, force it to Words mode and Tango source
         if (mode === "zen") {
             mode = "words";
-            source = "anki";
+            source = "tango";
         }
 
         // 1. Set the UI states first (pass 'false' to avoid triggering full generations)
@@ -701,7 +718,7 @@ let currentIndex = 0;
 
         renderWordBlock();
         statusEl.className = "status-badge status-online";
-        //statusEl.textContent = `${activeWordList.length} TRACKS //SYNCED`;
+        statusEl.textContent = `${activeWordList.length} TRACKS SYNCED`;
 
         openTab("test-options");
 
@@ -770,7 +787,7 @@ let currentIndex = 0;
             resCpm.textContent = cpm;
             resTime.textContent = `${elapsedTimeSec}s`;
             resTyped.textContent = totalScore;
-            resTypedLabel.textContent = (activeSource === "anki") ? "WORDS TYPED" : "CHARS TYPED";
+            resTypedLabel.textContent = (activeSource === "tango") ? "WORDS TYPED" : "CHARS TYPED";
 
             resCompletedList.innerHTML = "";
             completedItemsSession.forEach(item => {
@@ -823,12 +840,15 @@ let currentIndex = 0;
     // Automatically exit Zen Mode if another source is clicked
     if (isZenMode) toggleZenMode();
 
+    // Legacy alias: old seeds/localStorage may still reference "anki" as a source
+    if (source === "anki") source = "tango";
+
     activeSource = source;
     localStorage.setItem("anki_type_source", activeSource);
 
     sourceHiraganaBtn.classList.remove("active");
     sourceKatakanaBtn.classList.remove("active");
-    sourceAnkiBtn.classList.remove("active");
+    sourceTangoBtn.classList.remove("active");
 
     if (source === "hiragana" || source === "katakana") {
         if (source === "hiragana") sourceHiraganaBtn.classList.add("active");
@@ -838,20 +858,114 @@ let currentIndex = 0;
         modeWordsBtn.disabled = true;
         infiniteTimeBtn.classList.remove("hidden");
         kanaCountGroup.classList.remove("hidden");
+        tangoLevelGroup.classList.add("hidden");
         setMode("time", false);
     } else {
-        sourceAnkiBtn.classList.add("active");
+        sourceTangoBtn.classList.add("active");
         scoreLabel.textContent = "WORDS TYPED";
         modeWordsBtn.disabled = false;
         infiniteTimeBtn.classList.add("hidden");
         kanaCountGroup.classList.add("hidden");
+        tangoLevelGroup.classList.remove("hidden");
+        updateTangoLevelUI();
         if (testTimeSetting === "infinite") {
             testTimeSetting = "30";
         }
         setMode(activeMode, false);
     }
     if (shouldReload) {
-        applyWordCountFilter();
+        if (source === "tango") {
+            loadTangoSource(activeTangoLevel);
+        } else {
+            applyWordCountFilter();
+        }
+    }
+}
+
+function updateTangoLevelUI() {
+    tangoLevelBtns.forEach(btn => btn.classList.toggle("active", btn.dataset.tangoLevel === activeTangoLevel));
+}
+
+function setTangoLevel(level, shouldReload = true) {
+    activeTangoLevel = level;
+    localStorage.setItem("anki_type_tango_level", activeTangoLevel);
+    updateTangoLevelUI();
+    if (shouldReload) {
+        loadTangoSource(activeTangoLevel);
+    }
+}
+
+function loadTangoSource(level) {
+    if (level === "anki") {
+        if (ankiDeckCache.length > 0) {
+            masterDeckList = ankiDeckCache;
+            if (initialSeedParam) {
+                loadFromSeed(initialSeedParam);
+                initialSeedParam = null;
+            } else {
+                applyWordCountFilter();
+            }
+        } else if (deckDropdown.value) {
+            loadAnkiDeck(deckDropdown.value);
+        }
+        // Otherwise no deck is known yet; populateDecks() will trigger the initial load.
+        return;
+    }
+
+    if (tangoJsonCache[level]) {
+        masterDeckList = tangoJsonCache[level];
+        finalizeTangoJsonLoad(level);
+        return;
+    }
+
+    fetchTangoJson(level);
+}
+
+async function fetchTangoJson(level) {
+    statusEl.className = "status-badge status-loading";
+    statusEl.textContent = "LOADING QUEUE";
+
+    try {
+        const response = await fetch(`${level}.json`);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const data = await response.json();
+
+        const parsed = data.map(item => ({
+            kanji: item.kanji || item.expression || "N/A",
+            romaji: (item.romaji || wanakana.toRomaji(item.reading || item.kanji || "")).toLowerCase().trim(),
+            meaning: item.meaning || item.definition || "N/A"
+        })).filter(word => word.romaji !== "");
+
+        tangoJsonCache[level] = parsed;
+
+        if (activeSource === "tango" && activeTangoLevel === level) {
+            masterDeckList = parsed;
+            finalizeTangoJsonLoad(level);
+        }
+    } catch (err) {
+        console.error(`Failed to load ${level}.json:`, err);
+        if (activeSource === "tango" && activeTangoLevel === level) {
+            statusEl.textContent = `${level.toUpperCase()} DATA MISSING`;
+            statusEl.className = "status-badge status-offline";
+            wordsContainer.innerHTML = `<div class="empty-state">No data file found for ${level.toUpperCase()}. Add ${level}.json to the project root.</div>`;
+        }
+    }
+}
+
+function finalizeTangoJsonLoad(level) {
+    if (masterDeckList.length > 0) {
+        statusEl.className = "status-badge status-online";
+        statusEl.textContent = `${masterDeckList.length} TRACKS SYNCED`;
+        if (initialSeedParam) {
+            loadFromSeed(initialSeedParam);
+            initialSeedParam = null;
+        } else {
+            applyWordCountFilter();
+        }
+    } else {
+        statusEl.textContent = "PARSE ERROR";
+        statusEl.className = "status-badge status-offline";
+        wordsContainer.innerHTML = '<div class="empty-state">Unable to parse cards from selected level.</div>';
     }
 }
 
@@ -1006,6 +1120,11 @@ function setMode(mode, shouldReload = true) {
             deckDropdown.addEventListener("change", (e) => {
                 if (e.target.value) {
                     localStorage.setItem("anki_type_deck", e.target.value);
+                    if (activeSource === "tango" && activeTangoLevel !== "anki") {
+                        activeTangoLevel = "anki";
+                        localStorage.setItem("anki_type_tango_level", activeTangoLevel);
+                        updateTangoLevelUI();
+                    }
                     loadAnkiDeck(e.target.value);
                 }
             });
@@ -1015,7 +1134,9 @@ function setMode(mode, shouldReload = true) {
                     ? savedSelectedDeck
                     : decks[0];
                 deckDropdown.value = targetDeck;
-                loadAnkiDeck(targetDeck);
+                if (activeSource === "tango" && activeTangoLevel === "anki") {
+                    loadAnkiDeck(targetDeck);
+                }
             }
         }
 
@@ -1027,13 +1148,16 @@ function setMode(mode, shouldReload = true) {
             if (!findResult || !findResult.result || findResult.result.length === 0) {
                 statusEl.textContent = "DECK EMPTY";
                 statusEl.className = "status-badge status-offline";
-                wordsContainer.innerHTML = `<div class="empty-state">No cards found in deck "${targetDeckName}".</div>`;
+                ankiDeckCache = [];
+                if (activeSource === "tango" && activeTangoLevel === "anki") {
+                    wordsContainer.innerHTML = `<div class="empty-state">No cards found in deck "${targetDeckName}".</div>`;
+                }
                 return;
             }
 
             const notesResult = await fetchFromAnki("notesInfo", { notes: findResult.result });
 
-            masterDeckList = notesResult.result.map(note => {
+            ankiDeckCache = notesResult.result.map(note => {
                 const fields = note.fields;
                 let rawKanji = getFieldValue(fields, KANJI_FIELDS);
                 let rawRomaji = getFieldValue(fields, READING_FIELDS);
@@ -1049,21 +1173,26 @@ function setMode(mode, shouldReload = true) {
                 };
             }).filter(word => word.romaji !== "");
 
-            if (masterDeckList.length > 0) {
-                statusEl.className = "status-badge status-online";
-                statusEl.textContent = `${masterDeckList.length} TRACKS SYNCED`;
-
-                const urlParams = new URLSearchParams(window.location.search);
-                const seedParam = urlParams.get("seed");
-                if (seedParam) {
-                    loadFromSeed(seedParam);
-                } else if (activeSource === "anki") {
-                    applyWordCountFilter();
-                }
-            } else {
+            if (ankiDeckCache.length === 0) {
                 statusEl.textContent = "PARSE ERROR";
                 statusEl.className = "status-badge status-offline";
-                wordsContainer.innerHTML = '<div class="empty-state">Unable to parse cards from selected deck.</div>';
+                if (activeSource === "tango" && activeTangoLevel === "anki") {
+                    wordsContainer.innerHTML = '<div class="empty-state">Unable to parse cards from selected deck.</div>';
+                }
+                return;
+            }
+
+            statusEl.className = "status-badge status-online";
+            statusEl.textContent = `${ankiDeckCache.length} TRACKS SYNCED`;
+
+            if (activeSource === "tango" && activeTangoLevel === "anki") {
+                masterDeckList = ankiDeckCache;
+                if (initialSeedParam) {
+                    loadFromSeed(initialSeedParam);
+                    initialSeedParam = null;
+                } else {
+                    applyWordCountFilter();
+                }
             }
         }
 
@@ -1327,7 +1456,11 @@ function setMode(mode, shouldReload = true) {
 
         sourceHiraganaBtn.addEventListener("click", () => setSource("hiragana", true));
         sourceKatakanaBtn.addEventListener("click", () => setSource("katakana", true));
-        sourceAnkiBtn.addEventListener("click", () => setSource("anki", true));
+        sourceTangoBtn.addEventListener("click", () => setSource("tango", true));
+
+        tangoLevelBtns.forEach(btn => {
+            btn.addEventListener("click", () => setTangoLevel(btn.dataset.tangoLevel, true));
+        });
 
         countBtns.forEach(btn => {
             btn.addEventListener("click", () => {
@@ -1625,6 +1758,8 @@ function setMode(mode, shouldReload = true) {
                 }
             }
         }
+
+        document.getElementById("footer-year").textContent = new Date().getFullYear();
 
         setSource(activeSource);
         populateDecks();

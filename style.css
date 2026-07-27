@@ -264,7 +264,11 @@ body {
     background-color: var(--accent-main);
     border-radius: 50%;
     display: inline-block;
-    font-size: 5rem;
+    flex-shrink: 0;
+}
+
+.logo-text {
+    font-size: 1.4rem;
 }
 
 .nav-actions {
@@ -384,7 +388,7 @@ body {
     background-color: var(--border-color);
 }
 
-.mode-btn, .source-btn, .count-btn, .time-btn, .kana-count-btn {
+.mode-btn, .source-btn, .count-btn, .time-btn, .kana-count-btn, .tango-level-btn {
     background: transparent;
     border: none;
     color: var(--text-muted);
@@ -396,11 +400,11 @@ body {
     transition: all 0.2s ease;
 }
 
-.mode-btn:hover, .source-btn:hover, .count-btn:hover, .time-btn:hover, .kana-count-btn:hover {
+.mode-btn:hover, .source-btn:hover, .count-btn:hover, .time-btn:hover, .kana-count-btn:hover, .tango-level-btn:hover {
     color: var(--text-primary);
 }
 
-.mode-btn.active, .source-btn.active, .count-btn.active, .time-btn.active, .kana-count-btn.active {
+.mode-btn.active, .source-btn.active, .count-btn.active, .time-btn.active, .kana-count-btn.active, .tango-level-btn.active {
     background-color: var(--accent-main);
     color: var(--bg-color);
 }
@@ -1111,9 +1115,38 @@ gap: 12px;
 }
 
 .footer-content {
+    width: 100%;
+    max-width: 1100px;
     display: flex;
     align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
     gap: 12px;
+}
+
+.footer-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.footer-brand {
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 700;
+    font-size: 0.85rem;
+    color: var(--text-primary);
+}
+
+.footer-copyright {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+}
+
+.footer-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
 }
 
 .footer-text {
@@ -1122,7 +1155,34 @@ gap: 12px;
     color: var(--text-muted);
 }
 
+.footer-link {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.85rem;
+    font-weight: 700;
+    text-decoration: none;
+    color: var(--text-muted);
+    padding: 6px 12px;
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    transition: all 0.2s ease;
+}
+
+.footer-link:hover {
+    color: var(--text-primary);
+    border-color: var(--text-muted);
+}
+
+.footer-link-icon {
+    width: 15px;
+    height: 15px;
+}
+
 .app-footer .kofi-btn-icon {
+    display: flex;
+    align-items: center;
+    gap: 6px;
     font-size: 0.85rem;
     font-weight: 700;
     text-decoration: none;
