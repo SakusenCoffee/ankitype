@@ -364,6 +364,61 @@ body {
 .status-offline { background-color: rgba(229, 83, 75, 0.2); color: var(--accent-red); }
 .status-loading { background-color: rgba(83, 155, 245, 0.2); color: var(--accent-main); }
 
+/* ANKI CONNECTION HELP */
+.anki-warning {
+    background-color: rgba(229, 83, 75, 0.1);
+    border: 1px solid var(--accent-red);
+    border-radius: 8px;
+    padding: 12px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.anki-warning-title {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    color: var(--accent-red);
+}
+
+.anki-warning p {
+    margin: 0;
+    font-size: 0.8rem;
+    line-height: 1.5;
+    color: var(--text-primary);
+}
+
+.anki-warning code {
+    font-family: 'JetBrains Mono', 'Consolas', monospace;
+    font-size: 0.75rem;
+    background-color: var(--bg-color);
+    border-radius: 4px;
+    padding: 1px 5px;
+    word-break: break-all;
+}
+
+.anki-warning kbd {
+    font-family: 'JetBrains Mono', 'Consolas', monospace;
+    font-size: 0.7rem;
+    font-weight: 700;
+    background-color: var(--nav-bg);
+    border: 1px solid var(--border-color);
+    border-bottom-width: 2px;
+    border-radius: 4px;
+    padding: 1px 6px;
+    white-space: nowrap;
+}
+
+.anki-note {
+    margin: 0;
+    font-size: 0.75rem;
+    line-height: 1.5;
+    color: var(--text-muted);
+}
+
 /* CONTROL GROUPS & SELECTORS */
 .word-count-nav {
     flex-direction: row;

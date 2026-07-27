@@ -90,18 +90,18 @@
         <div class="nav-drawer" id="test-options-drawer">
             <div class="drawer-inner word-count-nav">
                 <div class="count-selector-group">
-                    <button class="mode-btn active" id="mode-words-btn">words</button>
-                    <button class="mode-btn" id="mode-time-btn">time</button>
+                    <button class="mode-btn" id="mode-words-btn">words</button>
+                    <button class="mode-btn active" id="mode-time-btn">time</button>
                     <button class="mode-btn" id="mode-zen-btn">zen</button>
                 </div>
                 <div class="selector-divider"></div>
                 <div class="count-selector-group">
-                    <button class="source-btn" id="source-hiragana-btn">hiragana</button>
+                    <button class="source-btn active" id="source-hiragana-btn">hiragana</button>
                     <button class="source-btn" id="source-katakana-btn">katakana</button>
-                    <button class="source-btn active" id="source-tango-btn">tango</button>
+                    <button class="source-btn" id="source-tango-btn">tango</button>
                 </div>
                 <div class="selector-divider"></div>
-                <div class="count-selector-group" id="tango-level-group">
+                <div class="count-selector-group hidden" id="tango-level-group">
                     <button class="tango-level-btn active" data-tango-level="anki">anki</button>
                     <button class="tango-level-btn" data-tango-level="n5">N5</button>
                     <button class="tango-level-btn" data-tango-level="n4">N4</button>
@@ -110,7 +110,7 @@
                     <button class="tango-level-btn" data-tango-level="n1">N1</button>
                 </div>
                 <div class="selector-divider"></div>
-                <div class="count-selector-group" id="word-options-group">
+                <div class="count-selector-group hidden" id="word-options-group">
                     <button class="count-btn" data-count="10">10w</button>
                     <button class="count-btn" data-count="25">25w</button>
                     <button class="count-btn" data-count="50">50w</button>
@@ -118,9 +118,9 @@
                     <button class="count-btn active" data-count="max">max</button>
                     <button class="count-btn" data-count="custom" id="custom-count-btn">custom</button>
                 </div>
-                <div class="count-selector-group hidden" id="time-options-group">
-                    <button class="time-btn" data-time="15">15s</button>
-                    <button class="time-btn active" data-time="30">30s</button>
+                <div class="count-selector-group" id="time-options-group">
+                    <button class="time-btn active" data-time="15">15s</button>
+                    <button class="time-btn" data-time="30">30s</button>
                     <button class="time-btn" data-time="60">60s</button>
                     <button class="time-btn" data-time="120">120s</button>
                     <button class="time-btn hidden" data-time="infinite" id="infinite-time-btn">infinite</button>
@@ -130,8 +130,8 @@
                     <input type="number" id="custom-time-input" min="1" placeholder="Secs..." />
                     <button id="custom-time-submit">Set</button>
                 </div>
-                <div class="count-selector-group hidden" id="kana-count-group">
-                    <button class="kana-count-btn" data-kana-count="10">10c</button>
+                <div class="count-selector-group" id="kana-count-group">
+                    <button class="kana-count-btn active" data-kana-count="10">10c</button>
                     <button class="kana-count-btn" data-kana-count="25">25c</button>
                     <button class="kana-count-btn" data-kana-count="50">50c</button>
                     <button class="kana-count-btn" data-kana-count="100">100c</button>
@@ -151,12 +151,18 @@
                     <span class="drawer-title">ANKI CONNECTION</span>
                     <div class="status-badge" id="status">INIT CONNECTION</div>
                 </div>
+                <div class="anki-warning hidden" id="anki-warning">
+                    <span class="anki-warning-title">Can't reach Anki</span>
+                    <p>Anki needs to be open on this machine with the <strong>AnkiConnect</strong> add-on installed, and <code>https://tangotype.com</code> must be allowed in AnkiConnect's CORS list.</p>
+                    <p>In Anki, press <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>A</kbd> to open the add-ons window. Select <strong>AnkiConnect</strong>, click <strong>Config</strong>, then add <code>https://tangotype.com</code> to the <code>webCorsOriginList</code> array and restart Anki.</p>
+                </div>
                 <div class="selector-container">
                     <label for="deck-select">SELECT DECK</label>
                     <select id="deck-select">
                         <option value="">Querying local database...</option>
                     </select>
                 </div>
+                <p class="anki-note">Words are pulled from <strong>Lapis</strong>-styled decks. Decks built on other note types may not expose a compatible expression field, so not every deck will load correctly.</p>
             </div>
         </div>
 
@@ -501,13 +507,15 @@ let currentIndex = 0;
         let showRomaji = false;
         let showMeaning = false;
 
-        let activeMode = localStorage.getItem("anki_type_mode") || "words";
-        let activeSource = localStorage.getItem("anki_type_source") || "tango";
+        // First-ever visit defaults to a 15s timed hiragana test with 10 characters.
+        // Returning visitors keep whatever they last picked.
+        let activeMode = localStorage.getItem("anki_type_mode") || "time";
+        let activeSource = localStorage.getItem("anki_type_source") || "hiragana";
         if (activeSource === "anki") activeSource = "tango"; // legacy alias
         let activeTangoLevel = localStorage.getItem("anki_type_tango_level") || "anki";
         let wordCountSetting = localStorage.getItem("anki_type_word_count") || "max";
-        let testTimeSetting = localStorage.getItem("anki_type_time_setting") || "30";
-        let kanaCountSetting = localStorage.getItem("anki_type_kana_count") || "25";
+        let testTimeSetting = localStorage.getItem("anki_type_time_setting") || "15";
+        let kanaCountSetting = localStorage.getItem("anki_type_kana_count") || "10";
 
         let mainFontSize = localStorage.getItem("anki_type_main_font_size") || "2.2";
         let subFontSize = localStorage.getItem("anki_type_sub_font_size") || "1.0";
@@ -541,6 +549,7 @@ let currentIndex = 0;
         function isKatakana(ch) { return /[\u30a0-\u30ff]/.test(ch); }
 
         const statusEl = document.getElementById("status");
+        const ankiWarningEl = document.getElementById("anki-warning");
         const wordsContainer = document.getElementById("words-container");
         const scoreEl = document.getElementById("score-val");
         const scoreLabel = document.getElementById("score-label");
@@ -1196,9 +1205,13 @@ function setMode(mode, shouldReload = true) {
                 statusEl.textContent = "OFFLINE - START ANKI";
                 statusEl.className = "status-badge status-offline";
                 deckDropdown.innerHTML = '<option value="">Network Error</option>';
+                // A blocked CORS origin is indistinguishable from Anki being closed
+                // from here, so the warning covers both cases.
+                ankiWarningEl.classList.remove("hidden");
                 return;
             }
 
+            ankiWarningEl.classList.add("hidden");
             const decks = response.result;
             deckDropdown.innerHTML = "";
 
