@@ -156,6 +156,11 @@
                 </div>
                 <div class="filter-chip-row" id="filter-chip-row"></div>
 
+                <div class="filter-status-row">
+                    <button type="button" class="filter-undo-btn" id="filter-undo-btn" disabled>↶ UNDO</button>
+                    <span class="filter-status" id="filter-status"></span>
+                </div>
+
                 <form class="filter-editor hidden" id="filter-editor">
                     <div class="filter-editor-grid">
                         <label class="filter-field">
@@ -182,7 +187,6 @@
                     </div>
                 </form>
 
-                <div class="filter-status" id="filter-status"></div>
             </div>
         </div>
 
@@ -636,9 +640,11 @@
             if (chunks.length) {
                 const addition = chunks.join("\n");
                 const existing = jpTextArea.value.trim();
-                jpTextArea.value = existing ? `${existing}\n${addition}` : addition;
-                // PyScript recounts on "input", which assigning .value does not fire
-                jpTextArea.dispatchEvent(new Event("input", { bubbles: true }));
+                // Goes through the undo stack too, so an unwanted import can be stepped back
+                commitWorkshopText(
+                    existing ? `${existing}\n${addition}` : addition,
+                    `Import ${imported} file(s)`
+                );
             }
 
             if (imported && skipped.length) {
@@ -684,6 +690,15 @@
            alongside them, and only those can be edited or deleted. */
 
         const BUILTIN_TEXT_FILTERS = [
+            {
+                // Speaker labels in subtitles usually sit in lenticular brackets
+                // (【名前】); this clears those and every other bracketed aside with them
+                id: "builtin-names",
+                name: "Strip names & brackets",
+                pattern: "【[^】]*】|〔[^〕]*〕|〖[^〗]*〗|〘[^〙]*〙|〚[^〛]*〛|［[^］]*］|（[^）]*）|\\([^)]*\\)|\\[[^\\]]*\\]|＜[^＞]*＞|<[^>]*>",
+                flags: "g",
+                replacement: ""
+            },
             {
                 id: "builtin-furigana",
                 name: "Strip furigana",
@@ -748,6 +763,7 @@
         const filterEditorError = document.getElementById("filter-editor-error");
         const filterCancelBtn = document.getElementById("filter-cancel-btn");
         const filterStatus = document.getElementById("filter-status");
+        const filterUndoBtn = document.getElementById("filter-undo-btn");
 
         let customTextFilters = [];
         let editingFilterId = null;
@@ -771,6 +787,49 @@
             filterStatus.classList.toggle("is-error", isError);
         }
 
+        /* Undo stack for the workshop textarea. Assigning .value wipes the browser's own
+           undo buffer, so every programmatic edit (a filter, a file import) snapshots the
+           text it replaced and can be stepped back through. */
+
+        const MAX_WORKSHOP_HISTORY = 50;
+        let workshopHistory = [];
+        // What the textarea held right after the last programmatic edit. If it no longer
+        // matches, the user has typed since, and Ctrl+Z belongs to the browser instead.
+        let textAfterLastChange = null;
+
+        function updateUndoButton() {
+            const last = workshopHistory[workshopHistory.length - 1];
+            filterUndoBtn.disabled = !last;
+            filterUndoBtn.title = last ? `Undo "${last.label}"` : "Nothing to undo";
+        }
+
+        // Applies a programmatic edit and records the text it replaced
+        function commitWorkshopText(newText, label) {
+            const textarea = document.getElementById("jptext");
+            if (!textarea) return;
+
+            workshopHistory.push({ text: textarea.value, label });
+            if (workshopHistory.length > MAX_WORKSHOP_HISTORY) workshopHistory.shift();
+
+            textarea.value = newText;
+            textAfterLastChange = newText;
+            // PyScript recounts on "input", which assigning .value does not fire
+            textarea.dispatchEvent(new Event("input", { bubbles: true }));
+            updateUndoButton();
+        }
+
+        function undoWorkshopChange() {
+            const textarea = document.getElementById("jptext");
+            const last = workshopHistory.pop();
+            if (!textarea || !last) return;
+
+            textarea.value = last.text;
+            textAfterLastChange = last.text;
+            textarea.dispatchEvent(new Event("input", { bubbles: true }));
+            setFilterStatus(`Undid "${last.label}".`);
+            updateUndoButton();
+        }
+
         function applyTextFilter(filter) {
             const textarea = document.getElementById("jptext");
             if (!textarea) return;
@@ -789,15 +848,31 @@
                 return;
             }
 
-            textarea.value = result;
-            // PyScript recounts on "input", which assigning .value does not fire
-            textarea.dispatchEvent(new Event("input", { bubbles: true }));
+            // A filter that changed nothing shouldn't take up a slot on the undo stack
+            if (result === before) {
+                setFilterStatus(`"${filter.name}" matched nothing.`);
+                return;
+            }
 
-            const removed = before.length - result.length;
-            setFilterStatus(removed === 0
-                ? `"${filter.name}" matched nothing.`
-                : `"${filter.name}" removed ${removed} character(s).`);
+            commitWorkshopText(result, filter.name);
+            setFilterStatus(`"${filter.name}" removed ${before.length - result.length} character(s).`);
         }
+
+        filterUndoBtn.addEventListener("click", undoWorkshopChange);
+
+        // Ctrl/Cmd+Z in the workshop. Only taken over while the text still matches our
+        // last edit; once the user has typed over it, native undo handles their typing.
+        document.addEventListener("keydown", e => {
+            if (!isZenMode) return;
+            if (!(e.ctrlKey || e.metaKey) || e.shiftKey || e.key.toLowerCase() !== "z") return;
+
+            const textarea = document.getElementById("jptext");
+            if (!textarea || !workshopHistory.length) return;
+            if (textarea.value !== textAfterLastChange) return;
+
+            e.preventDefault();
+            undoWorkshopChange();
+        });
 
         function renderFilterChips() {
             filterChipRow.innerHTML = "";
@@ -922,6 +997,7 @@
 
         loadCustomFilters();
         renderFilterChips();
+        updateUndoButton();
 
         let rowCountSetting = localStorage.getItem("anki_type_row_count") || "3";
 

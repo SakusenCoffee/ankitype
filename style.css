@@ -1438,6 +1438,36 @@ box-shadow: 0 0 0 2px rgba(83, 155, 245, 0.2);
     background-color: var(--accent-hover);
 }
 
+.filter-status-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.filter-undo-btn {
+    background: transparent;
+    border: 1px solid var(--border-color);
+    color: var(--text-primary);
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    font-family: inherit;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: all 0.2s ease;
+}
+
+.filter-undo-btn:hover:not(:disabled) {
+    color: var(--accent-main);
+    border-color: var(--accent-main);
+}
+
+.filter-undo-btn:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+}
+
 .filter-status {
     font-size: 0.72rem;
     color: var(--text-muted);
