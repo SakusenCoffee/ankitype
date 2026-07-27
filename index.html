@@ -1218,9 +1218,6 @@ let currentIndex = 0;
            reading, which wanakana can then turn into romaji. Its dictionary is a large
            download, so it is fetched on first use rather than at page load. */
 
-        const KUROMOJI_SCRIPT = "https://cdn.jsdelivr.net/npm/kuromoji@0.1.2/build/kuromoji.js";
-        const KUROMOJI_DICT = "https://cdn.jsdelivr.net/npm/kuromoji@0.1.2/dict/";
-
         // kuromoji gives a part of speech rather than a definition, so this is what the
         // meaning line shows for workshop words. Translated, since the rest of the UI is
         // in English.
@@ -1239,7 +1236,6 @@ let currentIndex = 0;
             "その他": "Other"
         };
 
-        let tokenizerPromise = null;
         let meaningLookupPromise = null;
 
         /* The JLPT word lists carry English glosses, so workshop words that appear in them
@@ -1290,8 +1286,8 @@ let currentIndex = 0;
         function lookupMeaning(token, lookup) {
             if (!lookup) return null;
 
-            const direct = lookup.byWord.get(token.surface_form)
-                || (token.basic_form && token.basic_form !== "*" && lookup.byWord.get(token.basic_form));
+            const direct = lookup.byWord.get(token.surface)
+                || (token.basic && lookup.byWord.get(token.basic));
             if (direct) return direct;
 
             // Matching on kana alone is only safe for multi-character content words.
@@ -1299,41 +1295,38 @@ let currentIndex = 0;
             // unrelated noun sharing its sound: は would be glossed "tooth" (歯),
             // に "two" (二), た "other" (他). Better no definition than a wrong one.
             const canMatchOnReading = CONTENT_POS.has(token.pos)
-                && token.surface_form.length > 1
-                && token.reading && token.reading !== "*";
+                && token.surface.length > 1
+                && token.reading;
 
             return canMatchOnReading
                 ? lookup.byReading.get(wanakana.toHiragana(token.reading)) || null
                 : null;
         }
 
-        function loadTokenizer() {
-            if (tokenizerPromise) return tokenizerPromise;
-
-            tokenizerPromise = new Promise((resolve, reject) => {
-                const script = document.createElement("script");
-                script.src = KUROMOJI_SCRIPT;
-                script.onerror = () => reject(new Error("Could not load the tokenizer"));
-                script.onload = () => {
-                    kuromoji.builder({ dicPath: KUROMOJI_DICT }).build((err, tokenizer) => {
-                        if (err) reject(err);
-                        else resolve(tokenizer);
-                    });
-                };
-                document.head.appendChild(script);
+        // Tokenising runs on the server. Building kuromoji's dictionary in the browser
+        // meant an 18MB download and ~300MB allocated on the main thread for every
+        // visitor — enough to stall a machine outright — to do work that takes about 2ms
+        // once the dictionary exists. The server builds it once and shares it.
+        async function fetchTokens(text) {
+            const res = await fetch(`${API_BASE}/api/tokenize`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ text })
             });
 
-            // Let a failed attempt be retried rather than caching the rejection forever
-            tokenizerPromise.catch(() => { tokenizerPromise = null; });
-            return tokenizerPromise;
+            if (!res.ok) {
+                const detail = await res.json().catch(() => ({}));
+                throw new Error(detail.error || `HTTP ${res.status}`);
+            }
+            return (await res.json()).tokens || [];
         }
 
         // Splits workshop text into typable words. Entries whose reading can't be resolved
         // to plain romaji are dropped: an untypable word would stall the test outright.
         async function tokenizeWorkshopText(text) {
             // Meanings are a nicety, so a failed lookup must not sink the whole seed
-            const [tokenizer, lookup] = await Promise.all([
-                loadTokenizer(),
+            const [tokens, lookup] = await Promise.all([
+                fetchTokens(text),
                 loadMeaningLookup().catch(() => null)
             ]);
 
@@ -1341,13 +1334,12 @@ let currentIndex = 0;
             let skipped = 0;
             let defined = 0;
 
-            for (const token of tokenizer.tokenize(text)) {
-                const surface = token.surface_form.trim();
+            for (const token of tokens) {
+                const surface = (token.surface || "").trim();
                 if (!surface) continue;
                 if (token.pos === "記号") continue;   // punctuation and symbols
 
-                const reading = token.reading && token.reading !== "*" ? token.reading : surface;
-                const romaji = wanakana.toRomaji(reading).toLowerCase().trim();
+                const romaji = wanakana.toRomaji(token.reading || surface).toLowerCase().trim();
 
                 if (!/^[a-z]+$/.test(romaji)) {
                     skipped++;
@@ -1392,7 +1384,7 @@ let currentIndex = 0;
                     setFilterStatus(parts.join(" · ") + ".");
                 } catch (err) {
                     console.error("Tokenizer unavailable:", err);
-                    setFilterStatus("Couldn't load the tokenizer, so readings are unavailable.", true);
+                    setFilterStatus(`Couldn't reach the server to read this text: ${err.message}`, true);
                     return null;
                 }
             } else {
@@ -2571,7 +2563,7 @@ function setMode(mode, shouldReload = true) {
             const spanEl = copySeedBtn.querySelector("span");
             const originalText = spanEl.textContent;
 
-            // The first workshop seed of a session waits on the dictionary download
+            // Round trip to the server, plus a dictionary build there if it has gone idle
             if (isZenMode) {
                 copySeedBtn.disabled = true;
                 spanEl.textContent = "Reading...";

@@ -45,7 +45,20 @@ app.use(cors({
         callback(new Error('Not allowed by CORS'));
     }
 }));
-app.use(express.json());
+// 1mb rather than the 100kb default: the workshop sends whole subtitle files to
+// /api/tokenize, and a long one exceeds the default several times over in UTF-8.
+app.use(express.json({ limit: '1mb' }));
+
+// Body-parser rejections would otherwise return an HTML page with a stack trace
+app.use((err, req, res, next) => {
+    if (err && err.type === 'entity.too.large') {
+        return res.status(413).json({ error: 'That text is too large to send.' });
+    }
+    if (err instanceof SyntaxError && 'body' in err) {
+        return res.status(400).json({ error: 'Malformed request.' });
+    }
+    next(err);
+});
 app.use('/uploads', express.static(uploadDir));
 app.use(express.static(__dirname));
 
@@ -253,6 +266,114 @@ app.post('/api/profile/avatar', authenticateToken, upload.single('avatar'), (req
     }
 
     res.json({ avatar: avatarUrl });
+});
+
+/* ---- Japanese tokenisation --------------------------------------------------------
+   Segmenting text and reading kanji needs kuromoji's dictionary. Building it costs
+   ~300MB of resident memory and, in a browser, an 18MB download plus a long main-thread
+   stall — enough to lock up a machine for a two-word seed. Tokenising itself takes about
+   2ms. So the dictionary is built here, once, and shared by every request.
+
+   It is built on demand rather than at boot, and dropped again once the workshop has
+   been idle, so an instance that nobody is using doesn't hold 300MB. Rebuilding costs
+   roughly 200ms on the next request. */
+
+const kuromoji = require('kuromoji');
+const KUROMOJI_DICT = path.join(__dirname, 'node_modules', 'kuromoji', 'dict');
+const TOKENIZER_IDLE_MS = 10 * 60 * 1000;
+const MAX_TOKENIZE_CHARS = 100000;
+
+let tokenizerPromise = null;
+let tokenizerIdleTimer = null;
+
+function releaseTokenizerWhenIdle() {
+    clearTimeout(tokenizerIdleTimer);
+    tokenizerIdleTimer = setTimeout(() => { tokenizerPromise = null; }, TOKENIZER_IDLE_MS);
+    if (tokenizerIdleTimer.unref) tokenizerIdleTimer.unref();
+}
+
+function getTokenizer() {
+    if (!tokenizerPromise) {
+        tokenizerPromise = new Promise((resolve, reject) => {
+            kuromoji.builder({ dicPath: KUROMOJI_DICT })
+                .build((err, tokenizer) => err ? reject(err) : resolve(tokenizer));
+        });
+        // Don't cache a failure; the next request should be free to try again
+        tokenizerPromise.catch(() => { tokenizerPromise = null; });
+    }
+    releaseTokenizerWhenIdle();
+    return tokenizerPromise;
+}
+
+const MAX_SEGMENT_CHARS = 400;
+
+/* kuromoji builds one Viterbi lattice over whatever string it is handed, and the cost
+   grows quadratically: 50k characters in one call takes ~16s, the same text split per
+   line takes ~220ms for the same words. Lines are independent in Japanese, so the text
+   is cut into segments first — on newlines, then on sentence enders, and finally by
+   length for input that has neither. */
+function segmentText(text) {
+    const segments = [];
+
+    for (const line of text.split(/\r?\n/)) {
+        if (!line.trim()) continue;
+        if (line.length <= MAX_SEGMENT_CHARS) {
+            segments.push(line);
+            continue;
+        }
+
+        let buffer = '';
+        for (const sentence of line.split(/(?<=[。！？!?])/)) {
+            if (buffer && (buffer + sentence).length > MAX_SEGMENT_CHARS) {
+                segments.push(buffer);
+                buffer = '';
+            }
+            buffer += sentence;
+            // Still oversized means one unbroken run with no punctuation; cut it
+            while (buffer.length > MAX_SEGMENT_CHARS) {
+                segments.push(buffer.slice(0, MAX_SEGMENT_CHARS));
+                buffer = buffer.slice(MAX_SEGMENT_CHARS);
+            }
+        }
+        if (buffer) segments.push(buffer);
+    }
+
+    return segments;
+}
+
+// Readings only. Romaji conversion and the JLPT gloss lookup stay on the client, which
+// already has wanakana and the word lists, and keeps this response small.
+app.post('/api/tokenize', async (req, res) => {
+    const text = typeof req.body?.text === 'string' ? req.body.text : '';
+    if (!text.trim()) return res.status(400).json({ error: 'No text supplied' });
+    if (text.length > MAX_TOKENIZE_CHARS) {
+        return res.status(413).json({ error: `Text is too long (limit ${MAX_TOKENIZE_CHARS} characters)` });
+    }
+
+    try {
+        const tokenizer = await getTokenizer();
+        const segments = segmentText(text);
+        const tokens = [];
+
+        for (let i = 0; i < segments.length; i++) {
+            for (const t of tokenizer.tokenize(segments[i])) {
+                tokens.push({
+                    surface: t.surface_form,
+                    reading: t.reading && t.reading !== '*' ? t.reading : null,
+                    basic: t.basic_form && t.basic_form !== '*' ? t.basic_form : null,
+                    pos: t.pos
+                });
+            }
+            // tokenize() is synchronous, so without handing the loop back a long
+            // document would stall every other request on this instance
+            if (i % 100 === 99) await new Promise(resolve => setImmediate(resolve));
+        }
+
+        res.json({ tokens });
+    } catch (err) {
+        console.error('Tokenizer failed:', err);
+        res.status(500).json({ error: 'Tokenizer unavailable' });
+    }
 });
 
 const MAX_TEST_HISTORY = 100;
