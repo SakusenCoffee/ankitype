@@ -19,7 +19,7 @@
         <div class="nav-content">
             <div class="nav-left-group">
                 <div class="nav-brand">
-                    <span class="logo-dot"></span> ANKI TYPE
+                    <span class="logo-dot"></span>単語タイプ
                 </div>
             </div>
 
@@ -433,9 +433,9 @@
         ];
 
         let masterDeckList = [];
-        let activeWordList = [];
-        let currentIndex = 0;
-        let typedInput = [];
+let currentSessionDeck = []; // Add this to store the unshuffled test session
+let activeWordList = [];
+let currentIndex = 0;
 
         let totalScore = 0;
         let showRomaji = false;
@@ -640,8 +640,8 @@
         setMode("time", false);
 
         // Force test time to 15 seconds per your requirement
-        testTimeSetting = "15";
-        localStorage.setItem("anki_type_time_setting", testTimeSetting);
+        wordCountSetting = "max";
+        localStorage.setItem("anki_type_word_count", wordCountSetting);
 
         updateCountNavUI();
 
@@ -654,10 +654,6 @@
 
         clearInterval(testTimerInterval);
         isTestActive = false;
-
-        // Update the visual UI timer to match the 15s setting
-        timeRemaining = 15;
-        timeLeftVal.textContent = "15s";
 
         renderWordBlock();
         statusEl.className = "status-badge status-online";
@@ -1023,24 +1019,31 @@ function setMode(mode, shouldReload = true) {
             return list;
         }
 
-        function applyWordCountFilter() {
+        function applyWordCountFilter(reshuffle = true) {
             if (activeSource === "hiragana" || activeSource === "katakana") {
                 const qty = parseInt(kanaCountSetting, 10) || 25;
-                const charSet = (activeSource === "hiragana") ? HIRAGANA_CHARS : KATAKANA_CHARS;
-                activeWordList = generateKanaList(charSet, qty);
+                if (reshuffle || currentSessionDeck.length === 0) {
+                    const charSet = (activeSource === "hiragana") ? HIRAGANA_CHARS : KATAKANA_CHARS;
+                    // Generate a large pool of kana once per session so it can be resized safely
+                    currentSessionDeck = generateKanaList(charSet, Math.max(qty, 500));
+                }
+                activeWordList = currentSessionDeck.slice(0, qty);
             } else {
                 if (masterDeckList.length === 0) return;
-                let listCopy = [...masterDeckList];
-                shuffleArray(listCopy);
+
+                if (reshuffle || currentSessionDeck.length === 0) {
+                    currentSessionDeck = [...masterDeckList];
+                    shuffleArray(currentSessionDeck);
+                }
 
                 if (activeMode === "time") {
-                    activeWordList = listCopy;
+                    activeWordList = currentSessionDeck;
                 } else {
                     if (wordCountSetting === "max") {
-                        activeWordList = listCopy;
+                        activeWordList = currentSessionDeck;
                     } else {
                         let qty = parseInt(wordCountSetting, 10);
-                        activeWordList = isNaN(qty) ? listCopy : listCopy.slice(0, qty);
+                        activeWordList = isNaN(qty) ? currentSessionDeck : currentSessionDeck.slice(0, qty);
                     }
                 }
             }
@@ -1277,7 +1280,7 @@ function setMode(mode, shouldReload = true) {
                     wordCountSetting = value;
                     localStorage.setItem("anki_type_word_count", wordCountSetting);
                     updateCountNavUI();
-                    applyWordCountFilter();
+                    applyWordCountFilter(false); // <--- Add false here
                 }
             });
         });
@@ -1319,7 +1322,7 @@ function setMode(mode, shouldReload = true) {
                     kanaCountSetting = value;
                     localStorage.setItem("anki_type_kana_count", kanaCountSetting);
                     updateCountNavUI();
-                    applyWordCountFilter();
+                    applyWordCountFilter(false); // <--- Add false here
                 }
             });
         });
@@ -1334,7 +1337,7 @@ function setMode(mode, shouldReload = true) {
                     wordCountSetting = val.toString();
                     localStorage.setItem("anki_type_word_count", wordCountSetting);
                 }
-                applyWordCountFilter();
+                applyWordCountFilter(false);
                 updateCountNavUI();
             }
         });
