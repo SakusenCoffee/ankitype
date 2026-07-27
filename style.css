@@ -2182,3 +2182,126 @@ gap: 12px;
 .mp-start-btn {
     padding: 9px 24px;
 }
+
+/* MULTIPLAYER RACE TRACK — stands in for the navbar while a race is running */
+.race-track {
+    margin-top: 20px;
+    width: 90%;
+    max-width: 950px;
+    background-color: var(--nav-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 16px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+    padding: 14px 20px 6px;
+    z-index: 10;
+}
+
+.race-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 10px;
+}
+
+.race-code {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 0.85rem;
+    font-weight: 700;
+    letter-spacing: 4px;
+    color: var(--accent-main);
+}
+
+.race-status {
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: var(--text-muted);
+}
+
+.race-lanes {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+/* The dashed edge is the finish line */
+.race-lane {
+    position: relative;
+    height: 54px;
+    border-bottom: 1px dashed var(--border-color);
+}
+
+.race-lane:last-child {
+    border-bottom: none;
+}
+
+.race-lane.is-you .race-name {
+    color: var(--accent-main);
+}
+
+/* left is set inline as a share of the lane less one runner's width, so a runner at
+   100% finishes flush with the line rather than overshooting it */
+.race-runner {
+    position: absolute;
+    top: 2px;
+    width: 52px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    transition: left 0.12s linear;
+}
+
+.race-avatar {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid var(--border-color);
+    background-color: var(--card-bg);
+}
+
+.race-runner.is-finished .race-avatar {
+    border-color: var(--accent-green);
+}
+
+.race-name {
+    font-size: 0.58rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    max-width: 52px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    text-align: center;
+}
+
+.mp-limit-field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.mp-limit-field span {
+    font-size: 0.6rem;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    color: var(--text-muted);
+}
+
+.mp-limit-field input {
+    width: 70px;
+    background-color: var(--nav-bg);
+    border: 1px solid var(--border-color);
+    color: var(--text-primary);
+    padding: 8px 10px;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    font-weight: 700;
+    text-align: center;
+    outline: none;
+    font-family: inherit;
+}
+
+.mp-limit-field input:focus {
+    border-color: var(--accent-main);
+}

@@ -542,6 +542,7 @@ function roster(room) {
     return [...room.members.values()].map(m => ({
         id: m.id,
         name: m.name,
+        avatar: m.avatar,
         isHost: m.id === room.hostId,
         progress: m.progress,
         finished: m.finished,
@@ -594,6 +595,10 @@ wss.on('connection', (ws) => {
         }
 
         const name = String(msg.name || 'Guest').trim().slice(0, 24) || 'Guest';
+        // Relayed as-is for the race track; only ever a path this server already serves
+        const avatar = typeof msg.avatar === 'string' && msg.avatar.startsWith('/uploads/')
+            ? msg.avatar.slice(0, 200)
+            : null;
 
         if (msg.type === 'create') {
             leaveRoom(ws);
@@ -601,19 +606,24 @@ wss.on('connection', (ws) => {
             ws.memberId = nextMemberId++;
             ws.roomCode = code;
 
+            // The number the host typed is the room's total, themselves included, so a
+            // limit of 7 leaves room for 6 others.
+            const limit = Math.max(2, Math.min(MAX_ROOM_MEMBERS, Math.round(Number(msg.limit) || 5)));
+
             const room = {
                 code,
                 hostId: ws.memberId,
                 members: new Map(),
                 config: null,
-                racing: false
+                racing: false,
+                limit
             };
             room.members.set(ws.memberId, {
-                id: ws.memberId, name, ws, progress: 0, finished: false, result: null
+                id: ws.memberId, name, ws, avatar, progress: 0, finished: false, result: null
             });
             rooms.set(code, room);
 
-            send(ws, { type: 'joined', code, youId: ws.memberId, isHost: true });
+            send(ws, { type: 'joined', code, youId: ws.memberId, isHost: true, limit });
             broadcastRoster(room);
             return;
         }
@@ -622,18 +632,19 @@ wss.on('connection', (ws) => {
             const code = String(msg.code || '').trim().toUpperCase();
             const room = rooms.get(code);
             if (!room) return send(ws, { type: 'error', message: 'No room with that code.' });
-            if (room.members.size >= MAX_ROOM_MEMBERS) {
-                return send(ws, { type: 'error', message: 'That room is full.' });
+            if (room.members.size >= room.limit) {
+                return send(ws, { type: 'error', message: `That room is full (${room.limit} players).` });
             }
 
             leaveRoom(ws);
             ws.memberId = nextMemberId++;
             ws.roomCode = code;
             room.members.set(ws.memberId, {
-                id: ws.memberId, name, ws, progress: 0, finished: false, result: null
+                id: ws.memberId, name, ws, avatar, progress: 0, finished: false, result: null
             });
 
-            send(ws, { type: 'joined', code, youId: ws.memberId, isHost: room.hostId === ws.memberId });
+            send(ws, { type: 'joined', code, youId: ws.memberId,
+                       isHost: room.hostId === ws.memberId, limit: room.limit });
             if (room.config) send(ws, { type: 'config', config: room.config });
             broadcastRoster(room);
             return;

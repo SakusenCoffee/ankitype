@@ -51,6 +51,15 @@
 <body>
 
     <!-- ROUNDED FLOATING NAVBAR -->
+    <!-- Takes the navbar's place during a race so the track gets the full width -->
+    <div class="race-track hidden" id="race-track">
+        <div class="race-head">
+            <span class="race-code" id="race-code"></span>
+            <span class="race-status" id="race-status"></span>
+        </div>
+        <div class="race-lanes" id="race-lanes"></div>
+    </div>
+
     <nav class="top-navbar">
         <div class="nav-content">
             <div class="nav-left-group">
@@ -343,6 +352,10 @@
                 <!-- Before joining anything -->
                 <div class="mp-lobby" id="mp-lobby">
                     <div class="mp-lobby-row">
+                        <label class="mp-limit-field">
+                            <span>ROOM SIZE</span>
+                            <input type="number" id="mp-limit-input" min="2" max="16" value="5" inputmode="numeric" />
+                        </label>
                         <button class="auth-btn mp-create-btn" id="mp-create-btn">CREATE ROOM</button>
                         <div class="mp-join-group">
                             <input type="text" id="mp-code-input" placeholder="Room code" maxlength="5"
@@ -2434,6 +2447,7 @@ function setMode(mode, shouldReload = true) {
             if (keyTyped === expectedChar) {
                 typedInput.push(keyTyped);
                 correctKeystrokes++;
+                if (isMultiplayerRace) mpReportProgress();
 
                 if (typedInput.length === currentWord.romaji.length) {
                     const finishedWordNode = wordsContainer.children[currentIndex];
@@ -2447,8 +2461,8 @@ function setMode(mode, shouldReload = true) {
 
                     currentIndex++;
                     typedInput = [];
-                    // after the increment, so a finished word counts towards the total
-                    if (isMultiplayerRace) mpReportProgress();
+                    // forced past the throttle, so a completed word always lands
+                    if (isMultiplayerRace) mpReportProgress(true);
 
                     if (currentIndex < activeWordList.length) {
                         wordsContainer.children[currentIndex].classList.add("active");
@@ -2503,9 +2517,32 @@ function setMode(mode, shouldReload = true) {
         const mpGuestNote = document.getElementById("mp-guest-note");
         const mpCodeInput = document.getElementById("mp-code-input");
 
+        const mpLimitInput = document.getElementById("mp-limit-input");
+        const raceTrack = document.getElementById("race-track");
+        const raceLanes = document.getElementById("race-lanes");
+        const raceCodeEl = document.getElementById("race-code");
+        const raceStatusEl = document.getElementById("race-status");
+        const topNavbar = document.querySelector(".top-navbar");
+
         let mpSocket = null;
-        let mpState = { code: null, youId: null, isHost: false, members: [], racing: false };
+        let mpState = { code: null, youId: null, isHost: false, members: [], racing: false, limit: 5 };
         let mpCountdownTimer = null;
+        let mpLastProgressSent = 0;
+
+        // Runners are drawn with the player's own picture, so it travels with them into
+        // the room. Falls back to the bundled default for guests.
+        async function mpMyAvatar() {
+            if (!currentUserToken) return null;
+            try {
+                const res = await fetch(`${API_BASE}/api/profile`, {
+                    headers: { 'Authorization': `Bearer ${currentUserToken}` }
+                });
+                if (!res.ok) return null;
+                return (await res.json()).avatar || null;
+            } catch {
+                return null;
+            }
+        }
 
         function mpSetStatus(el, message, isError = false) {
             el.textContent = message;
@@ -2551,6 +2588,43 @@ function setMode(mode, shouldReload = true) {
                 row.appendChild(right);
                 mpMembers.appendChild(row);
             });
+        }
+
+        // The lane is the full width minus one runner, so a runner at 100% sits against
+        // the finish line rather than half past it.
+        function mpRenderTrack() {
+            raceCodeEl.textContent = mpState.code || "";
+            raceLanes.innerHTML = "";
+
+            mpState.members.forEach(m => {
+                const lane = document.createElement("div");
+                lane.className = "race-lane" + (m.id === mpState.youId ? " is-you" : "");
+
+                const runner = document.createElement("div");
+                runner.className = "race-runner" + (m.finished ? " is-finished" : "");
+                runner.style.left = `calc((100% - 52px) * ${Math.max(0, Math.min(100, m.progress || 0))} / 100)`;
+
+                const img = document.createElement("img");
+                img.className = "race-avatar";
+                img.src = m.avatar ? `${API_BASE}${m.avatar}` : `${API_BASE}/uploads/default.png`;
+                img.onerror = () => { img.src = `${API_BASE}/uploads/default.png`; };
+
+                const name = document.createElement("span");
+                name.className = "race-name";
+                name.textContent = m.name;
+
+                runner.appendChild(img);
+                runner.appendChild(name);
+                lane.appendChild(runner);
+                raceLanes.appendChild(lane);
+            });
+        }
+
+        // The navbar is swapped out entirely while racing so the track has the width
+        function mpShowTrack(show) {
+            raceTrack.classList.toggle("hidden", !show);
+            topNavbar.classList.toggle("hidden", show);
+            if (show) mpRenderTrack();
         }
 
         function mpSend(payload) {
@@ -2600,6 +2674,7 @@ function setMode(mode, shouldReload = true) {
                     mpState.code = msg.code;
                     mpState.youId = msg.youId;
                     mpState.isHost = msg.isHost;
+                    mpState.limit = msg.limit || mpState.limit;
                     mpSetStatus(mpRoomStatus, mpState.isHost
                         ? "Room created. Share the code and start when everyone is in."
                         : "Joined. Waiting for the host.");
@@ -2610,11 +2685,15 @@ function setMode(mode, shouldReload = true) {
                     mpState.members = msg.members || [];
                     mpState.isHost = msg.hostId === mpState.youId;
                     mpRender();
+                    if (mpState.racing) mpRenderTrack();
                     break;
 
                 case "progress": {
                     const m = mpState.members.find(x => x.id === msg.id);
-                    if (m) { m.progress = msg.progress; mpRender(); }
+                    if (!m) break;
+                    m.progress = msg.progress;
+                    mpRender();
+                    if (mpState.racing) mpRenderTrack();
                     break;
                 }
 
@@ -2624,6 +2703,9 @@ function setMode(mode, shouldReload = true) {
 
                 case "raceover":
                     mpState.racing = false;
+                    raceStatusEl.textContent = "Race over";
+                    if (resultModal.classList.contains("hidden")) mpShowTrack(false);
+                    // The board stays up until the results are dismissed
                     mpSetStatus(mpRoomStatus, "Everyone has finished.");
                     break;
 
@@ -2653,7 +2735,10 @@ function setMode(mode, shouldReload = true) {
                 mpSetStatus(mpRoomStatus, "Go!");
                 loadFromSeed(msg.seed);
                 isMultiplayerRace = true;
+                mpLastProgressSent = 0;
                 closeAllDrawers();
+                raceStatusEl.textContent = "Go!";
+                mpShowTrack(true);
             };
 
             clearInterval(mpCountdownTimer);
@@ -2661,18 +2746,36 @@ function setMode(mode, shouldReload = true) {
                 const remaining = Math.ceil((startAt - Date.now()) / 1000);
                 if (remaining > 0) {
                     mpSetStatus(mpRoomStatus, `Starting in ${remaining}...`);
+                    raceStatusEl.textContent = `Starting in ${remaining}...`;
                     return;
                 }
                 begin();
             }, 200);
 
             mpSetStatus(mpRoomStatus, `Starting in ${Math.ceil((msg.startsIn || 3000) / 1000)}...`);
+            raceStatusEl.textContent = `Starting in ${Math.ceil((msg.startsIn || 3000) / 1000)}...`;
+            mpShowTrack(true);
         }
 
-        // Share of the word list completed, so the room can show everyone's position
-        function mpReportProgress() {
-            if (!activeWordList.length) return;
-            mpSend({ type: "progress", progress: (currentIndex / activeWordList.length) * 100 });
+        /* Position along the word list, counted in characters rather than whole words so
+           the runners move continuously instead of jumping a word at a time. Throttled,
+           since a fast typist would otherwise send fifteen messages a second to relay to
+           everyone in the room; the final position of each word is always sent. */
+        const MP_PROGRESS_INTERVAL_MS = 80;
+
+        function mpReportProgress(force = false) {
+            if (!isMultiplayerRace || !activeWordList.length) return;
+
+            const now = Date.now();
+            if (!force && now - mpLastProgressSent < MP_PROGRESS_INTERVAL_MS) return;
+            mpLastProgressSent = now;
+
+            const word = activeWordList[currentIndex];
+            const partial = word && word.romaji.length
+                ? typedInput.length / word.romaji.length
+                : 0;
+            const done = Math.min(activeWordList.length, currentIndex + partial);
+            mpSend({ type: "progress", progress: (done / activeWordList.length) * 100 });
         }
 
         function closeAllDrawers() {
@@ -2685,8 +2788,10 @@ function setMode(mode, shouldReload = true) {
         document.getElementById("mp-create-btn").onclick = async () => {
             mpSetStatus(mpStatus, "Connecting...");
             try {
+                const avatar = await mpMyAvatar();
+                const limit = Math.max(2, Math.min(16, Math.round(Number(mpLimitInput.value) || 5)));
                 await mpConnect();
-                mpSend({ type: "create", name: mpDisplayName() });
+                mpSend({ type: "create", name: mpDisplayName(), avatar, limit });
             } catch (err) {
                 mpSetStatus(mpStatus, "Couldn't reach the multiplayer server.", true);
             }
@@ -2697,8 +2802,9 @@ function setMode(mode, shouldReload = true) {
             if (!code) return mpSetStatus(mpStatus, "Enter a room code first.", true);
             mpSetStatus(mpStatus, "Connecting...");
             try {
+                const avatar = await mpMyAvatar();
                 await mpConnect();
-                mpSend({ type: "join", code, name: mpDisplayName() });
+                mpSend({ type: "join", code, name: mpDisplayName(), avatar });
             } catch (err) {
                 mpSetStatus(mpStatus, "Couldn't reach the multiplayer server.", true);
             }
@@ -2711,6 +2817,7 @@ function setMode(mode, shouldReload = true) {
 
         document.getElementById("mp-leave-btn").onclick = () => {
             mpSend({ type: "leave" });
+            mpShowTrack(false);
             mpState = { code: null, youId: null, isHost: false, members: [], racing: false };
             mpRender();
             mpSetStatus(mpStatus, "Left the room.");
@@ -2922,6 +3029,9 @@ function setMode(mode, shouldReload = true) {
 
         function closeResultModalAndContinue() {
             resultModal.classList.add("hidden");
+            // Finishing first shouldn't take the board away — it stays until everyone is
+            // in, so the rest of the race can be watched.
+            if (typeof mpState !== "undefined" && !mpState.racing) mpShowTrack(false);
             applyWordCountFilter();
         }
 
