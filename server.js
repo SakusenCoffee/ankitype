@@ -506,4 +506,214 @@ app.post('/api/profile/sync', authenticateToken, (req, res) => {
 
 
 
-app.listen(PORT, () => console.log(`Server running on http://localhost:${PORT}`));
+/* ---- Multiplayer rooms -------------------------------------------------------------
+   Rooms live in memory only. They are ephemeral by nature — everyone is connected at
+   once or the room is over — so a restart dropping them is the right behaviour, and it
+   keeps races off the disk the database is on.
+
+   The race itself reuses the seed format the SEED tab already speaks: the host builds a
+   seed from its own settings and the server relays it, so every player is guaranteed the
+   identical word list in the identical order without the server knowing anything about
+   Japanese. */
+
+const http = require('http');
+const { WebSocketServer } = require('ws');
+
+const server = http.createServer(app);
+const wss = new WebSocketServer({ server, path: '/ws' });
+
+const rooms = new Map();
+// No 0/O/1/I/5/S: these get read aloud and typed in by hand
+const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRTUVWXYZ23467889';
+const ROOM_CODE_LENGTH = 5;
+const MAX_ROOM_MEMBERS = 16;
+const HEARTBEAT_MS = 30000;
+
+function makeRoomCode() {
+    let code;
+    do {
+        code = Array.from({ length: ROOM_CODE_LENGTH },
+            () => CODE_ALPHABET[Math.floor(Math.random() * CODE_ALPHABET.length)]).join('');
+    } while (rooms.has(code));
+    return code;
+}
+
+function roster(room) {
+    return [...room.members.values()].map(m => ({
+        id: m.id,
+        name: m.name,
+        isHost: m.id === room.hostId,
+        progress: m.progress,
+        finished: m.finished,
+        result: m.result
+    }));
+}
+
+function send(ws, payload) {
+    if (ws.readyState === ws.OPEN) ws.send(JSON.stringify(payload));
+}
+
+function broadcast(room, payload) {
+    for (const m of room.members.values()) send(m.ws, payload);
+}
+
+function broadcastRoster(room) {
+    broadcast(room, { type: 'roster', hostId: room.hostId, members: roster(room) });
+}
+
+function leaveRoom(ws) {
+    const room = rooms.get(ws.roomCode);
+    if (!room || !ws.memberId) return;
+
+    room.members.delete(ws.memberId);
+    ws.roomCode = null;
+
+    if (room.members.size === 0) {
+        rooms.delete(room.code);
+        return;
+    }
+    // Host left: the longest-present remaining player takes over rather than the room dying
+    if (room.hostId === ws.memberId) {
+        room.hostId = room.members.keys().next().value;
+    }
+    broadcastRoster(room);
+}
+
+let nextMemberId = 1;
+
+wss.on('connection', (ws) => {
+    ws.isAlive = true;
+    ws.on('pong', () => { ws.isAlive = true; });
+
+    ws.on('message', (raw) => {
+        let msg;
+        try {
+            msg = JSON.parse(raw.toString());
+        } catch {
+            return send(ws, { type: 'error', message: 'Malformed message' });
+        }
+
+        const name = String(msg.name || 'Guest').trim().slice(0, 24) || 'Guest';
+
+        if (msg.type === 'create') {
+            leaveRoom(ws);
+            const code = makeRoomCode();
+            ws.memberId = nextMemberId++;
+            ws.roomCode = code;
+
+            const room = {
+                code,
+                hostId: ws.memberId,
+                members: new Map(),
+                config: null,
+                racing: false
+            };
+            room.members.set(ws.memberId, {
+                id: ws.memberId, name, ws, progress: 0, finished: false, result: null
+            });
+            rooms.set(code, room);
+
+            send(ws, { type: 'joined', code, youId: ws.memberId, isHost: true });
+            broadcastRoster(room);
+            return;
+        }
+
+        if (msg.type === 'join') {
+            const code = String(msg.code || '').trim().toUpperCase();
+            const room = rooms.get(code);
+            if (!room) return send(ws, { type: 'error', message: 'No room with that code.' });
+            if (room.members.size >= MAX_ROOM_MEMBERS) {
+                return send(ws, { type: 'error', message: 'That room is full.' });
+            }
+
+            leaveRoom(ws);
+            ws.memberId = nextMemberId++;
+            ws.roomCode = code;
+            room.members.set(ws.memberId, {
+                id: ws.memberId, name, ws, progress: 0, finished: false, result: null
+            });
+
+            send(ws, { type: 'joined', code, youId: ws.memberId, isHost: room.hostId === ws.memberId });
+            if (room.config) send(ws, { type: 'config', config: room.config });
+            broadcastRoster(room);
+            return;
+        }
+
+        const room = rooms.get(ws.roomCode);
+        if (!room) return;
+        const me = room.members.get(ws.memberId);
+        if (!me) return;
+
+        switch (msg.type) {
+            case 'config':
+                if (room.hostId !== ws.memberId) return;
+                room.config = msg.config || null;
+                broadcast(room, { type: 'config', config: room.config });
+                break;
+
+            case 'start': {
+                if (room.hostId !== ws.memberId) return;
+                if (!msg.seed) return send(ws, { type: 'error', message: 'Nothing to race on.' });
+
+                for (const m of room.members.values()) {
+                    m.progress = 0;
+                    m.finished = false;
+                    m.result = null;
+                }
+                room.racing = true;
+                // A moment in the future so everyone starts together despite differing latency
+                broadcast(room, {
+                    type: 'start',
+                    seed: msg.seed,
+                    config: room.config,
+                    startsIn: 3000
+                });
+                broadcastRoster(room);
+                break;
+            }
+
+            case 'progress':
+                me.progress = Math.max(0, Math.min(100, Number(msg.progress) || 0));
+                broadcast(room, { type: 'progress', id: me.id, progress: me.progress });
+                break;
+
+            case 'finished':
+                me.finished = true;
+                me.progress = 100;
+                me.result = {
+                    cpm: Math.round(Number(msg.cpm) || 0),
+                    wpm: Math.round(Number(msg.wpm) || 0),
+                    accuracy: Math.round(Number(msg.accuracy) || 0),
+                    seconds: Math.round(Number(msg.seconds) || 0)
+                };
+                broadcastRoster(room);
+                if ([...room.members.values()].every(m => m.finished)) {
+                    room.racing = false;
+                    broadcast(room, { type: 'raceover' });
+                }
+                break;
+
+            case 'leave':
+                leaveRoom(ws);
+                break;
+        }
+    });
+
+    ws.on('close', () => leaveRoom(ws));
+    ws.on('error', () => leaveRoom(ws));
+});
+
+// Drop connections that have gone away without closing cleanly, so rosters don't fill
+// with ghosts
+setInterval(() => {
+    for (const ws of wss.clients) {
+        if (!ws.isAlive) {
+            ws.terminate();
+            continue;
+        }
+        ws.isAlive = false;
+        ws.ping();
+    }
+}, HEARTBEAT_MS).unref();
+
+server.listen(PORT, () => console.log(`Server running on http://localhost:${PORT}`));

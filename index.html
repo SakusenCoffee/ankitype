@@ -339,8 +339,42 @@
 
         <!-- EXPANDABLE DRAWER: MULTIPLAYER -->
         <div class="nav-drawer hidden" id="multiplayer-drawer">
-            <div class="drawer-inner flex-center">
-                <span class="drawer-title">MULTIPLAYER — COMING SOON</span>
+            <div class="drawer-inner">
+                <!-- Before joining anything -->
+                <div class="mp-lobby" id="mp-lobby">
+                    <div class="mp-lobby-row">
+                        <button class="auth-btn mp-create-btn" id="mp-create-btn">CREATE ROOM</button>
+                        <div class="mp-join-group">
+                            <input type="text" id="mp-code-input" placeholder="Room code" maxlength="5"
+                                   autocomplete="off" spellcheck="false" />
+                            <button class="auth-btn secondary-btn" id="mp-join-btn">JOIN</button>
+                        </div>
+                    </div>
+                    <div class="mp-status" id="mp-status"></div>
+                </div>
+
+                <!-- Once in a room -->
+                <div class="mp-room hidden" id="mp-room">
+                    <div class="mp-room-head">
+                        <div class="mp-code-block">
+                            <span class="mp-code-label">ROOM CODE</span>
+                            <button class="mp-code" id="mp-code" title="Copy invite">-----</button>
+                        </div>
+                        <div class="mp-room-actions">
+                            <button class="mp-small-btn" id="mp-copy-invite">COPY INVITE</button>
+                            <button class="mp-small-btn mp-leave-btn" id="mp-leave-btn">LEAVE</button>
+                        </div>
+                    </div>
+
+                    <div class="mp-members" id="mp-members"></div>
+
+                    <div class="mp-host-bar hidden" id="mp-host-bar">
+                        <span class="mp-host-note">You are the host — the test you have set in PLAY is what everyone races.</span>
+                        <button class="auth-btn mp-start-btn" id="mp-start-btn">START RACE</button>
+                    </div>
+                    <span class="mp-guest-note hidden" id="mp-guest-note">Waiting for the host to start the race...</span>
+                    <div class="mp-status" id="mp-room-status"></div>
+                </div>
             </div>
         </div>
     </nav>
@@ -1082,6 +1116,9 @@ let currentIndex = 0;
         let correctKeystrokes = 0;
         // Seeded runs are somebody else's test, so they stay out of the history
         let isSeededTest = false;
+        // Set when a race seed is loaded, so progress is reported to the room and the
+        // result is sent back when the test ends
+        let isMultiplayerRace = false;
         let completedItemsSession = [];
 
         let activePlayTimeMs = parseInt(localStorage.getItem("anki_type_play_time") || "0", 10);
@@ -1721,6 +1758,18 @@ let currentIndex = 0;
                 resAbandonedNote.classList.add("hidden");
                 flushProgress({ cpm });
                 recordTestInHistory({ cpm, elapsedTimeSec });
+            }
+
+            if (isMultiplayerRace) {
+                const keystrokes = correctKeystrokes + mistakesSession;
+                mpSend({
+                    type: "finished",
+                    cpm,
+                    wpm: Math.round(cpm / 5),
+                    accuracy: keystrokes ? Math.round((correctKeystrokes / keystrokes) * 100) : 0,
+                    seconds: elapsedTimeSec
+                });
+                isMultiplayerRace = false;
             }
 
             resultModal.classList.remove("hidden");
@@ -2398,6 +2447,8 @@ function setMode(mode, shouldReload = true) {
 
                     currentIndex++;
                     typedInput = [];
+                    // after the increment, so a finished word counts towards the total
+                    if (isMultiplayerRace) mpReportProgress();
 
                     if (currentIndex < activeWordList.length) {
                         wordsContainer.children[currentIndex].classList.add("active");
@@ -2433,6 +2484,269 @@ function setMode(mode, shouldReload = true) {
         ankiTabBtn.addEventListener("click", () => openTab("anki"));
         appearanceTabBtn.addEventListener("click", () => openTab("appearance"));
         multiplayerTabBtn.addEventListener("click", () => openTab("multiplayer"));
+
+        /* ---- Multiplayer -------------------------------------------------------------
+           The server relays; it never decides what the words are. The host builds a seed
+           from whatever it has set up in PLAY and that seed is what travels, so everyone
+           races the identical list in the identical order — the same mechanism the SEED
+           tab already uses, rather than a second way of describing a test. */
+
+        const MP_WS_URL = API_BASE.replace(/^http/, 'ws') + '/ws';
+
+        const mpLobby = document.getElementById("mp-lobby");
+        const mpRoom = document.getElementById("mp-room");
+        const mpStatus = document.getElementById("mp-status");
+        const mpRoomStatus = document.getElementById("mp-room-status");
+        const mpCodeEl = document.getElementById("mp-code");
+        const mpMembers = document.getElementById("mp-members");
+        const mpHostBar = document.getElementById("mp-host-bar");
+        const mpGuestNote = document.getElementById("mp-guest-note");
+        const mpCodeInput = document.getElementById("mp-code-input");
+
+        let mpSocket = null;
+        let mpState = { code: null, youId: null, isHost: false, members: [], racing: false };
+        let mpCountdownTimer = null;
+
+        function mpSetStatus(el, message, isError = false) {
+            el.textContent = message;
+            el.classList.toggle("is-error", isError);
+        }
+
+        function mpDisplayName() {
+            const fromToken = currentUserToken ? decodeJwtPayload(currentUserToken)?.username : null;
+            return fromToken || `Guest ${Math.floor(Math.random() * 900 + 100)}`;
+        }
+
+        function mpRender() {
+            const inRoom = !!mpState.code;
+            mpLobby.classList.toggle("hidden", inRoom);
+            mpRoom.classList.toggle("hidden", !inRoom);
+            if (!inRoom) return;
+
+            mpCodeEl.textContent = mpState.code;
+            mpHostBar.classList.toggle("hidden", !mpState.isHost);
+            mpGuestNote.classList.toggle("hidden", mpState.isHost);
+
+            mpMembers.innerHTML = "";
+            mpState.members.forEach(m => {
+                const row = document.createElement("div");
+                row.className = "mp-member" + (m.id === mpState.youId ? " is-you" : "");
+
+                const bar = document.createElement("div");
+                bar.className = "mp-member-bar";
+                bar.style.width = `${m.progress || 0}%`;
+
+                const label = document.createElement("span");
+                label.className = "mp-member-name";
+                label.textContent = m.name + (m.isHost ? " · host" : "") + (m.id === mpState.youId ? " (you)" : "");
+
+                const right = document.createElement("span");
+                right.className = "mp-member-result";
+                right.textContent = m.finished && m.result
+                    ? `${m.result.cpm} cpm · ${m.result.accuracy}%`
+                    : `${Math.round(m.progress || 0)}%`;
+
+                row.appendChild(bar);
+                row.appendChild(label);
+                row.appendChild(right);
+                mpMembers.appendChild(row);
+            });
+        }
+
+        function mpSend(payload) {
+            if (mpSocket && mpSocket.readyState === WebSocket.OPEN) {
+                mpSocket.send(JSON.stringify(payload));
+                return true;
+            }
+            return false;
+        }
+
+        // One socket, opened on demand and reused. Resolves once it is actually open so
+        // callers can send immediately after.
+        function mpConnect() {
+            if (mpSocket && (mpSocket.readyState === WebSocket.OPEN || mpSocket.readyState === WebSocket.CONNECTING)) {
+                if (mpSocket.readyState === WebSocket.OPEN) return Promise.resolve(mpSocket);
+                return new Promise((resolve, reject) => {
+                    mpSocket.addEventListener("open", () => resolve(mpSocket), { once: true });
+                    mpSocket.addEventListener("error", reject, { once: true });
+                });
+            }
+
+            return new Promise((resolve, reject) => {
+                const ws = new WebSocket(MP_WS_URL);
+                mpSocket = ws;
+
+                ws.onopen = () => resolve(ws);
+                ws.onerror = () => reject(new Error("Could not reach the multiplayer server"));
+                ws.onclose = () => {
+                    mpSocket = null;
+                    if (mpState.code) {
+                        mpState = { code: null, youId: null, isHost: false, members: [], racing: false };
+                        mpRender();
+                        mpSetStatus(mpStatus, "Disconnected from the room.", true);
+                    }
+                };
+                ws.onmessage = (event) => {
+                    let msg;
+                    try { msg = JSON.parse(event.data); } catch { return; }
+                    mpHandle(msg);
+                };
+            });
+        }
+
+        function mpHandle(msg) {
+            switch (msg.type) {
+                case "joined":
+                    mpState.code = msg.code;
+                    mpState.youId = msg.youId;
+                    mpState.isHost = msg.isHost;
+                    mpSetStatus(mpRoomStatus, mpState.isHost
+                        ? "Room created. Share the code and start when everyone is in."
+                        : "Joined. Waiting for the host.");
+                    mpRender();
+                    break;
+
+                case "roster":
+                    mpState.members = msg.members || [];
+                    mpState.isHost = msg.hostId === mpState.youId;
+                    mpRender();
+                    break;
+
+                case "progress": {
+                    const m = mpState.members.find(x => x.id === msg.id);
+                    if (m) { m.progress = msg.progress; mpRender(); }
+                    break;
+                }
+
+                case "start":
+                    mpBeginRace(msg);
+                    break;
+
+                case "raceover":
+                    mpState.racing = false;
+                    mpSetStatus(mpRoomStatus, "Everyone has finished.");
+                    break;
+
+                case "error":
+                    mpSetStatus(mpState.code ? mpRoomStatus : mpStatus, msg.message, true);
+                    break;
+            }
+        }
+
+        // Everyone is told to start at the same offset rather than on arrival, so the
+        // countdown lands together despite differing latency.
+        function mpBeginRace(msg) {
+            mpState.racing = true;
+            openTab("multiplayer");
+
+            // Driven off a deadline rather than counting ticks. A background tab has its
+            // timers throttled, and counting down one second per tick would start such a
+            // player late by however much the browser held the timer back; comparing
+            // against the deadline instead means a late tick starts the race immediately.
+            const startAt = Date.now() + (msg.startsIn || 3000);
+            let begun = false;
+
+            const begin = () => {
+                if (begun) return;
+                begun = true;
+                clearInterval(mpCountdownTimer);
+                mpSetStatus(mpRoomStatus, "Go!");
+                loadFromSeed(msg.seed);
+                isMultiplayerRace = true;
+                closeAllDrawers();
+            };
+
+            clearInterval(mpCountdownTimer);
+            mpCountdownTimer = setInterval(() => {
+                const remaining = Math.ceil((startAt - Date.now()) / 1000);
+                if (remaining > 0) {
+                    mpSetStatus(mpRoomStatus, `Starting in ${remaining}...`);
+                    return;
+                }
+                begin();
+            }, 200);
+
+            mpSetStatus(mpRoomStatus, `Starting in ${Math.ceil((msg.startsIn || 3000) / 1000)}...`);
+        }
+
+        // Share of the word list completed, so the room can show everyone's position
+        function mpReportProgress() {
+            if (!activeWordList.length) return;
+            mpSend({ type: "progress", progress: (currentIndex / activeWordList.length) * 100 });
+        }
+
+        function closeAllDrawers() {
+            [profileDrawer, testOptionsDrawer, ankiDrawer, appearanceDrawer, seedDrawer, multiplayerDrawer]
+                .forEach(d => d && d.classList.add("hidden"));
+            [profileTabBtn, testOptionsTabBtn, ankiTabBtn, appearanceTabBtn, seedTabBtn, multiplayerTabBtn]
+                .forEach(b => b && b.classList.remove("active"));
+        }
+
+        document.getElementById("mp-create-btn").onclick = async () => {
+            mpSetStatus(mpStatus, "Connecting...");
+            try {
+                await mpConnect();
+                mpSend({ type: "create", name: mpDisplayName() });
+            } catch (err) {
+                mpSetStatus(mpStatus, "Couldn't reach the multiplayer server.", true);
+            }
+        };
+
+        document.getElementById("mp-join-btn").onclick = async () => {
+            const code = mpCodeInput.value.trim().toUpperCase();
+            if (!code) return mpSetStatus(mpStatus, "Enter a room code first.", true);
+            mpSetStatus(mpStatus, "Connecting...");
+            try {
+                await mpConnect();
+                mpSend({ type: "join", code, name: mpDisplayName() });
+            } catch (err) {
+                mpSetStatus(mpStatus, "Couldn't reach the multiplayer server.", true);
+            }
+        };
+
+        mpCodeInput.addEventListener("keydown", e => {
+            e.stopPropagation();
+            if (e.key === "Enter") document.getElementById("mp-join-btn").click();
+        });
+
+        document.getElementById("mp-leave-btn").onclick = () => {
+            mpSend({ type: "leave" });
+            mpState = { code: null, youId: null, isHost: false, members: [], racing: false };
+            mpRender();
+            mpSetStatus(mpStatus, "Left the room.");
+        };
+
+        function mpCopyInvite() {
+            if (!mpState.code) return;
+            const invite = `${location.origin}/?room=${mpState.code}`;
+            navigator.clipboard.writeText(invite)
+                .then(() => mpSetStatus(mpRoomStatus, "Invite link copied."))
+                .catch(() => mpSetStatus(mpRoomStatus, `Invite: ${invite}`));
+        }
+        document.getElementById("mp-copy-invite").onclick = mpCopyInvite;
+        mpCodeEl.onclick = mpCopyInvite;
+
+        document.getElementById("mp-start-btn").onclick = async () => {
+            mpSetStatus(mpRoomStatus, "Building the test...");
+            try {
+                const seed = await generateSeed();
+                if (!seed) {
+                    return mpSetStatus(mpRoomStatus, "Couldn't build a test from your current settings.", true);
+                }
+                mpSend({ type: "start", seed, config: describeTestType() });
+            } catch (err) {
+                console.error("Could not start race:", err);
+                mpSetStatus(mpRoomStatus, "Couldn't build a test from your current settings.", true);
+            }
+        };
+
+        // Someone following an invite link lands with the code already filled in
+        const roomFromUrl = new URLSearchParams(window.location.search).get("room");
+        if (roomFromUrl) {
+            mpCodeInput.value = roomFromUrl.toUpperCase();
+            openTab("multiplayer");
+            mpSetStatus(mpStatus, `Room ${roomFromUrl.toUpperCase()} — press JOIN to enter.`);
+        }
         seedTabBtn.addEventListener("click", () => {
             profileDrawer.classList.add("hidden");
             testOptionsDrawer.classList.add("hidden");
