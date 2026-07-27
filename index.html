@@ -11,6 +11,16 @@
     <script src="https://cdn.jsdelivr.net/npm/wanakana@5.3.1/wanakana.min.js"></script>
     <script type="module" src="https://pyscript.net/releases/2024.3.1/core.js"></script>
     <link rel="stylesheet" href="style.css">
+
+    <!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-Z9714FD6YK"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-Z9714FD6YK');
+</script>
 </head>
 <body>
 
@@ -690,7 +700,7 @@ let currentIndex = 0;
 
         renderWordBlock();
         statusEl.className = "status-badge status-online";
-        statusEl.textContent = `${activeWordList.length} TRACKS SYNCED`;
+        //statusEl.textContent = `${activeWordList.length} TRACKS //SYNCED`;
 
         openTab("test-options");
 
