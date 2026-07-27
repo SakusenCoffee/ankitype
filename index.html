@@ -637,13 +637,21 @@ let currentIndex = 0;
 
         // Pass 'false' to prevent applyWordCountFilter from overwriting the seed array
         setSource("anki", false);
-        setMode("time", false);
+        setMode("words", false);
 
         // Force test time to 15 seconds per your requirement
         wordCountSetting = "max";
-        localStorage.setItem("anki_type_word_count", wordCountSetting);
+        localStorage.setItem("anki_type_word_count", "max");
 
         updateCountNavUI();
+
+        document.querySelectorAll('.mode-btn').forEach(btn => {
+            if (btn.dataset.mode === "words") {
+                btn.classList.add("active");
+            } else {
+                btn.classList.remove("active");
+            }
+        });
 
         currentIndex = 0;
         typedInput = [];
