@@ -3,24 +3,28 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Anki Type</title>
+    <title>Tango Type</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;700;800&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Kaisei+Tokumin:wght@700&family=Yuji+Syuku&family=DotGothic16&family=Zen+Maru+Gothic:wght@700&family=Yomogi&family=Hachi+Maru+Pop&family=Mochiy+Pop+One&family=Chokokutai&family=Cherry+Bomb+One&family=Zen+Tokyo+Zoo&family=Noto+Sans+JP:wght@400;700&family=Hina+Mincho&display=swap" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/wanakana@5.3.1/wanakana.min.js"></script>
-    <script type="module" src="https://pyscript.net/releases/2024.3.1/core.js"></script>
+    <!-- UI faces (Plus Jakarta Sans, Space Grotesk) plus the twelve Japanese display
+         faces offered in CONFIG. One request rather than two; Google serves only the
+         files a face actually needs, so unpicked fonts cost nothing to list here. -->
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cherry+Bomb+One&family=Chokokutai&family=DotGothic16&family=Hachi+Maru+Pop&family=Hina+Mincho&family=Kaisei+Tokumin:wght@700&family=Mochiy+Pop+One&family=Noto+Sans+JP:wght@400;700&family=Plus+Jakarta+Sans:wght@400;500;700;800&family=Space+Grotesk:wght@500;700&family=Yomogi&family=Yuji+Syuku&family=Zen+Maru+Gothic:wght@700&family=Zen+Tokyo+Zoo&display=swap">
     <link rel="stylesheet" href="style.css">
 
-    <!-- Google tag (gtag.js) -->
-<script async src="https://www.googletagmanager.com/gtag/js?id=G-Z9714FD6YK"></script>
-<script>
-  window.dataLayer = window.dataLayer || [];
-  function gtag(){dataLayer.push(arguments);}
-  gtag('js', new Date());
+    <!-- Romaji conversion for the typing test -->
+    <script src="https://cdn.jsdelivr.net/npm/wanakana@5.3.1/wanakana.min.js"></script>
+    <!-- Runs countjp.py, which drives the workshop's character counters -->
+    <script type="module" src="https://pyscript.net/releases/2024.3.1/core.js"></script>
 
-  gtag('config', 'G-Z9714FD6YK');
-</script>
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-Z9714FD6YK"></script>
+    <script>
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+        gtag('js', new Date());
+        gtag('config', 'G-Z9714FD6YK');
+    </script>
 </head>
 <body>
 
