@@ -1820,6 +1820,152 @@ function setMode(mode, shouldReload = true) {
             }
         }
 
+        // Lets the user pan/zoom a freshly picked image before it is uploaded.
+        // Resolves with a square PNG blob, or null if they cancel.
+        // PNG (not JPEG) so avatars with transparent backgrounds stay transparent.
+        function openAvatarCropper(file) {
+            return new Promise(resolve => {
+                const VIEW = 280;   // on-screen crop viewport, in px
+                const OUT = 512;    // exported avatar resolution, in px
+
+                const objectUrl = URL.createObjectURL(file);
+                const img = new Image();
+
+                img.onerror = () => {
+                    URL.revokeObjectURL(objectUrl);
+                    resolve(null);
+                };
+
+                img.onload = () => {
+                    const overlay = document.createElement('div');
+                    overlay.className = 'cropper-overlay';
+                    overlay.innerHTML = `
+                        <div class="cropper-box">
+                            <span class="drawer-title">ADJUST AVATAR</span>
+                            <canvas class="cropper-canvas" id="cropper-canvas" width="${VIEW}" height="${VIEW}"></canvas>
+                            <div class="cropper-row">
+                                <label for="cropper-zoom">ZOOM</label>
+                                <input type="range" id="cropper-zoom" min="1" max="4" step="0.01" value="1" />
+                            </div>
+                            <span class="cropper-hint">Drag to reposition · scroll or use the slider to zoom</span>
+                            <div class="cropper-actions">
+                                <button class="auth-btn secondary-btn" id="cropper-cancel">CANCEL</button>
+                                <button class="auth-btn" id="cropper-save">SAVE</button>
+                            </div>
+                        </div>
+                    `;
+                    document.body.appendChild(overlay);
+
+                    const canvas = overlay.querySelector('#cropper-canvas');
+                    const ctx = canvas.getContext('2d');
+                    const zoomInput = overlay.querySelector('#cropper-zoom');
+
+                    // "cover" the viewport at zoom 1 so there are never empty edges
+                    const baseScale = Math.max(VIEW / img.naturalWidth, VIEW / img.naturalHeight);
+                    let zoom = 1;
+                    let scale = baseScale;
+                    let ox = (VIEW - img.naturalWidth * scale) / 2;
+                    let oy = (VIEW - img.naturalHeight * scale) / 2;
+
+                    const clamp = () => {
+                        const drawW = img.naturalWidth * scale;
+                        const drawH = img.naturalHeight * scale;
+                        ox = Math.min(0, Math.max(VIEW - drawW, ox));
+                        oy = Math.min(0, Math.max(VIEW - drawH, oy));
+                    };
+
+                    const draw = () => {
+                        clamp();
+                        ctx.clearRect(0, 0, VIEW, VIEW);
+                        ctx.drawImage(img, ox, oy, img.naturalWidth * scale, img.naturalHeight * scale);
+                    };
+
+                    const applyZoom = newZoom => {
+                        const prevScale = scale;
+                        zoom = Math.min(4, Math.max(1, newZoom));
+                        scale = baseScale * zoom;
+                        // Keep whatever is under the viewport centre pinned while zooming
+                        ox = VIEW / 2 - (VIEW / 2 - ox) * (scale / prevScale);
+                        oy = VIEW / 2 - (VIEW / 2 - oy) * (scale / prevScale);
+                        zoomInput.value = zoom;
+                        draw();
+                    };
+
+                    draw();
+
+                    zoomInput.oninput = () => applyZoom(parseFloat(zoomInput.value));
+
+                    canvas.addEventListener('wheel', e => {
+                        e.preventDefault();
+                        applyZoom(zoom * (e.deltaY < 0 ? 1.08 : 1 / 1.08));
+                    }, { passive: false });
+
+                    let dragging = false;
+                    let lastX = 0;
+                    let lastY = 0;
+
+                    canvas.addEventListener('pointerdown', e => {
+                        dragging = true;
+                        lastX = e.clientX;
+                        lastY = e.clientY;
+                        canvas.setPointerCapture(e.pointerId);
+                        canvas.classList.add('dragging');
+                    });
+
+                    canvas.addEventListener('pointermove', e => {
+                        if (!dragging) return;
+                        ox += e.clientX - lastX;
+                        oy += e.clientY - lastY;
+                        lastX = e.clientX;
+                        lastY = e.clientY;
+                        draw();
+                    });
+
+                    const endDrag = () => {
+                        dragging = false;
+                        canvas.classList.remove('dragging');
+                    };
+                    canvas.addEventListener('pointerup', endDrag);
+                    canvas.addEventListener('pointercancel', endDrag);
+
+                    const close = result => {
+                        document.removeEventListener('keydown', onKeydown);
+                        overlay.remove();
+                        URL.revokeObjectURL(objectUrl);
+                        resolve(result);
+                    };
+
+                    function onKeydown(e) {
+                        if (e.key === 'Escape') {
+                            e.stopPropagation();
+                            close(null);
+                        }
+                    }
+                    document.addEventListener('keydown', onKeydown);
+
+                    overlay.querySelector('#cropper-cancel').onclick = () => close(null);
+                    overlay.onclick = e => { if (e.target === overlay) close(null); };
+
+                    overlay.querySelector('#cropper-save').onclick = () => {
+                        const out = document.createElement('canvas');
+                        out.width = OUT;
+                        out.height = OUT;
+                        const ratio = OUT / VIEW;
+                        out.getContext('2d').drawImage(
+                            img,
+                            ox * ratio,
+                            oy * ratio,
+                            img.naturalWidth * scale * ratio,
+                            img.naturalHeight * scale * ratio
+                        );
+                        out.toBlob(blob => close(blob), 'image/png');
+                    };
+                };
+
+                img.src = objectUrl;
+            });
+        }
+
         async function loadProfileUI() {
             const container = document.getElementById('profile-container');
             if (!container) return;
@@ -1910,12 +2056,31 @@ function setMode(mode, shouldReload = true) {
                             <div class="profile-info-col">
                                 <h3 class="profile-username">${data.username}</h3>
                                 ${renderStatsMarkup(data)}
-                                <button id="logout-btn" class="auth-btn logout-btn">LOGOUT</button>
+                                <div class="profile-actions">
+                                    <button id="change-pw-btn" class="auth-btn secondary-btn">CHANGE PASSWORD</button>
+                                    <button id="logout-btn" class="auth-btn logout-btn">LOGOUT</button>
+                                </div>
                             </div>
                         </div>
                         <div class="avatar-picker hidden" id="avatar-picker">
                             <div class="avatar-picker-grid" id="avatar-picker-grid"></div>
                             <button class="avatar-upload-btn" id="avatar-upload-trigger-btn">+ Upload New</button>
+                        </div>
+                        <div class="password-panel hidden" id="password-panel">
+                            <div class="auth-field">
+                                <label for="pw-current">CURRENT PASSWORD</label>
+                                <input type="password" id="pw-current" placeholder="Enter current password..." autocomplete="current-password" />
+                            </div>
+                            <div class="auth-field">
+                                <label for="pw-new">NEW PASSWORD</label>
+                                <input type="password" id="pw-new" placeholder="Enter new password..." autocomplete="new-password" />
+                            </div>
+                            <div class="auth-field">
+                                <label for="pw-confirm">CONFIRM NEW PASSWORD</label>
+                                <input type="password" id="pw-confirm" placeholder="Re-type new password..." autocomplete="new-password" />
+                            </div>
+                            <div class="auth-error" id="pw-msg"></div>
+                            <button class="auth-btn" id="pw-submit-btn">UPDATE PASSWORD</button>
                         </div>
                     `;
 
@@ -1943,6 +2108,8 @@ function setMode(mode, shouldReload = true) {
                             const histRes = await fetch(`${API_BASE}/api/profile/avatar-history`, {
                                 headers: { 'Authorization': `Bearer ${currentUserToken}` }
                             });
+                            if (!histRes.ok) throw new Error(`avatar-history returned HTTP ${histRes.status}`);
+
                             const histData = await histRes.json();
                             const history_ = histData.history || [];
 
@@ -1955,6 +2122,8 @@ function setMode(mode, shouldReload = true) {
                                 thumb.src = `${API_BASE}${url}`;
                                 thumb.className = 'avatar-picker-thumb';
                                 thumb.title = 'Switch to this avatar';
+                                // Drop thumbs whose file is gone so a stale row can't render as a broken image
+                                thumb.onerror = () => thumb.remove();
                                 thumb.onclick = async (e) => {
                                     e.stopPropagation();
                                     const selRes = await fetch(`${API_BASE}/api/profile/avatar/select`, {
@@ -1971,7 +2140,8 @@ function setMode(mode, shouldReload = true) {
                                 avatarPickerGrid.appendChild(thumb);
                             });
                         } catch (err) {
-                            avatarPickerGrid.innerHTML = '<span class="avatar-picker-loading">Failed to load.</span>';
+                            console.error('Failed to load avatar history:', err);
+                            avatarPickerGrid.innerHTML = '<span class="avatar-picker-loading">Couldn\'t load previous avatars. You can still upload a new one.</span>';
                         }
                     };
 
@@ -1981,9 +2151,16 @@ function setMode(mode, shouldReload = true) {
                     };
 
                     avatarInput.onchange = async (e) => {
-                        if (!e.target.files[0]) return;
+                        const picked = e.target.files[0];
+                        // Reset immediately so re-picking the same file still fires a change event
+                        e.target.value = '';
+                        if (!picked) return;
+
+                        const cropped = await openAvatarCropper(picked);
+                        if (!cropped) return;
+
                         const formData = new FormData();
-                        formData.append('avatar', e.target.files[0]);
+                        formData.append('avatar', new File([cropped], 'avatar.png', { type: 'image/png' }));
 
                         const uploadRes = await fetch(`${API_BASE}/api/profile/avatar`, {
                             method: 'POST',
@@ -1995,6 +2172,56 @@ function setMode(mode, shouldReload = true) {
                             document.getElementById('profile-avatar-img').src = `${API_BASE}${uploadData.avatar}`;
                         }
                         avatarPicker.classList.add('hidden');
+                    };
+
+                    const passwordPanel = document.getElementById('password-panel');
+                    const pwMsg = document.getElementById('pw-msg');
+
+                    document.getElementById('change-pw-btn').onclick = () => {
+                        passwordPanel.classList.toggle('hidden');
+                        if (!passwordPanel.classList.contains('hidden')) {
+                            document.getElementById('pw-current').focus();
+                        }
+                    };
+
+                    document.getElementById('pw-submit-btn').onclick = async () => {
+                        const current = document.getElementById('pw-current').value;
+                        const next = document.getElementById('pw-new').value;
+                        const confirm = document.getElementById('pw-confirm').value;
+
+                        pwMsg.classList.remove('auth-ok');
+
+                        if (!current || !next || !confirm) {
+                            pwMsg.textContent = 'All three fields are required.';
+                            return;
+                        }
+                        if (next !== confirm) {
+                            pwMsg.textContent = 'New passwords do not match!';
+                            return;
+                        }
+
+                        try {
+                            const pwRes = await fetch(`${API_BASE}/api/profile/password`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${currentUserToken}` },
+                                body: JSON.stringify({ currentPassword: current, newPassword: next })
+                            });
+                            const pwData = await pwRes.json();
+
+                            if (pwData.error) {
+                                pwMsg.textContent = pwData.error;
+                                return;
+                            }
+
+                            pwMsg.textContent = 'Password updated.';
+                            pwMsg.classList.add('auth-ok');
+                            document.getElementById('pw-current').value = '';
+                            document.getElementById('pw-new').value = '';
+                            document.getElementById('pw-confirm').value = '';
+                        } catch (err) {
+                            console.error('Failed to change password:', err);
+                            pwMsg.textContent = 'Server error. Please try again.';
+                        }
                     };
 
                     document.getElementById('logout-btn').onclick = () => {

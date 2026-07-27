@@ -141,6 +141,24 @@ app.post('/api/login', async (req, res) => {
     res.json({ token, username: user.username });
 });
 
+// Change Password (requires the current password; existing tokens stay valid)
+app.post('/api/profile/password', authenticateToken, async (req, res) => {
+    const { currentPassword, newPassword } = req.body;
+    if (!currentPassword || !newPassword) return res.status(400).json({ error: 'Missing fields' });
+    if (newPassword.length < 4) return res.status(400).json({ error: 'New password must be at least 4 characters' });
+
+    const user = db.prepare('SELECT id, password FROM users WHERE id = ?').get(req.user.id);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    if (!(await bcrypt.compare(currentPassword, user.password))) {
+        return res.status(400).json({ error: 'Current password is incorrect' });
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    db.prepare('UPDATE users SET password = ? WHERE id = ?').run(hashedPassword, user.id);
+    res.json({ success: true });
+});
+
 // Shared shape for both the authenticated "my profile" and public "view a user" endpoints
 function getPublicProfile(user) {
     const stats = db.prepare('SELECT kanji_count, hiragana_count, katakana_count FROM character_stats WHERE user_id = ?').get(user.id);
