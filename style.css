@@ -40,6 +40,42 @@
     --border-color: #ff007f;
 }
 
+/* True black, for OLED panels where an unlit pixel is genuinely off. Panels sit a
+   couple of steps above the page rather than being tinted, so the separation comes
+   from the borders. Text stops short of pure white, which blooms against black. */
+[data-theme="void"] {
+    --bg-color: #000000;
+    --card-bg: #080808;
+    --nav-bg: #0d0d0d;
+    --text-primary: #d6d6d6;
+    --text-muted: #828282;
+    --accent-main: #6ea8d8;
+    --accent-hover: #5a8fbb;
+    --accent-green: #6fbf73;
+    --accent-red: #d96a6a;
+    --border-color: #1c1c1c;
+}
+
+/* Cyberpunk's hues run through a manga colour page: cream newsprint instead of a
+   glowing panel, and the inks knocked back to what offset printing actually put on
+   paper. Cyan becomes faded teal ink, violet a grey-purple, and the magenta a dusty
+   rose — flat and limited the way a Jump colour spread is, rather than the saturated
+   process colour of a western comic. */
+[data-theme="manga-print"] {
+    --bg-color: #efe6d5;
+    --card-bg: #e7dcc7;
+    --nav-bg: #e0d3ba;
+    --text-primary: #34515a;
+    /* Upcoming words render muted at 0.35 opacity, so this is pitched darker than the
+       ink would otherwise be — at a lighter value they wash out on cream */
+    --text-muted: #6b606f;
+    --accent-main: #9c4166;
+    --accent-hover: #833556;
+    --accent-green: #46764f;
+    --accent-red: #ab3b34;
+    --border-color: #cbb8bd;
+}
+
 [data-theme="serika"] {
     --bg-color: #323437;
     --card-bg: #2c2e31;
