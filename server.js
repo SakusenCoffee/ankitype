@@ -73,6 +73,23 @@ CREATE TABLE IF NOT EXISTS character_stats (
     FOREIGN KEY (user_id) REFERENCES users(id)
 );
 
+CREATE TABLE IF NOT EXISTS test_history (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    created_at INTEGER DEFAULT (strftime('%s','now')),
+    test_type TEXT,
+    duration_sec INTEGER DEFAULT 0,
+    cpm INTEGER DEFAULT 0,
+    wpm INTEGER DEFAULT 0,
+    total_chars INTEGER DEFAULT 0,
+    correct_chars INTEGER DEFAULT 0,
+    mistakes INTEGER DEFAULT 0,
+    FOREIGN KEY (user_id) REFERENCES users(id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_test_history_user
+    ON test_history (user_id, created_at DESC);
+
 CREATE TABLE IF NOT EXISTS avatar_history (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id INTEGER NOT NULL,
@@ -236,6 +253,47 @@ app.post('/api/profile/avatar', authenticateToken, upload.single('avatar'), (req
     }
 
     res.json({ avatar: avatarUrl });
+});
+
+const MAX_TEST_HISTORY = 100;
+
+// Record one completed test. The client withholds seeded and idled-out runs.
+app.post('/api/profile/history', authenticateToken, (req, res) => {
+    const { testType, durationSec, cpm, wpm, totalChars, correctChars, mistakes } = req.body;
+    const userId = req.user.id;
+    const int = v => Math.max(0, Math.round(Number(v) || 0));
+
+    db.prepare(`
+        INSERT INTO test_history
+            (user_id, test_type, duration_sec, cpm, wpm, total_chars, correct_chars, mistakes)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(
+        userId,
+        String(testType || 'unknown').slice(0, 40),
+        int(durationSec), int(cpm), int(wpm),
+        int(totalChars), int(correctChars), int(mistakes)
+    );
+
+    // Keep the list bounded; it is a recent-history view, not an audit log
+    db.prepare(`
+        DELETE FROM test_history
+        WHERE user_id = ?
+          AND id NOT IN (
+              SELECT id FROM test_history WHERE user_id = ?
+              ORDER BY created_at DESC, id DESC LIMIT ?
+          )
+    `).run(userId, userId, MAX_TEST_HISTORY);
+
+    res.json({ success: true });
+});
+
+app.get('/api/profile/history', authenticateToken, (req, res) => {
+    const rows = db.prepare(`
+        SELECT created_at, test_type, duration_sec, cpm, wpm, total_chars, correct_chars, mistakes
+        FROM test_history WHERE user_id = ?
+        ORDER BY created_at DESC, id DESC LIMIT ?
+    `).all(req.user.id, MAX_TEST_HISTORY);
+    res.json({ history: rows });
 });
 
 // Sync Playtime & Stats Endpoint (also reachable via sendBeacon on tab-hide/close)

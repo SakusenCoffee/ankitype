@@ -1050,6 +1050,12 @@ let currentIndex = 0;
         let isTestActive = false;
         let testStartTime = 0;
         let totalTypedChars = 0;
+        // Every matching keystroke, including ones later discarded when a typo resets the
+        // word. Paired with mistakesSession this gives the keystroke totals the history
+        // shows, which totalTypedChars can't: that only counts finished words.
+        let correctKeystrokes = 0;
+        // Seeded runs are somebody else's test, so they stay out of the history
+        let isSeededTest = false;
         let completedItemsSession = [];
 
         let activePlayTimeMs = parseInt(localStorage.getItem("anki_type_play_time") || "0", 10);
@@ -1460,6 +1466,8 @@ let currentIndex = 0;
         totalScore = 0;
         scoreEl.textContent = totalScore;
         totalTypedChars = 0;
+        correctKeystrokes = 0;
+        isSeededTest = true;
         completedItemsSession = [];
 
         clearInterval(testTimerInterval);
@@ -2148,6 +2156,8 @@ function setMode(mode, shouldReload = true) {
             totalScore = 0;
             scoreEl.textContent = totalScore;
             totalTypedChars = 0;
+            correctKeystrokes = 0;
+            isSeededTest = false;
             mistakesSession = 0;
             lastSyncedMistakes = 0;
             completedItemsSession = [];
@@ -2303,6 +2313,7 @@ function setMode(mode, shouldReload = true) {
 
             if (keyTyped === expectedChar) {
                 typedInput.push(keyTyped);
+                correctKeystrokes++;
 
                 if (typedInput.length === currentWord.romaji.length) {
                     const finishedWordNode = wordsContainer.children[currentIndex];
