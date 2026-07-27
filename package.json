@@ -1,5 +1,5 @@
 {
-  "name": "ankitype",
+  "name": "tangotype",
   "version": "1.0.0",
   "description": "",
   "main": "server.js",
@@ -9,15 +9,15 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/SakusenCoffee/ankitype.git"
+    "url": "git+https://github.com/SakusenCoffee/tangotype.git"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "bugs": {
-    "url": "https://github.com/SakusenCoffee/ankitype/issues"
+    "url": "https://github.com/SakusenCoffee/tangotype/issues"
   },
-  "homepage": "https://github.com/SakusenCoffee/ankitype#readme",
+  "homepage": "https://github.com/SakusenCoffee/tangotype#readme",
   "dependencies": {
     "bcryptjs": "^3.0.3",
     "better-sqlite3": "^13.0.1",
