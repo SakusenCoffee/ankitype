@@ -626,9 +626,9 @@ let currentIndex = 0;
         const jsonStr = decodeURIComponent(atob(seedString.trim()));
         const parsedData = JSON.parse(jsonStr);
 
-        // Check if it's an old seed (Array) or a new seed (Object) for backwards compatibility
+        // Check if it's an old seed (Array) or a new seed (Object)
         const seedData = Array.isArray(parsedData) ? parsedData : parsedData.data;
-        const source = parsedData.source || "anki";
+        let source = parsedData.source || "anki";
         let mode = parsedData.mode || "words";
 
         if (!Array.isArray(seedData) || seedData.length === 0) {
@@ -636,30 +636,32 @@ let currentIndex = 0;
             return;
         }
 
+        // Always exit Zen Mode when loading a seed
+        if (isZenMode) toggleZenMode();
+
+        // If the seed was generated from Zen Mode, force it to Words mode and Anki source
+        if (mode === "zen") {
+            mode = "words";
+            source = "anki";
+        }
+
+        // 1. Set the UI states first (pass 'false' to avoid triggering full generations)
+        setSource(source, false);
+        setMode(mode, false);
+
+        wordCountSetting = "max";
+        localStorage.setItem("anki_type_word_count", "max");
+        updateCountNavUI();
+
+        // 2. NOW assign the seed data to activeWordList
+        // This ensures the seed data overwrites any default words loaded by setSource
         activeWordList = seedData.map(([kanji, romaji, meaning]) => ({
             kanji,
             romaji: romaji || wanakana.toRomaji(kanji).toLowerCase().trim(),
             meaning: meaning || "Custom Seed"
         }));
 
-        // Always exit Zen Mode when loading a seed
-        if (isZenMode) toggleZenMode();
-
-        // If the seed was generated from Zen Mode, force it to load as a Words test
-        if (mode === "zen") {
-            mode = "words";
-        }
-
-        // Pass 'false' to prevent applyWordCountFilter from overwriting the seed array
-        setSource(source, false);
-        setMode(mode, false);
-
-        // Always force the max word count setting for seeds
-        wordCountSetting = "max";
-        localStorage.setItem("anki_type_word_count", "max");
-
-        updateCountNavUI();
-
+        // 3. Reset test variables and render
         currentIndex = 0;
         typedInput = [];
         totalScore = 0;
