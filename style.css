@@ -818,6 +818,13 @@ select:focus {
     min-height: 30px;
 }
 
+/* Positions the remove button over its own thumbnail */
+.avatar-picker-cell {
+    position: relative;
+    display: block;
+    line-height: 0;
+}
+
 .avatar-picker-thumb {
     width: 100%;
     aspect-ratio: 1;
@@ -826,6 +833,48 @@ select:focus {
     cursor: pointer;
     border: 1px solid var(--border-color);
     transition: border-color 0.15s ease;
+}
+
+.avatar-delete-btn {
+    position: absolute;
+    top: 3px;
+    right: 3px;
+    width: 20px;
+    height: 20px;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    border-radius: 5px;
+    background-color: rgba(0, 0, 0, 0.65);
+    color: #fff;
+    cursor: pointer;
+    /* hidden until the thumbnail is hovered, and never swallows the click that
+       selects the avatar underneath */
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.15s ease, background-color 0.15s ease;
+}
+
+.avatar-picker-cell:hover .avatar-delete-btn,
+.avatar-delete-btn:focus-visible {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.avatar-delete-btn:hover {
+    background-color: var(--accent-red);
+}
+
+.avatar-delete-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.avatar-delete-btn svg {
+    width: 12px;
+    height: 12px;
 }
 
 .avatar-picker-thumb:hover {
@@ -1107,6 +1156,12 @@ select:focus {
 .profile-username {
     font-size: 1.1rem;
     font-weight: 700;
+}
+
+.member-since {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    margin-top: -6px;
 }
 
 .profile-stats-grid {

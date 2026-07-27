@@ -2675,6 +2675,16 @@ function setMode(mode, shouldReload = true) {
             return match ? decodeURIComponent(match[1]) : null;
         }
 
+        // Accounts created before the join date was recorded have no timestamp, and the
+        // line is left out rather than showing a date that was never true.
+        function renderMemberSince(createdAt) {
+            if (!createdAt) return "";
+            const joined = new Date(createdAt * 1000);
+            if (isNaN(joined)) return "";
+            const when = joined.toLocaleDateString(undefined, { year: 'numeric', month: 'long' });
+            return `<span class="member-since">Member since ${when}</span>`;
+        }
+
         function renderStatsMarkup(data) {
             const total = data.stats?.total_count ?? ((data.stats?.kanji_count || 0) + (data.stats?.hiragana_count || 0) + (data.stats?.katakana_count || 0));
             return `
@@ -3019,6 +3029,7 @@ function setMode(mode, shouldReload = true) {
                             </div>
                             <div class="profile-info-col">
                                 <h3 class="profile-username">${data.username}</h3>
+                                ${renderMemberSince(data.created_at)}
                                 ${renderStatsMarkup(data)}
                                 <div class="profile-actions">
                                     <button id="change-pw-btn" class="auth-btn secondary-btn">CHANGE PASSWORD</button>
@@ -3059,6 +3070,85 @@ function setMode(mode, shouldReload = true) {
                         history.pushState({}, '', ownProfileUrl);
                     }
 
+                    // Each thumbnail carries its own remove button, revealed on hover.
+                    // Rebuilt in place after a deletion so the grid stays in step with
+                    // the server without reopening the picker.
+                    function renderAvatarPicker(urls) {
+                        avatarPickerGrid.innerHTML = '';
+
+                        if (!urls.length) {
+                            avatarPickerGrid.innerHTML = '<span class="avatar-picker-empty">No previous avatars yet.</span>';
+                            return;
+                        }
+
+                        urls.forEach(url => {
+                            const cell = document.createElement('div');
+                            cell.className = 'avatar-picker-cell';
+
+                            const thumb = document.createElement('img');
+                            thumb.src = `${API_BASE}${url}`;
+                            thumb.className = 'avatar-picker-thumb';
+                            thumb.title = 'Switch to this avatar';
+                            // Drop cells whose file is gone so a stale row can't render broken
+                            thumb.onerror = () => cell.remove();
+                            thumb.onclick = async (e) => {
+                                e.stopPropagation();
+                                const selRes = await fetch(`${API_BASE}/api/profile/avatar/select`, {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${currentUserToken}` },
+                                    body: JSON.stringify({ avatar: url })
+                                });
+                                const selData = await selRes.json();
+                                if (selData.avatar) {
+                                    document.getElementById('profile-avatar-img').src = `${API_BASE}${selData.avatar}`;
+                                }
+                                avatarPicker.classList.add('hidden');
+                            };
+
+                            const remove = document.createElement('button');
+                            remove.type = 'button';
+                            remove.className = 'avatar-delete-btn';
+                            remove.title = 'Remove this avatar';
+                            remove.setAttribute('aria-label', 'Remove this avatar');
+                            remove.innerHTML = `
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M3 6h18"></path>
+                                    <path d="M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2"></path>
+                                    <path d="M19 6l-1 14a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1L5 6"></path>
+                                    <path d="M10 11v6"></path>
+                                    <path d="M14 11v6"></path>
+                                </svg>`;
+                            remove.onclick = async (e) => {
+                                e.stopPropagation();
+                                remove.disabled = true;
+                                try {
+                                    const delRes = await fetch(`${API_BASE}/api/profile/avatar/delete`, {
+                                        method: 'POST',
+                                        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${currentUserToken}` },
+                                        body: JSON.stringify({ avatar: url })
+                                    });
+                                    if (!delRes.ok) throw new Error(`HTTP ${delRes.status}`);
+                                    const delData = await delRes.json();
+
+                                    // The server decides what is current now: unchanged, or
+                                    // the next in line when the deleted one was in use.
+                                    if (delData.avatar) {
+                                        document.getElementById('profile-avatar-img').src =
+                                            `${API_BASE}${delData.avatar}?t=${Date.now()}`;
+                                    }
+                                    renderAvatarPicker(urls.filter(u => u !== url));
+                                } catch (err) {
+                                    console.error('Could not remove avatar:', err);
+                                    remove.disabled = false;
+                                }
+                            };
+
+                            cell.appendChild(thumb);
+                            cell.appendChild(remove);
+                            avatarPickerGrid.appendChild(cell);
+                        });
+                    }
+
                     const avatarWrapper = document.getElementById('avatar-wrapper');
                     const avatarPicker = document.getElementById('avatar-picker');
                     const avatarPickerGrid = document.getElementById('avatar-picker-grid');
@@ -3083,32 +3173,7 @@ function setMode(mode, shouldReload = true) {
                             const histData = await histRes.json();
                             const history_ = histData.history || [];
 
-                            avatarPickerGrid.innerHTML = '';
-                            if (history_.length === 0) {
-                                avatarPickerGrid.innerHTML = '<span class="avatar-picker-empty">No previous avatars yet.</span>';
-                            }
-                            history_.forEach(url => {
-                                const thumb = document.createElement('img');
-                                thumb.src = `${API_BASE}${url}`;
-                                thumb.className = 'avatar-picker-thumb';
-                                thumb.title = 'Switch to this avatar';
-                                // Drop thumbs whose file is gone so a stale row can't render as a broken image
-                                thumb.onerror = () => thumb.remove();
-                                thumb.onclick = async (e) => {
-                                    e.stopPropagation();
-                                    const selRes = await fetch(`${API_BASE}/api/profile/avatar/select`, {
-                                        method: 'POST',
-                                        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${currentUserToken}` },
-                                        body: JSON.stringify({ avatar: url })
-                                    });
-                                    const selData = await selRes.json();
-                                    if (selData.avatar) {
-                                        document.getElementById('profile-avatar-img').src = `${API_BASE}${selData.avatar}`;
-                                    }
-                                    avatarPicker.classList.add('hidden');
-                                };
-                                avatarPickerGrid.appendChild(thumb);
-                            });
+                            renderAvatarPicker(history_);
                         } catch (err) {
                             console.error('Failed to load avatar history:', err);
                             avatarPickerGrid.innerHTML = '<span class="avatar-picker-loading">Couldn\'t load previous avatars. You can still upload a new one.</span>';

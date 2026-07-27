@@ -113,6 +113,31 @@ CREATE TABLE IF NOT EXISTS avatar_history (
 
 `);
 
+// Databases created before a column existed need it added; CREATE TABLE IF NOT EXISTS
+// above only covers fresh installs.
+function addColumnIfMissing(table, column, definition) {
+    const existing = db.prepare(`PRAGMA table_info(${table})`).all();
+    if (existing.some(c => c.name === column)) return false;
+    db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
+    return true;
+}
+
+if (addColumnIfMissing('users', 'created_at', 'INTEGER')) {
+    // Accounts predating this column have no recorded join date. The earliest thing they
+    // did that was recorded is the closest honest estimate; where there is nothing it
+    // stays null and the profile omits the field rather than inventing a date.
+    db.exec(`
+        UPDATE users SET created_at = (
+            SELECT MIN(t) FROM (
+                SELECT MIN(created_at) AS t FROM avatar_history WHERE user_id = users.id
+                UNION ALL
+                SELECT MIN(created_at) AS t FROM test_history WHERE user_id = users.id
+            )
+        )
+        WHERE created_at IS NULL
+    `);
+}
+
 const MAX_AVATAR_HISTORY = 5;
 
 // Multer Storage Configuration for Profile Pictures
@@ -152,7 +177,7 @@ app.post('/api/register', async (req, res) => {
     if (existing) return res.status(400).json({ error: 'Username taken' });
 
     const hashedPassword = await bcrypt.hash(password, 10);
-    const result = db.prepare('INSERT INTO users (username, password) VALUES (?, ?)').run(username, hashedPassword);
+    const result = db.prepare("INSERT INTO users (username, password, created_at) VALUES (?, ?, strftime('%s','now'))").run(username, hashedPassword);
     db.prepare('INSERT INTO character_stats (user_id) VALUES (?)').run(result.lastInsertRowid);
 
     const token = jwt.sign({ id: result.lastInsertRowid, username }, JWT_SECRET);
@@ -199,6 +224,7 @@ function getPublicProfile(user) {
     return {
         username: user.username,
         avatar: user.avatar,
+        created_at: user.created_at || null,
         playtime: user.playtime,
         highest_cpm: user.highest_cpm,
         avg_cpm: user.avg_cpm,
@@ -214,14 +240,14 @@ function getPublicProfile(user) {
 
 // Get Profile & Stats
 app.get('/api/profile', authenticateToken, (req, res) => {
-    const user = db.prepare('SELECT id, username, avatar, playtime, highest_cpm, avg_cpm, total_mistakes FROM users WHERE id = ?').get(req.user.id);
+    const user = db.prepare('SELECT id, username, avatar, created_at, playtime, highest_cpm, avg_cpm, total_mistakes FROM users WHERE id = ?').get(req.user.id);
     if (!user) return res.status(404).json({ error: 'User not found' });
     res.json(getPublicProfile(user));
 });
 
 // Public: view another user's profile (same shape as /api/profile)
 app.get('/api/users/:username', (req, res) => {
-    const user = db.prepare('SELECT id, username, avatar, playtime, highest_cpm, avg_cpm, total_mistakes FROM users WHERE username = ?').get(req.params.username);
+    const user = db.prepare('SELECT id, username, avatar, created_at, playtime, highest_cpm, avg_cpm, total_mistakes FROM users WHERE username = ?').get(req.params.username);
     if (!user) return res.status(404).json({ error: 'User not found' });
     res.json(getPublicProfile(user));
 });
@@ -245,6 +271,40 @@ app.post('/api/profile/avatar/select', authenticateToken, (req, res) => {
 
     db.prepare('UPDATE users SET avatar = ? WHERE id = ?').run(`/uploads/${filename}`, req.user.id);
     res.json({ avatar: `/uploads/${filename}` });
+});
+
+// Drop one picture from the history. If it was the one in use, the next most recent
+// takes over; with nothing left, the bundled default does.
+app.post('/api/profile/avatar/delete', authenticateToken, (req, res) => {
+    const { avatar } = req.body;
+    if (!avatar) return res.status(400).json({ error: 'Missing avatar' });
+
+    const filename = String(avatar).replace(/^\/uploads\//, '');
+    // A row has to exist for this user before anything is unlinked, and the name has to
+    // be a plain filename — belt and braces, since this one touches the filesystem.
+    if (!filename || filename.includes('/') || filename.includes('\\') || filename.includes('..')) {
+        return res.status(400).json({ error: 'Invalid avatar' });
+    }
+
+    const owned = db.prepare('SELECT id FROM avatar_history WHERE user_id = ? AND filename = ?')
+        .get(req.user.id, filename);
+    if (!owned) return res.status(403).json({ error: 'Not your avatar' });
+
+    db.prepare('DELETE FROM avatar_history WHERE id = ?').run(owned.id);
+    fs.unlink(path.join(uploadDir, filename), () => {});
+
+    const user = db.prepare('SELECT avatar FROM users WHERE id = ?').get(req.user.id);
+    let current = user.avatar;
+
+    if (current === `/uploads/${filename}`) {
+        const next = db.prepare(
+            'SELECT filename FROM avatar_history WHERE user_id = ? ORDER BY created_at DESC, id DESC LIMIT 1'
+        ).get(req.user.id);
+        current = next ? `/uploads/${next.filename}` : '/uploads/default.png';
+        db.prepare('UPDATE users SET avatar = ? WHERE id = ?').run(current, req.user.id);
+    }
+
+    res.json({ avatar: current });
 });
 
 // Upload Profile Picture (keeps the 5 most recent uploads per user, deletes older ones)
