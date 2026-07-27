@@ -73,7 +73,17 @@ CREATE TABLE IF NOT EXISTS character_stats (
     FOREIGN KEY (user_id) REFERENCES users(id)
 );
 
+CREATE TABLE IF NOT EXISTS avatar_history (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    filename TEXT NOT NULL,
+    created_at INTEGER DEFAULT (strftime('%s','now')),
+    FOREIGN KEY (user_id) REFERENCES users(id)
+);
+
 `);
+
+const MAX_AVATAR_HISTORY = 5;
 
 // Multer Storage Configuration for Profile Pictures
 const storage = multer.diskStorage({
@@ -83,9 +93,11 @@ const storage = multer.diskStorage({
 const upload = multer({ storage });
 
 // JWT Authentication Middleware
+// Falls back to a `token` field in the JSON body since navigator.sendBeacon
+// (used to flush progress on tab-close/visibility-hidden) can't set headers.
 function authenticateToken(req, res, next) {
     const authHeader = req.headers['authorization'];
-    const token = authHeader && authHeader.split(' ')[1];
+    const token = (authHeader && authHeader.split(' ')[1]) || req.body?.token;
     if (!token) return res.status(401).json({ error: 'Unauthorized' });
 
     jwt.verify(token, JWT_SECRET, (err, user) => {
@@ -129,24 +141,88 @@ app.post('/api/login', async (req, res) => {
     res.json({ token, username: user.username });
 });
 
+// Shared shape for both the authenticated "my profile" and public "view a user" endpoints
+function getPublicProfile(user) {
+    const stats = db.prepare('SELECT kanji_count, hiragana_count, katakana_count FROM character_stats WHERE user_id = ?').get(user.id);
+    const kanji = stats?.kanji_count || 0;
+    const hiragana = stats?.hiragana_count || 0;
+    const katakana = stats?.katakana_count || 0;
+
+    return {
+        username: user.username,
+        avatar: user.avatar,
+        playtime: user.playtime,
+        highest_cpm: user.highest_cpm,
+        avg_cpm: user.avg_cpm,
+        total_mistakes: user.total_mistakes,
+        stats: {
+            kanji_count: kanji,
+            hiragana_count: hiragana,
+            katakana_count: katakana,
+            total_count: kanji + hiragana + katakana
+        }
+    };
+}
+
 // Get Profile & Stats
 app.get('/api/profile', authenticateToken, (req, res) => {
     const user = db.prepare('SELECT id, username, avatar, playtime, highest_cpm, avg_cpm, total_mistakes FROM users WHERE id = ?').get(req.user.id);
-    const stats = db.prepare('SELECT * FROM character_stats WHERE user_id = ?').get(req.user.id);
-    res.json({ ...user, stats });
+    if (!user) return res.status(404).json({ error: 'User not found' });
+    res.json(getPublicProfile(user));
 });
 
-// Upload Profile Picture
+// Public: view another user's profile (same shape as /api/profile)
+app.get('/api/users/:username', (req, res) => {
+    const user = db.prepare('SELECT id, username, avatar, playtime, highest_cpm, avg_cpm, total_mistakes FROM users WHERE username = ?').get(req.params.username);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+    res.json(getPublicProfile(user));
+});
+
+// List this user's recent avatar uploads (for the swap-back picker)
+app.get('/api/profile/avatar-history', authenticateToken, (req, res) => {
+    const rows = db.prepare(
+        'SELECT filename FROM avatar_history WHERE user_id = ? ORDER BY created_at DESC, id DESC LIMIT ?'
+    ).all(req.user.id, MAX_AVATAR_HISTORY);
+    res.json({ history: rows.map(r => `/uploads/${r.filename}`) });
+});
+
+// Swap the active avatar to a previously uploaded one (no re-upload, no history mutation)
+app.post('/api/profile/avatar/select', authenticateToken, (req, res) => {
+    const { avatar } = req.body;
+    if (!avatar) return res.status(400).json({ error: 'Missing avatar' });
+
+    const filename = avatar.replace(/^\/uploads\//, '');
+    const owned = db.prepare('SELECT 1 FROM avatar_history WHERE user_id = ? AND filename = ?').get(req.user.id, filename);
+    if (!owned) return res.status(403).json({ error: 'Not your avatar' });
+
+    db.prepare('UPDATE users SET avatar = ? WHERE id = ?').run(`/uploads/${filename}`, req.user.id);
+    res.json({ avatar: `/uploads/${filename}` });
+});
+
+// Upload Profile Picture (keeps the 5 most recent uploads per user, deletes older ones)
 app.post('/api/profile/avatar', authenticateToken, upload.single('avatar'), (req, res) => {
     if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
     const avatarUrl = `/uploads/${req.file.filename}`;
-    db.prepare('UPDATE users SET avatar = ? WHERE id = ?').run(avatarUrl, req.user.id);
+    const userId = req.user.id;
+
+    db.prepare('UPDATE users SET avatar = ? WHERE id = ?').run(avatarUrl, userId);
+    db.prepare('INSERT INTO avatar_history (user_id, filename) VALUES (?, ?)').run(userId, req.file.filename);
+
+    const stale = db.prepare(
+        'SELECT id, filename FROM avatar_history WHERE user_id = ? ORDER BY created_at DESC, id DESC LIMIT -1 OFFSET ?'
+    ).all(userId, MAX_AVATAR_HISTORY);
+
+    for (const row of stale) {
+        fs.unlink(path.join(uploadDir, row.filename), () => {});
+        db.prepare('DELETE FROM avatar_history WHERE id = ?').run(row.id);
+    }
+
     res.json({ avatar: avatarUrl });
 });
 
-// Sync Playtime & Stats Endpoint
+// Sync Playtime & Stats Endpoint (also reachable via sendBeacon on tab-hide/close)
 app.post('/api/profile/sync', authenticateToken, (req, res) => {
-    const { playtime, cpm, typedChars, mistakes } = req.body;
+    const { playtime, cpm, mistakes, kanjiCount, hiraganaCount, katakanaCount } = req.body;
     const userId = req.user.id;
 
     const user = db.prepare('SELECT playtime, highest_cpm, avg_cpm, test_count, total_mistakes FROM users WHERE id = ?').get(userId);
@@ -155,11 +231,19 @@ app.post('/api/profile/sync', authenticateToken, (req, res) => {
     const newTestCount = user.test_count + (cpm ? 1 : 0);
     const newAvg = newTestCount > 0 ? Math.round(((user.avg_cpm * user.test_count) + (cpm || 0)) / newTestCount) : 0;
 
-    // Update the query to include total_mistakes
     db.prepare('UPDATE users SET playtime = ?, highest_cpm = ?, avg_cpm = ?, test_count = ?, total_mistakes = total_mistakes + ? WHERE id = ?')
-    .run(newPlaytime, newHighest, newAvg, newTestCount, mistakes || 0, userId);
+        .run(newPlaytime, newHighest, newAvg, newTestCount, mistakes || 0, userId);
 
-    /* ... keep character_stats update logic ... */
+    if (kanjiCount || hiraganaCount || katakanaCount) {
+        db.prepare(`
+            UPDATE character_stats
+            SET kanji_count = kanji_count + ?,
+                hiragana_count = hiragana_count + ?,
+                katakana_count = katakana_count + ?
+            WHERE user_id = ?
+        `).run(kanjiCount || 0, hiraganaCount || 0, katakanaCount || 0, userId);
+    }
+
     res.json({ success: true });
 });
 

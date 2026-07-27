@@ -387,9 +387,16 @@
         </div>
     </footer>
 
-    <script type="py" src="./countjp.py"></script>
+    <script type="py" src="/countjp.py"></script>
 
     <script>
+        // Restore the real path after the 404.html deep-link redirect (see 404.html).
+        (function restoreRedirectedPath() {
+            const params = new URLSearchParams(window.location.search);
+            const redirect = params.get('redirect');
+            if (redirect) history.replaceState({}, '', redirect);
+        })();
+
         // Backend API lives on Railway, separate from this GitHub Pages-hosted frontend.
         const API_BASE = "https://tangotype-production.up.railway.app";
 
@@ -666,6 +673,10 @@ let currentIndex = 0;
                 seedDrawer.classList.remove("hidden");
                 seedTabBtn.classList.add("active");
             }
+
+            if (tabName !== "profile" && window.location.pathname.startsWith("/user/")) {
+                history.pushState({}, '', '/');
+            }
         }
 
        function loadFromSeed(seedString) {
@@ -731,18 +742,93 @@ let currentIndex = 0;
     }
 }
 
+        let lastSyncedMistakes = 0;
+        let isPlayTimerActive = false;
+
+        function buildSyncPayload(cpm) {
+            const payload = { playtime: activePlayTimeMs / 1000 };
+
+            if (stats.kanjiCount || stats.hiraganaCount || stats.katakanaCount) {
+                payload.kanjiCount = stats.kanjiCount;
+                payload.hiraganaCount = stats.hiraganaCount;
+                payload.katakanaCount = stats.katakanaCount;
+            }
+
+            const mistakesDelta = mistakesSession - lastSyncedMistakes;
+            if (mistakesDelta > 0) payload.mistakes = mistakesDelta;
+
+            if (cpm !== undefined && cpm !== null) payload.cpm = cpm;
+
+            return payload;
+        }
+
+        function hasPendingSyncData() {
+            return activePlayTimeMs > 0 || stats.kanjiCount > 0 || stats.hiraganaCount > 0 ||
+                stats.katakanaCount > 0 || (mistakesSession - lastSyncedMistakes) > 0;
+        }
+
+        function resetSyncedCounters() {
+            activePlayTimeMs = 0;
+            localStorage.setItem("anki_type_play_time", "0");
+            stats.kanjiCount = 0;
+            stats.hiraganaCount = 0;
+            stats.katakanaCount = 0;
+            localStorage.setItem("anki_type_stats", JSON.stringify(stats));
+            lastSyncedMistakes = mistakesSession;
+        }
+
+        // Sends whatever playtime/stats/mistakes have accumulated since the last flush.
+        // Deltas only (server adds them on top of stored totals), so counters reset
+        // locally right after sending to avoid double-counting on the next flush.
+        function flushProgress({ useBeacon = false, cpm } = {}) {
+            if (!currentUserToken) return;
+            if (!hasPendingSyncData() && (cpm === undefined || cpm === null)) return;
+
+            const payload = buildSyncPayload(cpm);
+
+            if (useBeacon && navigator.sendBeacon) {
+                navigator.sendBeacon(
+                    `${API_BASE}/api/profile/sync`,
+                    new Blob([JSON.stringify({ ...payload, token: currentUserToken })], { type: 'application/json' })
+                );
+            } else {
+                fetch(`${API_BASE}/api/profile/sync`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${currentUserToken}` },
+                    body: JSON.stringify(payload)
+                }).catch(err => console.error("Sync error:", err));
+            }
+
+            resetSyncedCounters();
+        }
+
         // Global play time tracker: accumulates whenever the user is actively typing
-        // (i.e. a keystroke happened within the last 2 seconds). This is independent
-        // of the countdown timer used for Time-mode tests (see testTimerInterval /
-        // timeRemaining below). It's persisted to localStorage and synced to the
-        // server profile on test completion for display in the Profile tab.
+        // (a keystroke happened within the last 3 seconds). Independent of the
+        // countdown timer used for Time-mode tests (see testTimerInterval below).
+        // The instant 3s of inactivity passes, the timer pauses and whatever's
+        // accumulated (playtime + kanji/hiragana/katakana counts + new mistakes)
+        // is flushed to the server immediately, even mid-test.
         setInterval(() => {
             const now = Date.now();
-            if (now - lastTypingTimestamp <= 2000 && lastTypingTimestamp !== 0) {
+            const idleFor = now - lastTypingTimestamp;
+
+            if (lastTypingTimestamp !== 0 && idleFor <= 3000) {
+                isPlayTimerActive = true;
                 activePlayTimeMs += 100;
                 localStorage.setItem("anki_type_play_time", activePlayTimeMs.toString());
+            } else if (isPlayTimerActive) {
+                isPlayTimerActive = false;
+                flushProgress();
             }
         }, 100);
+
+        // Catch the cases the idle timer can't: switching tabs or closing/leaving the
+        // page mid-test. sendBeacon is used here since a normal fetch can get cancelled
+        // when the page unloads before it completes.
+        document.addEventListener("visibilitychange", () => {
+            if (document.visibilityState === "hidden") flushProgress({ useBeacon: true });
+        });
+        window.addEventListener("pagehide", () => flushProgress({ useBeacon: true }));
 
         function onUserActiveTyping() {
             lastTypingTimestamp = Date.now();
@@ -802,25 +888,8 @@ let currentIndex = 0;
 
             document.getElementById("res-mistakes").textContent = mistakesSession;
 
-    // Sync to server if logged in
-    if (currentUserToken) {
-        fetch(`${API_BASE}/api/profile/sync`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${currentUserToken}`
-            },
-            body: JSON.stringify({
-                playtime: activePlayTimeMs / 1000,
-                cpm: cpm,
-                mistakes: mistakesSession
-            })
-        }).catch(err => console.error("Sync error:", err));
-
-        // Reset local playtime tracker after syncing
-        activePlayTimeMs = 0;
-        localStorage.setItem("anki_type_play_time", "0");
-    }
+            // Sync remaining progress, including this test's CPM, to the server
+            flushProgress({ cpm });
 
             resultModal.classList.remove("hidden");
         }
@@ -929,7 +998,7 @@ async function fetchTangoJson(level) {
     statusEl.textContent = "LOADING QUEUE";
 
     try {
-        const response = await fetch(`${level}.json`);
+        const response = await fetch(`/${level}.json`);
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         const data = await response.json();
 
@@ -1247,6 +1316,7 @@ function setMode(mode, shouldReload = true) {
             scoreEl.textContent = totalScore;
             totalTypedChars = 0;
             mistakesSession = 0;
+            lastSyncedMistakes = 0;
             completedItemsSession = [];
 
             clearInterval(testTimerInterval);
@@ -1429,7 +1499,16 @@ function setMode(mode, shouldReload = true) {
             updateDisplay();
         });
 
-        profileTabBtn.addEventListener("click", () => openTab("profile"));
+        profileTabBtn.addEventListener("click", () => {
+            const routeUsername = getProfileRouteUsername();
+            const ownUsername = currentUserToken ? decodeJwtPayload(currentUserToken)?.username : null;
+            const isViewingSomeoneElse = routeUsername && routeUsername !== ownUsername;
+
+            if (isViewingSomeoneElse && profileTabBtn.classList.contains("active")) {
+                history.pushState({}, '', ownUsername ? `/user/${ownUsername}` : '/');
+            }
+            openTab("profile");
+        });
         testOptionsTabBtn.addEventListener("click", () => openTab("test-options"));
         ankiTabBtn.addEventListener("click", () => openTab("anki"));
         appearanceTabBtn.addEventListener("click", () => openTab("appearance"));
@@ -1643,9 +1722,85 @@ function setMode(mode, shouldReload = true) {
 
         let currentUserToken = localStorage.getItem('anki_jwt');
 
+        function decodeJwtPayload(token) {
+            try {
+                const base64 = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+                const padded = base64.padEnd(base64.length + (4 - base64.length % 4) % 4, '=');
+                return JSON.parse(atob(padded));
+            } catch {
+                return null;
+            }
+        }
+
+        function getProfileRouteUsername() {
+            const match = window.location.pathname.match(/^\/user\/([^/]+)\/?$/);
+            return match ? decodeURIComponent(match[1]) : null;
+        }
+
+        function renderStatsMarkup(data) {
+            const total = data.stats?.total_count ?? ((data.stats?.kanji_count || 0) + (data.stats?.hiragana_count || 0) + (data.stats?.katakana_count || 0));
+            return `
+                <div class="profile-stats-grid">
+                    <div class="stat-box"><span class="stat-value">${Math.floor((data.playtime || 0) / 60)}m</span><span class="stat-label">PLAYTIME</span></div>
+                    <div class="stat-box"><span class="stat-value">${data.highest_cpm || 0}</span><span class="stat-label">HIGHEST CPM</span></div>
+                    <div class="stat-box"><span class="stat-value">${data.total_mistakes || 0}</span><span class="stat-label">TOTAL MISTAKES</span></div>
+                </div>
+                <div class="char-stats-grid">
+                    <div class="stat-box"><span class="stat-value">${data.stats?.kanji_count || 0}</span><span class="stat-label">KANJI</span></div>
+                    <div class="stat-box"><span class="stat-value">${data.stats?.hiragana_count || 0}</span><span class="stat-label">HIRAGANA</span></div>
+                    <div class="stat-box"><span class="stat-value">${data.stats?.katakana_count || 0}</span><span class="stat-label">KATAKANA</span></div>
+                    <div class="stat-box"><span class="stat-value">${total}</span><span class="stat-label">TOTAL</span></div>
+                </div>`;
+        }
+
+        async function renderPublicProfile(username) {
+            const container = document.getElementById('profile-container');
+            container.innerHTML = `<div class="profile-card"><span class="drawer-title">Loading profile...</span></div>`;
+
+            try {
+                const res = await fetch(`${API_BASE}/api/users/${encodeURIComponent(username)}`);
+                if (!res.ok) {
+                    container.innerHTML = `<div class="profile-card"><span class="drawer-title">User "${username}" not found.</span></div>`;
+                    return;
+                }
+                const data = await res.json();
+
+                container.innerHTML = `
+                    <div class="profile-card">
+                        <div class="profile-avatar-col">
+                            <div class="avatar-wrapper avatar-static">
+                                <img src="${API_BASE}${data.avatar}" alt="Avatar"/>
+                            </div>
+                        </div>
+                        <div class="profile-info-col">
+                            <span class="viewing-badge">Viewing ${data.username}'s profile · <button class="viewing-badge-back" id="viewing-badge-back">back to mine</button></span>
+                            <h3 class="profile-username">${data.username}</h3>
+                            ${renderStatsMarkup(data)}
+                        </div>
+                    </div>
+                `;
+
+                document.getElementById('viewing-badge-back').onclick = () => {
+                    const ownUsername = currentUserToken ? decodeJwtPayload(currentUserToken)?.username : null;
+                    history.pushState({}, '', ownUsername ? `/user/${ownUsername}` : '/');
+                    loadProfileUI();
+                };
+            } catch (err) {
+                console.error('Failed to fetch public profile:', err);
+                container.innerHTML = `<div class="profile-card"><span class="drawer-title">Failed to load profile.</span></div>`;
+            }
+        }
+
         async function loadProfileUI() {
             const container = document.getElementById('profile-container');
             if (!container) return;
+
+            const routeUsername = getProfileRouteUsername();
+            const ownUsername = currentUserToken ? decodeJwtPayload(currentUserToken)?.username : null;
+
+            if (routeUsername && routeUsername !== ownUsername) {
+                return renderPublicProfile(routeUsername);
+            }
 
             if (!currentUserToken) {
                 container.innerHTML = `
@@ -1716,25 +1871,87 @@ function setMode(mode, shouldReload = true) {
 
                     container.innerHTML = `
                         <div class="profile-card">
-                            <div class="avatar-wrapper" onclick="document.getElementById('avatar-input').click()">
-                                <img src="${API_BASE}${data.avatar}" id="profile-avatar-img" alt="Avatar"/>
-                                <div class="avatar-overlay">EDIT</div>
+                            <div class="profile-avatar-col">
+                                <div class="avatar-wrapper" id="avatar-wrapper">
+                                    <img src="${API_BASE}${data.avatar}" id="profile-avatar-img" alt="Avatar"/>
+                                    <div class="avatar-overlay">CHANGE</div>
+                                </div>
+                                <input type="file" id="avatar-input" class="hidden" accept="image/*" />
                             </div>
-                            <input type="file" id="avatar-input" class="hidden" accept="image/*" />
-                            <h3 class="profile-username">${data.username}</h3>
-                            <div class="profile-stats-grid">
-    <div class="stat-box"><span class="stat-value">${Math.floor((data.playtime || 0) / 60)}m</span><span class="stat-label">PLAYTIME</span></div>
-    <div class="stat-box"><span class="stat-value">${data.highest_cpm || 0}</span><span class="stat-label">HIGHEST CPM</span></div>
-    <div class="stat-box"><span class="stat-value">${data.total_mistakes || 0}</span><span class="stat-label">TOTAL MISTAKES</span></div>
-    <div class="stat-box"><span class="stat-value">${data.stats?.kanji_count || 0}</span><span class="stat-label">KANJI</span></div>
-    <div class="stat-box"><span class="stat-value">${data.stats?.hiragana_count || 0}</span><span class="stat-label">HIRAGANA</span></div>
-    <div class="stat-box"><span class="stat-value">${data.stats?.katakana_count || 0}</span><span class="stat-label">KATAKANA</span></div>
-</div>
-                            <button id="logout-btn" class="auth-btn logout-btn">LOGOUT</button>
+                            <div class="profile-info-col">
+                                <h3 class="profile-username">${data.username}</h3>
+                                ${renderStatsMarkup(data)}
+                                <button id="logout-btn" class="auth-btn logout-btn">LOGOUT</button>
+                            </div>
+                        </div>
+                        <div class="avatar-picker hidden" id="avatar-picker">
+                            <div class="avatar-picker-grid" id="avatar-picker-grid"></div>
+                            <button class="avatar-upload-btn" id="avatar-upload-trigger-btn">+ Upload New</button>
                         </div>
                     `;
 
-                    document.getElementById('avatar-input').onchange = async (e) => {
+                    const ownProfileUrl = `/user/${data.username}`;
+                    if (window.location.pathname !== ownProfileUrl) {
+                        history.pushState({}, '', ownProfileUrl);
+                    }
+
+                    const avatarWrapper = document.getElementById('avatar-wrapper');
+                    const avatarPicker = document.getElementById('avatar-picker');
+                    const avatarPickerGrid = document.getElementById('avatar-picker-grid');
+                    const avatarInput = document.getElementById('avatar-input');
+
+                    avatarWrapper.onclick = async () => {
+                        const isHidden = avatarPicker.classList.contains('hidden');
+                        if (!isHidden) {
+                            avatarPicker.classList.add('hidden');
+                            return;
+                        }
+
+                        avatarPicker.classList.remove('hidden');
+                        avatarPickerGrid.innerHTML = '<span class="avatar-picker-loading">Loading...</span>';
+
+                        try {
+                            const histRes = await fetch(`${API_BASE}/api/profile/avatar-history`, {
+                                headers: { 'Authorization': `Bearer ${currentUserToken}` }
+                            });
+                            const histData = await histRes.json();
+                            const history_ = histData.history || [];
+
+                            avatarPickerGrid.innerHTML = '';
+                            if (history_.length === 0) {
+                                avatarPickerGrid.innerHTML = '<span class="avatar-picker-empty">No previous avatars yet.</span>';
+                            }
+                            history_.forEach(url => {
+                                const thumb = document.createElement('img');
+                                thumb.src = `${API_BASE}${url}`;
+                                thumb.className = 'avatar-picker-thumb';
+                                thumb.title = 'Switch to this avatar';
+                                thumb.onclick = async (e) => {
+                                    e.stopPropagation();
+                                    const selRes = await fetch(`${API_BASE}/api/profile/avatar/select`, {
+                                        method: 'POST',
+                                        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${currentUserToken}` },
+                                        body: JSON.stringify({ avatar: url })
+                                    });
+                                    const selData = await selRes.json();
+                                    if (selData.avatar) {
+                                        document.getElementById('profile-avatar-img').src = `${API_BASE}${selData.avatar}`;
+                                    }
+                                    avatarPicker.classList.add('hidden');
+                                };
+                                avatarPickerGrid.appendChild(thumb);
+                            });
+                        } catch (err) {
+                            avatarPickerGrid.innerHTML = '<span class="avatar-picker-loading">Failed to load.</span>';
+                        }
+                    };
+
+                    document.getElementById('avatar-upload-trigger-btn').onclick = (e) => {
+                        e.stopPropagation();
+                        avatarInput.click();
+                    };
+
+                    avatarInput.onchange = async (e) => {
                         if (!e.target.files[0]) return;
                         const formData = new FormData();
                         formData.append('avatar', e.target.files[0]);
@@ -1748,11 +1965,13 @@ function setMode(mode, shouldReload = true) {
                         if (uploadData.avatar) {
                             document.getElementById('profile-avatar-img').src = `${API_BASE}${uploadData.avatar}`;
                         }
+                        avatarPicker.classList.add('hidden');
                     };
 
                     document.getElementById('logout-btn').onclick = () => {
                         localStorage.removeItem('anki_jwt');
                         currentUserToken = null;
+                        history.pushState({}, '', '/');
                         loadProfileUI();
                     };
 
@@ -1763,6 +1982,15 @@ function setMode(mode, shouldReload = true) {
         }
 
         document.getElementById("footer-year").textContent = new Date().getFullYear();
+
+        window.addEventListener("popstate", () => {
+            const onProfileUrl = /^\/user\/[^/]+\/?$/.test(window.location.pathname);
+            openTab(onProfileUrl ? "profile" : "test-options");
+        });
+
+        if (/^\/user\/[^/]+\/?$/.test(window.location.pathname)) {
+            openTab("profile");
+        }
 
         setSource(activeSource);
         populateDecks();
