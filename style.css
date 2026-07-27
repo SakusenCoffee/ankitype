@@ -1251,6 +1251,203 @@ border-color: var(--accent-main);
 box-shadow: 0 0 0 2px rgba(83, 155, 245, 0.2);
 }
 
+/* WORKSHOP REGEX FILTERS */
+.workshop-filter-bar {
+    border-top: 1px solid var(--border-color);
+    padding-top: 12px;
+}
+
+.filter-bar-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+}
+
+.filter-add-btn {
+    background: transparent;
+    border: 1px dashed var(--border-color);
+    color: var(--text-muted);
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    font-family: inherit;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.filter-add-btn:hover {
+    color: var(--accent-main);
+    border-color: var(--accent-main);
+}
+
+.filter-chip-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    align-items: center;
+}
+
+.filter-chip {
+    display: flex;
+    align-items: stretch;
+    background-color: var(--nav-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+.filter-chip:hover {
+    border-color: var(--accent-main);
+}
+
+.filter-apply-btn {
+    background: transparent;
+    border: none;
+    color: var(--text-primary);
+    padding: 5px 10px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    font-family: inherit;
+    cursor: pointer;
+}
+
+.filter-apply-btn:hover {
+    color: var(--accent-main);
+}
+
+.filter-icon-btn {
+    background: transparent;
+    border: none;
+    border-left: 1px solid var(--border-color);
+    color: var(--text-muted);
+    padding: 0 7px;
+    font-size: 0.7rem;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.filter-icon-btn:hover {
+    color: var(--accent-main);
+}
+
+.filter-icon-btn.filter-del-btn:hover {
+    color: var(--accent-red);
+}
+
+/* Separates the built-ins from the user's own saved filters */
+.filter-chip-divider {
+    width: 1px;
+    align-self: stretch;
+    min-height: 20px;
+    background-color: var(--border-color);
+    margin: 0 4px;
+}
+
+.filter-editor {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    background-color: var(--nav-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 12px;
+}
+
+.filter-editor-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.filter-field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    flex: 1 1 120px;
+    min-width: 0;
+}
+
+.filter-field-wide { flex: 2 1 200px; }
+.filter-field-narrow { flex: 0 0 70px; }
+
+.filter-field span {
+    font-size: 0.62rem;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    color: var(--text-muted);
+}
+
+.filter-field input {
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-color);
+    color: var(--text-primary);
+    padding: 6px 8px;
+    border-radius: 6px;
+    font-size: 0.78rem;
+    font-family: 'JetBrains Mono', 'Consolas', monospace;
+    outline: none;
+    width: 100%;
+}
+
+.filter-field input:focus {
+    border-color: var(--accent-main);
+}
+
+.filter-editor-error {
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--accent-red);
+    min-height: 14px;
+}
+
+.filter-editor-actions {
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+}
+
+.filter-cancel-btn,
+.filter-save-btn {
+    border: none;
+    padding: 6px 14px;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    font-family: inherit;
+    cursor: pointer;
+}
+
+.filter-cancel-btn {
+    background-color: transparent;
+    border: 1px solid var(--border-color);
+    color: var(--text-muted);
+}
+
+.filter-cancel-btn:hover {
+    color: var(--text-primary);
+}
+
+.filter-save-btn {
+    background-color: var(--accent-main);
+    color: var(--bg-color);
+}
+
+.filter-save-btn:hover {
+    background-color: var(--accent-hover);
+}
+
+.filter-status {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    min-height: 14px;
+}
+
+.filter-status.is-error {
+    color: var(--accent-red);
+}
+
 /* WORKSHOP FILE IMPORT */
 .workshop-drop-hint {
     position: absolute;

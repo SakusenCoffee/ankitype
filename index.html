@@ -147,6 +147,43 @@
                     <input type="number" class="custom-inline-input hidden" id="custom-kana-inline" min="1" inputmode="numeric" aria-label="Custom character count" />
                 </div>
             </div>
+
+            <!-- Regex filters for the workshop textarea; only shown while it is open -->
+            <div class="drawer-inner workshop-filter-bar hidden" id="workshop-filter-bar">
+                <div class="filter-bar-head">
+                    <span class="drawer-title">TEXT FILTERS</span>
+                    <button class="filter-add-btn" id="filter-add-btn">+ New filter</button>
+                </div>
+                <div class="filter-chip-row" id="filter-chip-row"></div>
+
+                <form class="filter-editor hidden" id="filter-editor">
+                    <div class="filter-editor-grid">
+                        <label class="filter-field">
+                            <span>NAME</span>
+                            <input type="text" id="filter-name" placeholder="Strip brackets" required />
+                        </label>
+                        <label class="filter-field filter-field-wide">
+                            <span>PATTERN</span>
+                            <input type="text" id="filter-pattern" placeholder="\[[^\]]*\]" spellcheck="false" required />
+                        </label>
+                        <label class="filter-field filter-field-narrow">
+                            <span>FLAGS</span>
+                            <input type="text" id="filter-flags" placeholder="g" spellcheck="false" />
+                        </label>
+                        <label class="filter-field filter-field-wide">
+                            <span>REPLACE WITH</span>
+                            <input type="text" id="filter-replacement" placeholder="(leave empty to delete)" spellcheck="false" />
+                        </label>
+                    </div>
+                    <div class="filter-editor-error" id="filter-editor-error"></div>
+                    <div class="filter-editor-actions">
+                        <button type="button" class="filter-cancel-btn" id="filter-cancel-btn">CANCEL</button>
+                        <button type="submit" class="filter-save-btn" id="filter-save-btn">SAVE FILTER</button>
+                    </div>
+                </form>
+
+                <div class="filter-status" id="filter-status"></div>
+            </div>
         </div>
 
         <!-- EXPANDABLE DRAWER: ANKI SETTINGS -->
@@ -640,6 +677,251 @@
                 importWorkshopFiles(Array.from(e.dataTransfer.files));
             });
         }
+
+        /* ---- Workshop regex filters ------------------------------------------------
+           Each filter is a find/replace run over the workshop textarea. The built-in
+           set covers the usual cleanup of imported text; users can save their own
+           alongside them, and only those can be edited or deleted. */
+
+        const BUILTIN_TEXT_FILTERS = [
+            {
+                id: "builtin-furigana",
+                name: "Strip furigana",
+                pattern: "[（(《｛\\[][ぁ-ゟァ-ヿ\\s]*[）)》｝\\]]",
+                flags: "g",
+                replacement: ""
+            },
+            {
+                id: "builtin-latin",
+                name: "Latin & numbers",
+                pattern: "[A-Za-z0-9Ａ-Ｚａ-ｚ０-９]+",
+                flags: "g",
+                replacement: ""
+            },
+            {
+                id: "builtin-punctuation",
+                name: "Punctuation",
+                pattern: "[、。，．・！？「」『』（）()\\[\\]｛｝〈〉《》〜ー―…‥:;,.!?\"'`~^*_=+/\\\\|<>@#$%&-]",
+                flags: "g",
+                replacement: ""
+            },
+            {
+                id: "builtin-non-japanese",
+                name: "Non-Japanese",
+                pattern: "[^\\u3040-\\u309f\\u30a0-\\u30ff\\u4e00-\\u9faf\\u3400-\\u4dbf\\n]",
+                flags: "g",
+                replacement: ""
+            },
+            {
+                id: "builtin-spaces",
+                name: "Spaces",
+                pattern: "[ \\t\\u3000]+",
+                flags: "g",
+                replacement: ""
+            },
+            {
+                id: "builtin-blank-lines",
+                name: "Blank lines",
+                pattern: "\\n{2,}",
+                flags: "g",
+                replacement: "\n"
+            },
+            {
+                id: "builtin-one-line",
+                name: "Join lines",
+                pattern: "\\n+",
+                flags: "g",
+                replacement: ""
+            }
+        ];
+
+        const FILTER_STORAGE_KEY = "anki_type_text_filters";
+
+        const filterBar = document.getElementById("workshop-filter-bar");
+        const filterChipRow = document.getElementById("filter-chip-row");
+        const filterAddBtn = document.getElementById("filter-add-btn");
+        const filterEditor = document.getElementById("filter-editor");
+        const filterNameInput = document.getElementById("filter-name");
+        const filterPatternInput = document.getElementById("filter-pattern");
+        const filterFlagsInput = document.getElementById("filter-flags");
+        const filterReplacementInput = document.getElementById("filter-replacement");
+        const filterEditorError = document.getElementById("filter-editor-error");
+        const filterCancelBtn = document.getElementById("filter-cancel-btn");
+        const filterStatus = document.getElementById("filter-status");
+
+        let customTextFilters = [];
+        let editingFilterId = null;
+
+        function loadCustomFilters() {
+            try {
+                const stored = JSON.parse(localStorage.getItem(FILTER_STORAGE_KEY) || "[]");
+                customTextFilters = Array.isArray(stored) ? stored : [];
+            } catch (err) {
+                console.error("Could not read saved filters:", err);
+                customTextFilters = [];
+            }
+        }
+
+        function saveCustomFilters() {
+            localStorage.setItem(FILTER_STORAGE_KEY, JSON.stringify(customTextFilters));
+        }
+
+        function setFilterStatus(message, isError = false) {
+            filterStatus.textContent = message;
+            filterStatus.classList.toggle("is-error", isError);
+        }
+
+        function applyTextFilter(filter) {
+            const textarea = document.getElementById("jptext");
+            if (!textarea) return;
+
+            const before = textarea.value;
+            if (!before) {
+                setFilterStatus("Nothing to filter yet.", true);
+                return;
+            }
+
+            let result;
+            try {
+                result = before.replace(new RegExp(filter.pattern, filter.flags || ""), filter.replacement || "");
+            } catch (err) {
+                setFilterStatus(`"${filter.name}" failed: ${err.message}`, true);
+                return;
+            }
+
+            textarea.value = result;
+            // PyScript recounts on "input", which assigning .value does not fire
+            textarea.dispatchEvent(new Event("input", { bubbles: true }));
+
+            const removed = before.length - result.length;
+            setFilterStatus(removed === 0
+                ? `"${filter.name}" matched nothing.`
+                : `"${filter.name}" removed ${removed} character(s).`);
+        }
+
+        function renderFilterChips() {
+            filterChipRow.innerHTML = "";
+
+            const makeChip = (filter, isBuiltin) => {
+                const chip = document.createElement("div");
+                chip.className = "filter-chip";
+
+                const apply = document.createElement("button");
+                apply.type = "button";
+                apply.className = "filter-apply-btn";
+                apply.textContent = filter.name;
+                apply.title = `/${filter.pattern}/${filter.flags || ""} → "${filter.replacement || ""}"`;
+                apply.addEventListener("click", () => applyTextFilter(filter));
+                chip.appendChild(apply);
+
+                if (!isBuiltin) {
+                    const edit = document.createElement("button");
+                    edit.type = "button";
+                    edit.className = "filter-icon-btn";
+                    edit.textContent = "✎";
+                    edit.title = `Edit "${filter.name}"`;
+                    edit.addEventListener("click", () => openFilterEditor(filter));
+                    chip.appendChild(edit);
+
+                    const del = document.createElement("button");
+                    del.type = "button";
+                    del.className = "filter-icon-btn filter-del-btn";
+                    del.textContent = "✕";
+                    del.title = `Delete "${filter.name}"`;
+                    del.addEventListener("click", () => deleteCustomFilter(filter));
+                    chip.appendChild(del);
+                }
+
+                return chip;
+            };
+
+            BUILTIN_TEXT_FILTERS.forEach(f => filterChipRow.appendChild(makeChip(f, true)));
+
+            if (customTextFilters.length) {
+                const divider = document.createElement("span");
+                divider.className = "filter-chip-divider";
+                filterChipRow.appendChild(divider);
+                customTextFilters.forEach(f => filterChipRow.appendChild(makeChip(f, false)));
+            }
+        }
+
+        function openFilterEditor(filter = null) {
+            editingFilterId = filter ? filter.id : null;
+            filterNameInput.value = filter ? filter.name : "";
+            filterPatternInput.value = filter ? filter.pattern : "";
+            filterFlagsInput.value = filter ? (filter.flags || "g") : "g";
+            filterReplacementInput.value = filter ? (filter.replacement || "") : "";
+            filterEditorError.textContent = "";
+            filterEditor.classList.remove("hidden");
+            filterNameInput.focus();
+        }
+
+        function closeFilterEditor() {
+            editingFilterId = null;
+            filterEditor.classList.add("hidden");
+            filterEditorError.textContent = "";
+        }
+
+        function deleteCustomFilter(filter) {
+            customTextFilters = customTextFilters.filter(f => f.id !== filter.id);
+            saveCustomFilters();
+            if (editingFilterId === filter.id) closeFilterEditor();
+            renderFilterChips();
+            setFilterStatus(`Deleted "${filter.name}".`);
+        }
+
+        filterAddBtn.addEventListener("click", () => {
+            if (!filterEditor.classList.contains("hidden") && editingFilterId === null) {
+                closeFilterEditor();
+            } else {
+                openFilterEditor(null);
+            }
+        });
+
+        filterCancelBtn.addEventListener("click", closeFilterEditor);
+
+        filterEditor.addEventListener("submit", e => {
+            e.preventDefault();
+
+            const name = filterNameInput.value.trim();
+            const pattern = filterPatternInput.value;
+            const flags = filterFlagsInput.value.trim();
+            const replacement = filterReplacementInput.value;
+
+            if (!name || !pattern) {
+                filterEditorError.textContent = "Name and pattern are both required.";
+                return;
+            }
+
+            // Reject a broken regex here rather than letting it fail on every click later
+            try {
+                new RegExp(pattern, flags);
+            } catch (err) {
+                filterEditorError.textContent = `Invalid regex: ${err.message}`;
+                return;
+            }
+
+            if (editingFilterId) {
+                const existing = customTextFilters.find(f => f.id === editingFilterId);
+                if (existing) Object.assign(existing, { name, pattern, flags, replacement });
+            } else {
+                customTextFilters.push({
+                    id: `custom-${Date.now()}`,
+                    name, pattern, flags, replacement
+                });
+            }
+
+            saveCustomFilters();
+            closeFilterEditor();
+            renderFilterChips();
+            setFilterStatus(`Saved "${name}".`);
+        });
+
+        // Keystrokes in the editor must not reach the typing test behind the drawer
+        filterEditor.addEventListener("keydown", e => e.stopPropagation());
+
+        loadCustomFilters();
+        renderFilterChips();
 
         let rowCountSetting = localStorage.getItem("anki_type_row_count") || "3";
 
@@ -1278,6 +1560,9 @@ function finalizeTangoJsonLoad(level) {
 // and the time chips only ever appear in Time mode.
 function applyOptionGroupVisibility() {
     const isKanaSource = activeSource === "hiragana" || activeSource === "katakana";
+
+    // The regex filters act on the workshop textarea, so they ride with it
+    filterBar.classList.toggle("hidden", !isZenMode);
 
     if (isZenMode) {
         wordOptionsGroup.classList.add("hidden");
