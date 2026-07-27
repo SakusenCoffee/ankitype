@@ -11,6 +11,16 @@
     <script src="https://cdn.jsdelivr.net/npm/wanakana@5.3.1/wanakana.min.js"></script>
     <script type="module" src="https://pyscript.net/releases/2024.3.1/core.js"></script>
     <link rel="stylesheet" href="style.css">
+
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-Z9714FD6YK"></script>
+    <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+
+    gtag('config', 'G-Z9714FD6YK');
+</script>
 </head>
 <body>
 
@@ -146,11 +156,24 @@
                 <div class="selector-container">
                     <label for="theme-select">COLOR THEME</label>
                     <select id="theme-select">
-                        <option value="dark-slate">Dark Slate (Default)</option>
-                        <option value="carbon">Carbon (High Contrast)</option>
-                        <option value="cyberpunk">Cyberpunk Neon</option>
-                        <option value="serika">Serika Dark</option>
-                        <option value="dracula">Dracula</option>
+                        <optgroup label="Dark Themes">
+                            <option value="dark-slate">Dark Slate (Default)</option>
+                            <option value="carbon">Carbon (High Contrast)</option>
+                            <option value="cyberpunk">Cyberpunk Neon</option>
+                            <option value="serika">Serika Dark</option>
+                            <option value="dracula">Dracula</option>
+                            <option value="nord">Nord</option>
+                            <option value="tokyo-night">Tokyo Night</option>
+                            <option value="gruvbox">Gruvbox Dark</option>
+                            <option value="rose-pine">Rosé Pine</option>
+                            <option value="monokai">Monokai Pro</option>
+                            <option value="one-dark">One Dark</option>
+                            <option value="everforest">Everforest</option>
+                        </optgroup>
+                        <optgroup label="Light Themes">
+                            <option value="solarized-light">Solarized Light</option>
+                            <option value="github-light">GitHub Light</option>
+                        </optgroup>
                     </select>
                 </div>
                 <div class="selector-container">
@@ -199,6 +222,13 @@
                 </div>
                 <input type="range" id="row-count-slider" min="1" max="5" step="1" value="3" class="font-slider" />
             </div>
+            <div class="selector-container full-width">
+                <label>LIVE INPUT BOX</label>
+                <div class="count-selector-group">
+                    <button class="mode-btn" id="input-box-show-btn">show</button>
+                    <button class="mode-btn" id="input-box-hide-btn">hide</button>
+                </div>
+            </div>
         </div>
 
         <!-- EXPANDABLE DRAWER: SEED OPTIONS -->
@@ -223,7 +253,7 @@
             <div class="words-container" id="words-container"></div>
         </div>
 
-        <div class="typing-controls-hint">
+        <div class="typing-controls-hint" id="typing-controls-hint">
             <span>[TAB] TOGGLE ROMAJI READINGS</span> • <span>[CLICK WORD] SHOW MEANING</span>
         </div>
 
@@ -232,14 +262,6 @@
                 <div class="live-input-box" id="live-input-box">
                     <span class="placeholder-text" id="input-placeholder">Type active word...</span>
                     <span id="live-input-text"></span>
-                    <button class="hide-box-btn" id="hide-box-btn" title="Hide Input Box">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                            <polyline points="4 14 10 14 10 20"></polyline>
-                            <polyline points="20 10 14 10 14 4"></polyline>
-                            <line x1="14" y1="10" x2="21" y2="3"></line>
-                            <line x1="3" y1="21" x2="10" y2="14"></line>
-                        </svg>
-                    </button>
                 </div>
             </div>
 
@@ -253,23 +275,8 @@
                     <span class="label">TIME LEFT</span>
                     <span class="value" id="time-left-val">30s</span>
                 </div>
-
-                <div class="score-panel-inline" id="play-time-panel">
-                    <span class="label">PLAY TIME</span>
-                    <span class="value" id="play-time-val">0s</span>
-                </div>
             </div>
         </div>
-
-        <button class="restore-box-btn hidden" id="restore-box-btn">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                <polyline points="15 3 21 3 21 9"></polyline>
-                <polyline points="9 21 3 21 3 15"></polyline>
-                <line x1="21" y1="3" x2="14" y2="10"></line>
-                <line x1="3" y1="21" x2="10" y2="14"></line>
-            </svg>
-            SHOW INPUT BOX
-        </button>
     </div>
 
     <!-- ZEN MODE LAYOUT (MOJIKAZU COUNTER) -->
@@ -498,8 +505,9 @@ let currentIndex = 0;
         const liveInputText = document.getElementById("live-input-text");
         const inputPlaceholder = document.getElementById("input-placeholder");
         const liveInputBox = document.getElementById("live-input-box");
-        const hideBoxBtn = document.getElementById("hide-box-btn");
-        const restoreBoxBtn = document.getElementById("restore-box-btn");
+        const inputBoxShowBtn = document.getElementById("input-box-show-btn");
+        const inputBoxHideBtn = document.getElementById("input-box-hide-btn");
+        const typingControlsHint = document.getElementById("typing-controls-hint");
 
         const profileTabBtn = document.getElementById("profile-tab-btn");
         const testOptionsTabBtn = document.getElementById("test-options-tab-btn");
@@ -547,7 +555,6 @@ let currentIndex = 0;
 
         const timerDisplayPanel = document.getElementById("timer-display-panel");
         const timeLeftVal = document.getElementById("time-left-val");
-        const playTimeVal = document.getElementById("play-time-val");
 
         const resultModal = document.getElementById("result-modal");
         const resCpm = document.getElementById("res-cpm");
@@ -571,10 +578,18 @@ let currentIndex = 0;
             applyRowCount();
         }
 
-        if (isInputBoxHidden) {
-            liveInputBox.classList.add("hidden");
-            restoreBoxBtn.classList.remove("hidden");
+        function applyInputBoxVisibility() {
+            if (isInputBoxHidden) {
+                liveInputBox.classList.add("hidden");
+                inputBoxHideBtn.classList.add("active");
+                inputBoxShowBtn.classList.remove("active");
+            } else {
+                liveInputBox.classList.remove("hidden");
+                inputBoxShowBtn.classList.add("active");
+                inputBoxHideBtn.classList.remove("active");
+            }
         }
+        applyInputBoxVisibility();
 
         function generateSeed() {
     let seedPayload = {
@@ -695,37 +710,31 @@ let currentIndex = 0;
     }
 }
 
-        function updatePlayTimeDisplay() {
-            const totalSecs = Math.floor(activePlayTimeMs / 1000);
-            const hrs = Math.floor(totalSecs / 3600);
-            const mins = Math.floor((totalSecs % 3600) / 60);
-            const secs = totalSecs % 60;
-
-            if (hrs > 0) {
-                playTimeVal.textContent = `${hrs}h ${mins}m ${secs}s`;
-            } else if (mins > 0) {
-                playTimeVal.textContent = `${mins}m ${secs}s`;
-            } else {
-                playTimeVal.textContent = `${secs}s`;
-            }
-        }
-        updatePlayTimeDisplay();
-
+        // Global play time tracker: accumulates whenever the user is actively typing
+        // (i.e. a keystroke happened within the last 2 seconds). This is independent
+        // of the countdown timer used for Time-mode tests (see testTimerInterval /
+        // timeRemaining below). It's persisted to localStorage and synced to the
+        // server profile on test completion for display in the Profile tab.
         setInterval(() => {
             const now = Date.now();
             if (now - lastTypingTimestamp <= 2000 && lastTypingTimestamp !== 0) {
                 activePlayTimeMs += 100;
                 localStorage.setItem("anki_type_play_time", activePlayTimeMs.toString());
-                updatePlayTimeDisplay();
             }
         }, 100);
 
         function onUserActiveTyping() {
             lastTypingTimestamp = Date.now();
+            typingControlsHint.classList.add("hint-hidden");
             if (!isTestActive) {
                 startTestTimer();
             }
         }
+
+        // Reveal the hint again as soon as the mouse moves
+        document.addEventListener("mousemove", () => {
+            typingControlsHint.classList.remove("hint-hidden");
+        });
 
         function startTestTimer() {
             isTestActive = true;
@@ -753,6 +762,7 @@ let currentIndex = 0;
         function finishTest() {
             clearInterval(testTimerInterval);
             isTestActive = false;
+            typingControlsHint.classList.remove("hint-hidden");
             const elapsedTimeSec = Math.max(1, Math.round((Date.now() - testStartTime) / 1000));
             const cpm = Math.round((totalTypedChars / elapsedTimeSec) * 60);
 
@@ -1443,9 +1453,19 @@ function setMode(mode, shouldReload = true) {
             applyFontSizes();
         });
 
-        closeResultModal.addEventListener("click", () => {
+        function closeResultModalAndContinue() {
             resultModal.classList.add("hidden");
             applyWordCountFilter();
+        }
+
+        closeResultModal.addEventListener("click", closeResultModalAndContinue);
+
+        // Clicking the dimmed backdrop (outside the modal card) also closes
+        // the results and loads a fresh test with the same settings.
+        resultModal.addEventListener("click", (e) => {
+            if (e.target === resultModal) {
+                closeResultModalAndContinue();
+            }
         });
 
         themeDropdown.addEventListener("change", (e) => {
@@ -1463,19 +1483,17 @@ function setMode(mode, shouldReload = true) {
             });
         });
 
-        hideBoxBtn.addEventListener("click", () => {
-            isInputBoxHidden = true;
-            localStorage.setItem("anki_type_hide_box", "true");
-            liveInputBox.classList.add("hidden");
-            restoreBoxBtn.classList.remove("hidden");
+        inputBoxShowBtn.addEventListener("click", () => {
+            isInputBoxHidden = false;
+            localStorage.setItem("anki_type_hide_box", "false");
+            applyInputBoxVisibility();
             updateDisplay();
         });
 
-        restoreBoxBtn.addEventListener("click", () => {
-            isInputBoxHidden = false;
-            localStorage.setItem("anki_type_hide_box", "false");
-            liveInputBox.classList.remove("hidden");
-            restoreBoxBtn.classList.add("hidden");
+        inputBoxHideBtn.addEventListener("click", () => {
+            isInputBoxHidden = true;
+            localStorage.setItem("anki_type_hide_box", "true");
+            applyInputBoxVisibility();
             updateDisplay();
         });
 

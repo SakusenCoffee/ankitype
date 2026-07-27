@@ -66,6 +66,123 @@
     --border-color: #6272a4;
 }
 
+[data-theme="nord"] {
+    --bg-color: #2e3440;
+    --card-bg: #3b4252;
+    --nav-bg: #434c5e;
+    --text-primary: #e5e9f0;
+    --text-muted: #7b88a1;
+    --accent-main: #88c0d0;
+    --accent-hover: #6e9cae;
+    --accent-green: #a3be8c;
+    --accent-red: #bf616a;
+    --border-color: #4c566a;
+}
+
+[data-theme="tokyo-night"] {
+    --bg-color: #1a1b26;
+    --card-bg: #1f2335;
+    --nav-bg: #24283b;
+    --text-primary: #c0caf5;
+    --text-muted: #565f89;
+    --accent-main: #7aa2f7;
+    --accent-hover: #6489d6;
+    --accent-green: #9ece6a;
+    --accent-red: #f7768e;
+    --border-color: #292e42;
+}
+
+[data-theme="gruvbox"] {
+    --bg-color: #282828;
+    --card-bg: #3c3836;
+    --nav-bg: #32302f;
+    --text-primary: #ebdbb2;
+    --text-muted: #a89984;
+    --accent-main: #fe8019;
+    --accent-hover: #d65d0e;
+    --accent-green: #b8bb26;
+    --accent-red: #fb4934;
+    --border-color: #504945;
+}
+
+[data-theme="rose-pine"] {
+    --bg-color: #191724;
+    --card-bg: #1f1d2e;
+    --nav-bg: #26233a;
+    --text-primary: #e0def4;
+    --text-muted: #908caa;
+    --accent-main: #c4a7e7;
+    --accent-hover: #a888d1;
+    --accent-green: #31748f;
+    --accent-red: #eb6f92;
+    --border-color: #403d52;
+}
+
+[data-theme="monokai"] {
+    --bg-color: #2d2a2e;
+    --card-bg: #363337;
+    --nav-bg: #221f22;
+    --text-primary: #fcfcfa;
+    --text-muted: #939293;
+    --accent-main: #78dce8;
+    --accent-hover: #5cb8c4;
+    --accent-green: #a9dc76;
+    --accent-red: #ff6188;
+    --border-color: #4b494d;
+}
+
+[data-theme="one-dark"] {
+    --bg-color: #282c34;
+    --card-bg: #2c313c;
+    --nav-bg: #21252b;
+    --text-primary: #abb2bf;
+    --text-muted: #5c6370;
+    --accent-main: #61afef;
+    --accent-hover: #4d97d6;
+    --accent-green: #98c379;
+    --accent-red: #e06c75;
+    --border-color: #3e4451;
+}
+
+[data-theme="everforest"] {
+    --bg-color: #2d353b;
+    --card-bg: #343f44;
+    --nav-bg: #3d484d;
+    --text-primary: #d3c6aa;
+    --text-muted: #859289;
+    --accent-main: #a7c080;
+    --accent-hover: #8fae68;
+    --accent-green: #83c092;
+    --accent-red: #e67e80;
+    --border-color: #475258;
+}
+
+[data-theme="solarized-light"] {
+    --bg-color: #fdf6e3;
+    --card-bg: #eee8d5;
+    --nav-bg: #eee8d5;
+    --text-primary: #586e75;
+    --text-muted: #93a1a1;
+    --accent-main: #268bd2;
+    --accent-hover: #2075b8;
+    --accent-green: #859900;
+    --accent-red: #dc322f;
+    --border-color: #d3cbb7;
+}
+
+[data-theme="github-light"] {
+    --bg-color: #ffffff;
+    --card-bg: #f6f8fa;
+    --nav-bg: #f6f8fa;
+    --text-primary: #24292f;
+    --text-muted: #57606a;
+    --accent-main: #0969da;
+    --accent-hover: #0757ba;
+    --accent-green: #1a7f37;
+    --accent-red: #cf222e;
+    --border-color: #d0d7de;
+}
+
 /* Base Styles */
 * {
     box-sizing: border-box;
@@ -614,6 +731,12 @@ select:focus {
     font-weight: 700;
     color: var(--text-muted);
     letter-spacing: 0.5px;
+    transition: opacity 0.25s ease;
+}
+
+.typing-controls-hint.hint-hidden {
+    opacity: 0;
+    pointer-events: none;
 }
 
 /* LIVE INPUT & CONTROLS */
@@ -637,7 +760,7 @@ select:focus {
     border-radius: 12px;
     padding: 10px 16px;
     display: flex;
-    justify-content: space-between;
+    justify-content: flex-start;
     align-items: center;
     min-height: 44px;
     position: relative;
@@ -652,27 +775,6 @@ select:focus {
     color: var(--text-primary);
     font-size: 1.1rem;
     font-weight: 700;
-}
-
-.hide-box-btn, .restore-box-btn {
-    background: transparent;
-    border: none;
-    color: var(--text-muted);
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    font-size: 0.75rem;
-    font-weight: 700;
-}
-
-.hide-box-btn svg, .restore-box-btn svg {
-    width: 16px;
-    height: 16px;
-}
-
-.hide-box-btn:hover, .restore-box-btn:hover {
-    color: var(--text-primary);
 }
 
 .toggles-row {
