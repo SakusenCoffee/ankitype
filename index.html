@@ -4,6 +4,28 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Tango Type</title>
+    <meta name="description" content="A Japanese typing trainer. Practise kana, JLPT vocabulary or your own Anki decks, and turn subtitles into typing tests.">
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+    <meta name="theme-color" content="#539bf5">
+
+    <!-- Link previews on X, Discord, Slack and the like. Both need absolute URLs;
+         scrapers don't resolve relative ones. -->
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="Tango Type">
+    <meta property="og:url" content="https://tangotype.com/">
+    <meta property="og:title" content="Tango Type — Japanese typing practice">
+    <meta property="og:description" content="A Japanese typing trainer. Practise kana, JLPT vocabulary or your own Anki decks, and turn subtitles into typing tests.">
+    <meta property="og:image" content="https://tangotype.com/og-image.jpg">
+    <meta property="og:image:type" content="image/jpeg">
+    <meta property="og:image:width" content="1024">
+    <meta property="og:image:height" content="559">
+    <meta property="og:image:alt" content="Tango Type, a Japanese typing trainer">
+
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Tango Type — Japanese typing practice">
+    <meta name="twitter:description" content="A Japanese typing trainer. Practise kana, JLPT vocabulary or your own Anki decks, and turn subtitles into typing tests.">
+    <meta name="twitter:image" content="https://tangotype.com/og-image.jpg">
+
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <!-- UI faces (Plus Jakarta Sans, Space Grotesk) plus the twelve Japanese display
@@ -431,6 +453,10 @@
                 <div class="stat-box">
                     <span class="stat-value" id="res-typed">0</span>
                     <span class="stat-label" id="res-typed-label">ITEMS TYPED</span>
+                </div>
+                <div class="stat-box">
+                    <span class="stat-value" id="res-accuracy">100%</span>
+                    <span class="stat-label">ACCURACY</span>
                 </div>
             </div>
             <div class="typed-words-section">
@@ -1683,6 +1709,12 @@ let currentIndex = 0;
 
             document.getElementById("res-mistakes").textContent = mistakesSession;
 
+            // Share of keystrokes that landed, so a typo counts against you even when the
+            // word was retyped and completed
+            const keystrokes = correctKeystrokes + mistakesSession;
+            document.getElementById("res-accuracy").textContent =
+                keystrokes ? `${Math.round((correctKeystrokes / keystrokes) * 100)}%` : "—";
+
             // A test the user idled out of isn't a real attempt: it doesn't reach the
             // profile at all. No CPM (so it can't drag the average down or inflate the
             // test count), and the playtime and character counts it accrued are dropped
@@ -2314,6 +2346,17 @@ function setMode(mode, shouldReload = true) {
             if (isZenMode) return;
             if (e.target.tagName === "INPUT" || e.target.tagName === "SELECT" || e.target.tagName === "TEXTAREA") return;
 
+            // While the results are up, Enter and Tab dismiss them. Handled before
+            // anything else so Tab doesn't also toggle readings on the way out, and so
+            // the keystroke can't leak into the fresh test underneath.
+            if (!resultModal.classList.contains("hidden")) {
+                if (e.key === "Enter" || e.key === "Tab") {
+                    e.preventDefault();
+                    closeResultsIfOpen();
+                }
+                return;
+            }
+
             if (e.ctrlKey && e.key === "Enter") {
                 e.preventDefault();
                 if (isTestActive && isEndlessTest()) {
@@ -2367,11 +2410,10 @@ function setMode(mode, shouldReload = true) {
                     if (currentIndex < activeWordList.length) {
                         wordsContainer.children[currentIndex].classList.add("active");
                     } else {
-                        if (activeMode === "words") {
-                            finishTest();
-                        } else {
-                            applyWordCountFilter();
-                        }
+                        // Running out of words ends the test in either mode. Time mode
+                        // used to quietly load a fresh set instead, so a short custom run
+                        // (say two kana) could never finish and was never recorded.
+                        finishTest();
                     }
                 }
             } else {
@@ -2577,15 +2619,16 @@ function setMode(mode, shouldReload = true) {
             applyWordCountFilter();
         }
 
-        closeResultModal.addEventListener("click", closeResultModalAndContinue);
+        function closeResultsIfOpen() {
+            if (resultModal.classList.contains("hidden")) return false;
+            closeResultModalAndContinue();
+            return true;
+        }
 
-        // Clicking the dimmed backdrop (outside the modal card) also closes
-        // the results and loads a fresh test with the same settings.
-        resultModal.addEventListener("click", (e) => {
-            if (e.target === resultModal) {
-                closeResultModalAndContinue();
-            }
-        });
+        // A click anywhere dismisses the results, the card included, so the NEXT TEST
+        // button needs no listener of its own — its click bubbles up to here. One
+        // listener also means one fresh test, rather than two from a double handler.
+        resultModal.addEventListener("click", closeResultsIfOpen);
 
         themeDropdown.addEventListener("change", (e) => {
             currentTheme = e.target.value;
