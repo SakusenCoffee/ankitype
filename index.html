@@ -629,7 +629,7 @@ let currentIndex = 0;
         // Check if it's an old seed (Array) or a new seed (Object) for backwards compatibility
         const seedData = Array.isArray(parsedData) ? parsedData : parsedData.data;
         const source = parsedData.source || "anki";
-        const mode = parsedData.mode || "words";
+        let mode = parsedData.mode || "words";
 
         if (!Array.isArray(seedData) || seedData.length === 0) {
             alert("Invalid seed format.");
@@ -642,20 +642,23 @@ let currentIndex = 0;
             meaning: meaning || "Custom Seed"
         }));
 
+        // Always exit Zen Mode when loading a seed
+        if (isZenMode) toggleZenMode();
+
+        // If the seed was generated from Zen Mode, force it to load as a Words test
         if (mode === "zen") {
-            if (!isZenMode) toggleZenMode();
-        } else {
-            if (isZenMode) toggleZenMode();
-
-            // Pass 'false' to prevent applyWordCountFilter from overwriting the seed array
-            setSource(source, false);
-            setMode(mode, false);
-
-            wordCountSetting = "max";
-            localStorage.setItem("anki_type_word_count", "max");
-
-            updateCountNavUI();
+            mode = "words";
         }
+
+        // Pass 'false' to prevent applyWordCountFilter from overwriting the seed array
+        setSource(source, false);
+        setMode(mode, false);
+
+        // Always force the max word count setting for seeds
+        wordCountSetting = "max";
+        localStorage.setItem("anki_type_word_count", "max");
+
+        updateCountNavUI();
 
         currentIndex = 0;
         typedInput = [];
