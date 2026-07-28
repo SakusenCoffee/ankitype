@@ -2005,6 +2005,8 @@ function setMode(mode, shouldReload = true) {
         }
 
         function updateCountNavUI() {
+            closeCustomChipEditors();
+
             if (activeSource === "hiragana" || activeSource === "katakana") {
                 paintChipGroup(kanaCountBtns, customKanaBtn, "kanaCount", kanaCountSetting);
             }
@@ -2892,6 +2894,23 @@ function setMode(mode, shouldReload = true) {
         // same-sized box in place, and committing a value turns the chip back into a
         // label showing that value. Replaces the separate input row that used to open
         // underneath the chips.
+        // Every wired chip, so a settings change elsewhere can dismiss an editor the user
+        // has navigated away from
+        const customChipEditors = [];
+
+        /* The editor used to close on blur, Enter or Escape alone, so changing any other
+           setting — picking a preset, switching mode or source — left the input stranded
+           in the chip row with its own chip still hidden. Anything that repaints the row
+           now clears them.
+
+           Unconditionally, rather than sparing a focused input: opening an editor doesn't
+           repaint the row, and committing one closes it before the repaint, so the only
+           way to reach here with an editor open is that something else changed the
+           settings — exactly the case that used to strand it. */
+        function closeCustomChipEditors() {
+            customChipEditors.forEach(({ close }) => close());
+        }
+
         function wireCustomChip(button, input, presets, currentValue, commit) {
             button.addEventListener("click", () => {
                 const existing = currentValue();
@@ -2906,6 +2925,8 @@ function setMode(mode, shouldReload = true) {
                 input.classList.add("hidden");
                 button.classList.remove("hidden");
             };
+
+            customChipEditors.push({ input, close });
 
             const commitValue = () => {
                 const parsed = parseInt(input.value, 10);
