@@ -3104,6 +3104,9 @@ function setMode(mode, shouldReload = true) {
         }
 
         let currentUserToken = localStorage.getItem('anki_jwt');
+        // Payload of the profile card currently on screen, so an unchanged reopen can
+        // skip the rebuild that makes the avatar snap
+        let lastProfileSignature = null;
 
         function decodeJwtPayload(token) {
             try {
@@ -3463,6 +3466,21 @@ function setMode(mode, shouldReload = true) {
 
                     const data = await res.json();
 
+                    const ownProfileUrl = `/user/${data.username}`;
+                    if (window.location.pathname !== ownProfileUrl) {
+                        history.pushState({}, '', ownProfileUrl);
+                    }
+
+                    /* Rebuilding the card throws away the avatar element and makes a new
+                       one, which visibly snaps as the picture re-lays out. Reopening the
+                       tab with nothing changed shouldn't cost that, so an unchanged
+                       payload leaves the existing card — and its image — alone. */
+                    const signature = JSON.stringify(data);
+                    if (signature === lastProfileSignature && document.getElementById('profile-avatar-img')) {
+                        return;
+                    }
+                    lastProfileSignature = signature;
+
                     container.innerHTML = `
                         <div class="profile-card">
                             <div class="profile-avatar-col">
@@ -3509,11 +3527,6 @@ function setMode(mode, shouldReload = true) {
                             <div class="history-body" id="history-body"></div>
                         </div>
                     `;
-
-                    const ownProfileUrl = `/user/${data.username}`;
-                    if (window.location.pathname !== ownProfileUrl) {
-                        history.pushState({}, '', ownProfileUrl);
-                    }
 
                     // Each thumbnail carries its own remove button, revealed on hover.
                     // Rebuilt in place after a deletion so the grid stays in step with
@@ -3733,6 +3746,8 @@ function setMode(mode, shouldReload = true) {
                     document.getElementById('logout-btn').onclick = () => {
                         localStorage.removeItem('anki_jwt');
                         currentUserToken = null;
+                        // The next render belongs to whoever logs in next
+                        lastProfileSignature = null;
                         history.pushState({}, '', '/');
                         loadProfileUI();
                     };

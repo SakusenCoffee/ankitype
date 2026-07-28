@@ -325,7 +325,8 @@ body {
     display: flex;
     align-items: center;
     gap: 6px;
-    transition: all 0.2s ease;
+    /* instant for the same reason as the option chips above */
+    transition: border-color 0.2s ease;
 }
 
 .nav-btn svg {
@@ -479,6 +480,11 @@ body {
     background-color: var(--border-color);
 }
 
+/* Selection is a state, not an animation. Transitioning background-color meant the
+   option you just left held its fill for 200ms while the new one filled in, so both read
+   as selected at once — and because switching a source also rebuilds the word list, the
+   delayed paint turned that overlap into a flash of the old choice. Only border-color
+   eases now; the highlight itself is instant. */
 .mode-btn, .source-btn, .count-btn, .time-btn, .kana-count-btn, .tango-level-btn {
     background: transparent;
     border: none;
@@ -488,7 +494,7 @@ body {
     font-weight: 700;
     border-radius: 6px;
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: border-color 0.2s ease;
 }
 
 .mode-btn:hover, .source-btn:hover, .count-btn:hover, .time-btn:hover, .kana-count-btn:hover, .tango-level-btn:hover {
