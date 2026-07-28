@@ -397,8 +397,13 @@
 
                     <div class="mp-members" id="mp-members"></div>
 
+                    <!-- The PLAY chips are moved in here for the duration of a session,
+                         rather than duplicated, so there is only ever one set of controls
+                         and one piece of state behind them. -->
+                    <div class="mp-options-slot" id="mp-options-slot"></div>
+
                     <div class="mp-host-bar hidden" id="mp-host-bar">
-                        <span class="mp-host-note">You are the host — the test you have set in PLAY is what everyone races.</span>
+                        <span class="mp-host-note">You are the host — what you set above is what the room races.</span>
                         <button class="auth-btn mp-start-btn" id="mp-start-btn">START RACE</button>
                     </div>
                     <span class="mp-guest-note hidden" id="mp-guest-note">Waiting for the host to start the race...</span>
@@ -1462,7 +1467,11 @@ let currentIndex = 0;
             return btoa(encodeURIComponent(JSON.stringify(seedPayload)));
         }
 
+        // Which drawer is showing, so the host's navigation can travel to the room
+        let mpCurrentTab = "test-options";
+
         function openTab(tabName) {
+            mpCurrentTab = tabName;
             profileDrawer.classList.add("hidden");
             testOptionsDrawer.classList.add("hidden");
             ankiDrawer.classList.add("hidden");
@@ -1498,9 +1507,24 @@ let currentIndex = 0;
                 multiplayerTabBtn.classList.add("active");
             }
 
+            // In a room the multiplayer tab stays lit whichever drawer is showing, and
+            // PLAY is never opened — its controls live in the multiplayer drawer now.
+            if (typeof mpInSession === "function" && mpInSession()) {
+                multiplayerTabBtn.classList.add("mp-session-active");
+                if (tabName === "test-options") {
+                    testOptionsDrawer.classList.add("hidden");
+                    testOptionsTabBtn.classList.remove("active");
+                    multiplayerDrawer.classList.remove("hidden");
+                    multiplayerTabBtn.classList.add("active");
+                }
+            }
+
             if (tabName !== "profile" && window.location.pathname.startsWith("/user/")) {
                 history.pushState({}, '', '/');
             }
+
+            // Guests follow the host's navigation; mpBroadcastSettings ignores everyone else
+            if (typeof mpBroadcastSettings === "function") mpBroadcastSettings();
         }
 
        function loadFromSeed(seedString) {
@@ -2674,6 +2698,7 @@ function setMode(mode, shouldReload = true) {
             mpSetNavbar(true);
             mpRender();
             mpUpdateSessionBar();
+            mpUpdateChrome();
             mpApplyHostControlLock();
         }
 
@@ -2735,6 +2760,43 @@ function setMode(mode, shouldReload = true) {
             });
         }
 
+        /* ---- Session chrome ---------------------------------------------------------
+           While a room is open the app is "in multiplayer" regardless of which drawer is
+           showing: the tab stays lit, the roster of round avatars stays on screen waiting
+           for the next race, and PLAY is folded away because its controls have physically
+           moved into the multiplayer drawer. Moving them rather than copying them means
+           there is still exactly one set of chips and one piece of state behind them. */
+
+        const mpOptionsSlot = document.getElementById("mp-options-slot");
+        const playOptionsRow = document.querySelector("#test-options-drawer .word-count-nav");
+        const playOptionsHome = playOptionsRow && playOptionsRow.parentElement;
+
+        function mpUpdateChrome() {
+            const inRoom = mpInSession();
+
+            // The tab reads as selected for as long as you are in a room
+            multiplayerTabBtn.classList.toggle("mp-session-active", inRoom);
+            testOptionsTabBtn.classList.toggle("hidden", inRoom);
+
+            if (playOptionsRow) {
+                if (inRoom && playOptionsRow.parentElement !== mpOptionsSlot) {
+                    playOptionsRow.classList.add("mp-compact");
+                    mpOptionsSlot.appendChild(playOptionsRow);
+                } else if (!inRoom && playOptionsHome && playOptionsRow.parentElement !== playOptionsHome) {
+                    playOptionsRow.classList.remove("mp-compact");
+                    playOptionsHome.insertBefore(playOptionsRow, playOptionsHome.firstChild);
+                }
+            }
+
+            // The board is the room, not just the race: it stays up between races so the
+            // avatars are on screen while everyone waits.
+            if (inRoom) {
+                mpSetTrack(true);
+            }
+
+            document.body.classList.toggle("mp-session", inRoom);
+        }
+
         function mpUpdateSessionBar() {
             const inRoom = mpInSession();
             mpSessionBar.classList.toggle("hidden", !inRoom);
@@ -2768,6 +2830,7 @@ function setMode(mode, shouldReload = true) {
         // Everything a guest needs to mirror the host's screen
         function mpCurrentSettings() {
             return {
+                tab: mpCurrentTab,
                 mode: activeMode,
                 source: activeSource,
                 tangoLevel: activeTangoLevel,
@@ -2795,6 +2858,9 @@ function setMode(mode, shouldReload = true) {
                 mpGuestsMayEdit = !!cfg.guestsMayEdit;
 
                 if (!!cfg.zen !== isZenMode) toggleZenMode();
+
+                // Follow the host around the site so everyone sees what they are showing
+                if (cfg.tab && cfg.tab !== mpCurrentTab) openTab(cfg.tab);
 
                 if (cfg.source && cfg.source !== activeSource) {
                     setSource(cfg.source, false);
@@ -2877,6 +2943,7 @@ function setMode(mode, shouldReload = true) {
                     mpState.isHost = msg.isHost;
                     mpState.limit = msg.limit || mpState.limit;
                     mpUpdateSessionBar();
+                    mpUpdateChrome();
                     mpApplyHostControlLock();
                     // A new host publishes what the room should be looking at
                     if (msg.isHost) mpBroadcastSettings();
@@ -2891,8 +2958,9 @@ function setMode(mode, shouldReload = true) {
                     mpState.isHost = msg.hostId === mpState.youId;
                     mpRender();
                     mpUpdateSessionBar();
+                    mpUpdateChrome();
                     mpApplyHostControlLock();
-                    if (mpState.racing) mpRenderTrack();
+                    mpRenderTrack();
                     break;
 
                 case "settings":
