@@ -615,6 +615,7 @@ wss.on('connection', (ws) => {
                 hostId: ws.memberId,
                 members: new Map(),
                 config: null,
+                settings: null,
                 racing: false,
                 limit
             };
@@ -646,6 +647,7 @@ wss.on('connection', (ws) => {
             send(ws, { type: 'joined', code, youId: ws.memberId,
                        isHost: room.hostId === ws.memberId, limit: room.limit });
             if (room.config) send(ws, { type: 'config', config: room.config });
+            if (room.settings) send(ws, { type: 'settings', settings: room.settings });
             broadcastRoster(room);
             return;
         }
@@ -679,6 +681,24 @@ wss.on('connection', (ws) => {
                     config: room.config,
                     startsIn: 3000
                 });
+                broadcastRoster(room);
+                break;
+            }
+
+            case 'settings':
+                // Only the host's screen is authoritative; everyone else mirrors it
+                if (room.hostId !== ws.memberId) return;
+                room.settings = msg.settings || null;
+                for (const m of room.members.values()) {
+                    if (m.id !== ws.memberId) send(m.ws, { type: 'settings', settings: room.settings });
+                }
+                break;
+
+            case 'granthost': {
+                if (room.hostId !== ws.memberId) return;
+                const target = room.members.get(Number(msg.to));
+                if (!target) return send(ws, { type: 'error', message: 'That player has left.' });
+                room.hostId = target.id;
                 broadcastRoster(room);
                 break;
             }

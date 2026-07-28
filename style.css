@@ -1384,16 +1384,44 @@ select:focus {
     max-width: 950px;
     margin-top: 20px;
     display: flex;
-    justify-content: center;
+    /* left-aligned rather than centred: the text box sits on the left of the page and
+       the counters sit beside it, leaving the navbar exactly where it was */
+    justify-content: flex-start;
     flex-grow: 1;
 }
 
 .zen-container {
     width: 100%;
-    max-width: 830px;
+    display: grid;
+    grid-template-columns: minmax(0, 3fr) minmax(190px, 1fr);
+    align-items: start;
+    gap: 20px;
+}
+
+/* Counters stack down the right-hand side beside the text */
+.zen-container .counter-container {
     display: flex;
     flex-direction: column;
-    gap: 20px;
+    gap: 10px;
+    grid-column: 2;
+    grid-row: 1 / span 2;
+}
+
+.zen-container #app-wrapper,
+.zen-container .workshop-import-status {
+    grid-column: 1;
+}
+
+@media (max-width: 720px) {
+    .zen-container {
+        grid-template-columns: minmax(0, 1fr);
+    }
+    .zen-container .counter-container {
+        grid-column: 1;
+        grid-row: auto;
+        flex-direction: row;
+        flex-wrap: wrap;
+    }
 }
 
 #app-wrapper {
@@ -2310,4 +2338,125 @@ gap: 12px;
 
 .mp-limit-field input:focus {
     border-color: var(--accent-main);
+}
+
+/* MULTIPLAYER SESSION BAR — lives in PLAY while a room is open */
+.mp-session-bar {
+    border-top: 1px solid var(--border-color);
+    padding-top: 12px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.mp-session-note {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    flex: 1 1 220px;
+}
+
+.mp-session-toggles {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px;
+}
+
+.mp-toggle {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    cursor: pointer;
+}
+
+.mp-toggle input {
+    accent-color: var(--accent-main);
+    cursor: pointer;
+}
+
+.mp-end-session-btn {
+    background: transparent;
+    border: 1px solid var(--accent-red);
+    color: var(--accent-red);
+    padding: 6px 14px;
+    border-radius: 8px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    font-family: inherit;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+.mp-end-session-btn:hover {
+    background-color: var(--accent-red);
+    color: var(--bg-color);
+}
+
+/* Guests can see the host's choices but not touch them */
+.mp-locked .count-selector-group button:disabled,
+.mp-locked .count-selector-group input:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+.mp-confirm-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 1200;
+    background: rgba(0, 0, 0, 0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+}
+
+.mp-confirm-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 20px;
+    max-width: 380px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.mp-confirm-question {
+    margin: 0;
+    font-size: 0.85rem;
+    line-height: 1.5;
+    color: var(--text-primary);
+}
+
+.mp-confirm-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+}
+
+.mp-confirm-no,
+.mp-confirm-yes {
+    border: none;
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    font-family: inherit;
+    cursor: pointer;
+}
+
+.mp-confirm-no {
+    background: transparent;
+    border: 1px solid var(--border-color);
+    color: var(--text-muted);
+}
+
+.mp-confirm-yes {
+    background-color: var(--accent-red);
+    color: var(--bg-color);
 }

@@ -183,6 +183,22 @@
                 </div>
             </div>
 
+            <!-- Only present while in a room; the session outlives any single race -->
+            <div class="drawer-inner mp-session-bar hidden" id="mp-session-bar">
+                <span class="mp-session-note" id="mp-session-note"></span>
+                <div class="mp-session-toggles hidden" id="mp-session-toggles">
+                    <label class="mp-toggle">
+                        <input type="checkbox" id="mp-allow-edit-toggle" />
+                        <span>Let others edit the workshop text</span>
+                    </label>
+                    <label class="mp-toggle">
+                        <input type="checkbox" id="mp-grant-host-toggle" />
+                        <span>Hand over host</span>
+                    </label>
+                </div>
+                <button class="mp-end-session-btn" id="mp-end-session-btn">END ONLINE SESSION</button>
+            </div>
+
             <!-- Regex filters for the workshop textarea; only shown while it is open -->
             <div class="drawer-inner workshop-filter-bar hidden" id="workshop-filter-bar">
                 <div class="filter-bar-head">
@@ -603,6 +619,7 @@
 
             applyOptionGroupVisibility();
             updateEndlessHint();
+            if (typeof mpBroadcastSettings === "function") mpBroadcastSettings();
         }
 
         modeZenBtn.addEventListener("click", toggleZenMode);
@@ -1774,6 +1791,10 @@ let currentIndex = 0;
             }
 
             if (isMultiplayerRace) {
+                // Your race is over even if theirs isn't: the tabs come back now, and the
+                // board stays so you can watch everyone else come in.
+                mpSetNavbar(true);
+
                 const keystrokes = correctKeystrokes + mistakesSession;
                 mpSend({
                     type: "finished",
@@ -1848,6 +1869,7 @@ function setTangoLevel(level, shouldReload = true) {
     activeTangoLevel = level;
     localStorage.setItem("anki_type_tango_level", activeTangoLevel);
     updateTangoLevelUI();
+    if (typeof mpBroadcastSettings === "function") mpBroadcastSettings();
     if (shouldReload) {
         loadTangoSource(activeTangoLevel);
     }
@@ -2018,6 +2040,10 @@ function setMode(mode, shouldReload = true) {
             }
 
             updateEndlessHint();
+
+            // Every settings change lands here, so this is where the host's screen is
+            // published to the room. Declared later, hence the guard.
+            if (typeof mpBroadcastSettings === "function") mpBroadcastSettings();
         }
 
         function cleanHtmlText(rawHtml) {
@@ -2622,11 +2648,184 @@ function setMode(mode, shouldReload = true) {
             });
         }
 
-        // The navbar is swapped out entirely while racing so the track has the width
-        function mpShowTrack(show) {
-            raceTrack.classList.toggle("hidden", !show);
-            topNavbar.classList.toggle("hidden", show);
-            if (show) mpRenderTrack();
+        /* Track and navbar are controlled separately. The navbar only steps aside while
+           you are still typing; the moment you finish it comes back so the tabs are
+           reachable, and the track stays up so the rest of the race can be watched. It
+           only leaves when the session itself ends. */
+        function mpSetTrack(visible) {
+            raceTrack.classList.toggle("hidden", !visible);
+            if (visible) mpRenderTrack();
+        }
+
+        function mpSetNavbar(visible) {
+            topNavbar.classList.toggle("hidden", !visible);
+        }
+
+        // Leaving a room: board away, navbar back, back to solo settings
+        function mpEndSession({ notify = true } = {}) {
+            if (notify) mpSend({ type: "leave" });
+            mpState = { code: null, youId: null, isHost: false, members: [], racing: false, limit: 5 };
+            isMultiplayerRace = false;
+            // Permission is per-room, not a lasting preference
+            mpGuestsMayEdit = false;
+            mpAllowEditToggle.checked = false;
+            mpGrantHostToggle.checked = false;
+            mpSetTrack(false);
+            mpSetNavbar(true);
+            mpRender();
+            mpUpdateSessionBar();
+            mpApplyHostControlLock();
+        }
+
+        /* ---- Host control ---------------------------------------------------------
+           The room races whatever the host has set up, so in a session only the host may
+           touch the PLAY controls and the workshop text. Everyone else sees the host's
+           choices arrive live and their own controls locked. Enforcement is cosmetic on
+           purpose: the seed the host sends is still the single source of truth for what
+           is actually raced, so a guest fiddling with their own DOM changes nothing. */
+
+        const mpSessionBar = document.getElementById("mp-session-bar");
+        const mpSessionNote = document.getElementById("mp-session-note");
+        const mpSessionToggles = document.getElementById("mp-session-toggles");
+        const mpAllowEditToggle = document.getElementById("mp-allow-edit-toggle");
+        const mpGrantHostToggle = document.getElementById("mp-grant-host-toggle");
+
+        // Set by the host; lets guests edit the workshop text too
+        let mpGuestsMayEdit = false;
+
+        function mpInSession() {
+            return !!(typeof mpState !== "undefined" && mpState.code);
+        }
+
+        function mpIsSpectator() {
+            return mpInSession() && !mpState.isHost;
+        }
+
+        /* An in-page dialog rather than window.confirm: a native one blocks the whole
+           page, including the socket's message handling, which would stall the room for
+           everyone else while this player decided. */
+        function mpConfirm(question) {
+            return new Promise(resolve => {
+                const overlay = document.createElement("div");
+                overlay.className = "mp-confirm-overlay";
+                overlay.innerHTML = `
+                    <div class="mp-confirm-card">
+                        <p class="mp-confirm-question"></p>
+                        <div class="mp-confirm-actions">
+                            <button type="button" class="mp-confirm-no">CANCEL</button>
+                            <button type="button" class="mp-confirm-yes">YES, HAND OVER</button>
+                        </div>
+                    </div>`;
+                overlay.querySelector(".mp-confirm-question").textContent = question;
+                document.body.appendChild(overlay);
+
+                const done = answer => {
+                    document.removeEventListener("keydown", onKey, true);
+                    overlay.remove();
+                    resolve(answer);
+                };
+                const onKey = e => {
+                    if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); done(false); }
+                };
+
+                overlay.querySelector(".mp-confirm-no").onclick = () => done(false);
+                overlay.querySelector(".mp-confirm-yes").onclick = () => done(true);
+                overlay.onclick = e => { if (e.target === overlay) done(false); };
+                document.addEventListener("keydown", onKey, true);
+            });
+        }
+
+        function mpUpdateSessionBar() {
+            const inRoom = mpInSession();
+            mpSessionBar.classList.toggle("hidden", !inRoom);
+            if (!inRoom) return;
+
+            mpSessionNote.textContent = mpState.isHost
+                ? `Room ${mpState.code} — you are the host. What you set here is what the room races.`
+                : `Room ${mpState.code} — the host controls the test. Your view follows theirs.`;
+            mpSessionToggles.classList.toggle("hidden", !mpState.isHost);
+        }
+
+        // Grey out everything a guest may not touch
+        function mpApplyHostControlLock() {
+            const locked = mpIsSpectator();
+            const controls = [
+                ...document.querySelectorAll(".mode-btn, .source-btn, .count-btn, .time-btn, .kana-count-btn, .tango-level-btn"),
+                ...document.querySelectorAll(".custom-inline-input")
+            ];
+            controls.forEach(el => {
+                if (el.id === "tango-level-anki-btn") return;   // has its own connection rule
+                el.disabled = locked;
+            });
+            document.getElementById("test-options-drawer").classList.toggle("mp-locked", locked);
+
+            const textarea = document.getElementById("jptext");
+            if (textarea && textarea.classList.contains("ready")) {
+                textarea.readOnly = locked && !mpGuestsMayEdit;
+            }
+        }
+
+        // Everything a guest needs to mirror the host's screen
+        function mpCurrentSettings() {
+            return {
+                mode: activeMode,
+                source: activeSource,
+                tangoLevel: activeTangoLevel,
+                wordCount: wordCountSetting,
+                kanaCount: kanaCountSetting,
+                time: testTimeSetting,
+                zen: isZenMode,
+                guestsMayEdit: mpGuestsMayEdit
+            };
+        }
+
+        // Called after any local settings change; only the host's is relayed
+        function mpBroadcastSettings() {
+            if (!mpInSession() || !mpState.isHost || mpApplyingRemote) return;
+            mpSend({ type: "settings", settings: mpCurrentSettings() });
+        }
+
+        // Guard so applying the host's settings doesn't echo them straight back
+        let mpApplyingRemote = false;
+
+        function mpApplySettings(cfg) {
+            if (!cfg || mpState.isHost) return;
+            mpApplyingRemote = true;
+            try {
+                mpGuestsMayEdit = !!cfg.guestsMayEdit;
+
+                if (!!cfg.zen !== isZenMode) toggleZenMode();
+
+                if (cfg.source && cfg.source !== activeSource) {
+                    setSource(cfg.source, false);
+                }
+                if (cfg.tangoLevel && cfg.tangoLevel !== activeTangoLevel) {
+                    setTangoLevel(cfg.tangoLevel, false);
+                }
+                if (cfg.mode && cfg.mode !== activeMode && !cfg.zen) {
+                    setMode(cfg.mode, false);
+                }
+
+                if (cfg.wordCount) {
+                    wordCountSetting = cfg.wordCount;
+                    localStorage.setItem("anki_type_word_count", wordCountSetting);
+                }
+                if (cfg.kanaCount) {
+                    kanaCountSetting = cfg.kanaCount;
+                    localStorage.setItem("anki_type_kana_count", kanaCountSetting);
+                }
+                if (cfg.time) {
+                    testTimeSetting = cfg.time;
+                    localStorage.setItem("anki_type_time_setting", testTimeSetting);
+                    timeLeftVal.textContent = testTimeSetting === "infinite" ? "∞" : `${testTimeSetting}s`;
+                }
+
+                applyOptionGroupVisibility();
+                updateCountNavUI();
+            } finally {
+                mpApplyingRemote = false;
+            }
+            mpApplyHostControlLock();
         }
 
         function mpSend(payload) {
@@ -2677,6 +2876,10 @@ function setMode(mode, shouldReload = true) {
                     mpState.youId = msg.youId;
                     mpState.isHost = msg.isHost;
                     mpState.limit = msg.limit || mpState.limit;
+                    mpUpdateSessionBar();
+                    mpApplyHostControlLock();
+                    // A new host publishes what the room should be looking at
+                    if (msg.isHost) mpBroadcastSettings();
                     mpSetStatus(mpRoomStatus, mpState.isHost
                         ? "Room created. Share the code and start when everyone is in."
                         : "Joined. Waiting for the host.");
@@ -2687,7 +2890,13 @@ function setMode(mode, shouldReload = true) {
                     mpState.members = msg.members || [];
                     mpState.isHost = msg.hostId === mpState.youId;
                     mpRender();
+                    mpUpdateSessionBar();
+                    mpApplyHostControlLock();
                     if (mpState.racing) mpRenderTrack();
+                    break;
+
+                case "settings":
+                    mpApplySettings(msg.settings);
                     break;
 
                 case "progress": {
@@ -2706,9 +2915,9 @@ function setMode(mode, shouldReload = true) {
                 case "raceover":
                     mpState.racing = false;
                     raceStatusEl.textContent = "Race over";
-                    if (resultModal.classList.contains("hidden")) mpShowTrack(false);
-                    // The board stays up until the results are dismissed
-                    mpSetStatus(mpRoomStatus, "Everyone has finished.");
+                    // The board stays; the session outlives the race and only ends when
+                    // the player says so.
+                    mpSetStatus(mpRoomStatus, "Everyone has finished. Waiting for the host.");
                     break;
 
                 case "error":
@@ -2740,7 +2949,8 @@ function setMode(mode, shouldReload = true) {
                 mpLastProgressSent = 0;
                 closeAllDrawers();
                 raceStatusEl.textContent = "Go!";
-                mpShowTrack(true);
+                mpSetTrack(true);
+                mpSetNavbar(false);
             };
 
             clearInterval(mpCountdownTimer);
@@ -2756,7 +2966,7 @@ function setMode(mode, shouldReload = true) {
 
             mpSetStatus(mpRoomStatus, `Starting in ${Math.ceil((msg.startsIn || 3000) / 1000)}...`);
             raceStatusEl.textContent = `Starting in ${Math.ceil((msg.startsIn || 3000) / 1000)}...`;
-            mpShowTrack(true);
+            mpSetTrack(true);
         }
 
         /* Position along the word list, counted in characters rather than whole words so
@@ -2818,12 +3028,47 @@ function setMode(mode, shouldReload = true) {
         });
 
         document.getElementById("mp-leave-btn").onclick = () => {
-            mpSend({ type: "leave" });
-            mpShowTrack(false);
-            mpState = { code: null, youId: null, isHost: false, members: [], racing: false };
-            mpRender();
+            mpEndSession();
             mpSetStatus(mpStatus, "Left the room.");
         };
+
+        document.getElementById("mp-end-session-btn").onclick = () => {
+            mpEndSession();
+            mpSetStatus(mpStatus, "Session ended.");
+            // Back to a test of your own
+            applyWordCountFilter();
+        };
+
+        mpAllowEditToggle.addEventListener("change", () => {
+            if (!mpState.isHost) return;
+            mpGuestsMayEdit = mpAllowEditToggle.checked;
+            mpBroadcastSettings();
+            mpApplyHostControlLock();
+        });
+
+        // Handing over the host is irreversible from this side, so it asks first
+        mpGrantHostToggle.addEventListener("change", () => {
+            if (!mpState.isHost) {
+                mpGrantHostToggle.checked = false;
+                return;
+            }
+            if (!mpGrantHostToggle.checked) return;
+
+            const others = mpState.members.filter(m => m.id !== mpState.youId);
+            if (!others.length) {
+                mpGrantHostToggle.checked = false;
+                mpSetStatus(mpRoomStatus, "There is nobody else in the room yet.", true);
+                return;
+            }
+
+            const target = others[0];
+            mpConfirm(`Hand host over to ${target.name}? You will lose control of the test.`)
+                .then(ok => {
+                    mpGrantHostToggle.checked = false;
+                    if (!ok) return;
+                    mpSend({ type: "granthost", to: target.id });
+                });
+        });
 
         function mpCopyInvite() {
             if (!mpState.code) return;
@@ -3050,9 +3295,12 @@ function setMode(mode, shouldReload = true) {
 
         function closeResultModalAndContinue() {
             resultModal.classList.add("hidden");
-            // Finishing first shouldn't take the board away — it stays until everyone is
-            // in, so the rest of the race can be watched.
-            if (typeof mpState !== "undefined" && !mpState.racing) mpShowTrack(false);
+
+            // In a session the words belong to the room, so dismissing your result must
+            // not roll a fresh solo test underneath everyone — that was what threw you
+            // back out to the play area. The board stays and the room waits for the host.
+            if (typeof mpState !== "undefined" && mpState.code) return;
+
             applyWordCountFilter();
         }
 
