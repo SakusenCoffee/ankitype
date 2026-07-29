@@ -444,6 +444,41 @@
                 </div>
             </div>
         </div>
+
+        <div class="modal-overlay hidden" id="result-modal">
+            <div class="modal-card">
+                <h2 class="modal-title">TEST COMPLETE</h2>
+                <p class="abandoned-note hidden" id="res-abandoned-note">Idled out — your typing time and characters were saved, but this run wasn't counted towards your CPM.</p>
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <span class="stat-value" id="res-cpm">0</span>
+                        <span class="stat-label">CPM</span>
+                    </div>
+                    <div class="stat-box">
+        <span class="stat-value" id="res-mistakes" style="color: var(--accent-red);">0</span>
+        <span class="stat-label">MISTAKES</span>
+    </div>
+                    <div class="stat-box">
+                        <span class="stat-value" id="res-time">0s</span>
+                        <span class="stat-label">TIME</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="stat-value" id="res-typed">0</span>
+                        <span class="stat-label" id="res-typed-label">ITEMS TYPED</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="stat-value" id="res-accuracy">100%</span>
+                        <span class="stat-label">ACCURACY</span>
+                    </div>
+                </div>
+                <div class="result-graph-wrap" id="res-graph"></div>
+                <div class="typed-words-section">
+                    <span class="section-title">COMPLETED ITEMS</span>
+                    <div class="typed-words-list" id="res-completed-list"></div>
+                </div>
+                <button class="close-modal-btn" id="close-result-modal">NEXT TEST</button>
+            </div>
+        </div>
     </div>
 
     <!-- WORKSHOP LAYOUT (MOJIKAZU COUNTER) -->
@@ -501,39 +536,6 @@
     </div>
 
     <!-- RESULT MODAL SCREEN -->
-    <div class="modal-overlay hidden" id="result-modal">
-        <div class="modal-card">
-            <h2 class="modal-title">TEST COMPLETE</h2>
-            <p class="abandoned-note hidden" id="res-abandoned-note">Idled out — your typing time and characters were saved, but this run wasn't counted towards your CPM.</p>
-            <div class="stats-grid">
-                <div class="stat-box">
-                    <span class="stat-value" id="res-cpm">0</span>
-                    <span class="stat-label">CPM</span>
-                </div>
-                <div class="stat-box">
-    <span class="stat-value" id="res-mistakes" style="color: var(--accent-red);">0</span>
-    <span class="stat-label">MISTAKES</span>
-</div>
-                <div class="stat-box">
-                    <span class="stat-value" id="res-time">0s</span>
-                    <span class="stat-label">TIME</span>
-                </div>
-                <div class="stat-box">
-                    <span class="stat-value" id="res-typed">0</span>
-                    <span class="stat-label" id="res-typed-label">ITEMS TYPED</span>
-                </div>
-                <div class="stat-box">
-                    <span class="stat-value" id="res-accuracy">100%</span>
-                    <span class="stat-label">ACCURACY</span>
-                </div>
-            </div>
-            <div class="typed-words-section">
-                <span class="section-title">COMPLETED ITEMS</span>
-                <div class="typed-words-list" id="res-completed-list"></div>
-            </div>
-            <button class="close-modal-btn" id="close-result-modal">NEXT TEST</button>
-        </div>
-    </div>
 
     <footer class="app-footer">
         <div class="footer-content">
@@ -1149,6 +1151,11 @@ let currentIndex = 0;
         // word. Paired with mistakesSession this gives the keystroke totals the history
         // shows, which totalTypedChars can't: that only counts finished words.
         let correctKeystrokes = 0;
+        // One sample per second of the run, plus the moment of each typo, so the result
+        // screen can plot the pace and mark where it went wrong
+        let cpmSamples = [];
+        let errorMarks = [];
+        let cpmSampleTimer = null;
         // Seeded runs are somebody else's test, so they stay out of the history
         let isSeededTest = false;
         // Set when a race seed is loaded, so progress is reported to the room and the
@@ -1702,19 +1709,31 @@ let currentIndex = 0;
         function onUserActiveTyping() {
             lastTypingTimestamp = Date.now();
             typingControlsHint.classList.add("hint-hidden");
+            // The navbar recedes while typing; the brand stays exactly where it is
+            document.body.classList.add("typing-focus");
             if (!isTestActive) {
                 startTestTimer();
             }
         }
 
-        // Reveal the hint again as soon as the mouse moves
+        // Reveal the hint and the navbar again as soon as the mouse moves
         document.addEventListener("mousemove", () => {
             typingControlsHint.classList.remove("hint-hidden");
+            document.body.classList.remove("typing-focus");
         });
 
         function startTestTimer() {
             isTestActive = true;
             testStartTime = Date.now();
+
+            cpmSamples = [];
+            errorMarks = [];
+            clearInterval(cpmSampleTimer);
+            cpmSampleTimer = setInterval(() => {
+                const seconds = (Date.now() - testStartTime) / 1000;
+                if (seconds <= 0) return;
+                cpmSamples.push({ t: seconds, cpm: Math.round((totalTypedChars / seconds) * 60) });
+            }, 1000);
 
             if (activeMode === "time") {
                 if (testTimeSetting === "infinite") {
@@ -1770,8 +1789,63 @@ let currentIndex = 0;
             }).catch(err => console.error("Could not save test history:", err));
         }
 
+        /* Plots the run: CPM as a line over elapsed seconds, with a mark at each typo.
+           Drawn as inline SVG rather than pulling in a chart library — it is one line and
+           some dots, and the page already refuses external scripts it doesn't need. */
+        function renderResultGraph(container) {
+            const W = 640, H = 180, PAD_L = 38, PAD_R = 12, PAD_T = 14, PAD_B = 24;
+
+            if (cpmSamples.length < 2) {
+                container.innerHTML = '<p class="result-graph-empty">Too short to chart.</p>';
+                return;
+            }
+
+            const maxT = Math.max(...cpmSamples.map(s => s.t), 1);
+            const maxCpm = Math.max(...cpmSamples.map(s => s.cpm), 1);
+            const niceMax = Math.ceil(maxCpm / 50) * 50 || 50;
+
+            const x = t => PAD_L + (t / maxT) * (W - PAD_L - PAD_R);
+            const y = c => H - PAD_B - (c / niceMax) * (H - PAD_T - PAD_B);
+
+            const line = cpmSamples.map((s, i) => `${i ? "L" : "M"}${x(s.t).toFixed(1)},${y(s.cpm).toFixed(1)}`).join(" ");
+            const area = `${line} L${x(maxT).toFixed(1)},${y(0).toFixed(1)} L${x(0).toFixed(1)},${y(0).toFixed(1)} Z`;
+
+            const gridLines = [0, 0.5, 1].map(f => {
+                const cy = y(niceMax * f);
+                return `<line x1="${PAD_L}" y1="${cy.toFixed(1)}" x2="${W - PAD_R}" y2="${cy.toFixed(1)}" class="rg-grid"/>
+                        <text x="${PAD_L - 6}" y="${(cy + 3).toFixed(1)}" class="rg-axis" text-anchor="end">${Math.round(niceMax * f)}</text>`;
+            }).join("");
+
+            // Errors are placed on the line at the moment they happened
+            const cpmAt = t => {
+                let nearest = cpmSamples[0];
+                for (const sample of cpmSamples) if (Math.abs(sample.t - t) < Math.abs(nearest.t - t)) nearest = sample;
+                return nearest.cpm;
+            };
+            const errors = errorMarks
+                .filter(e => e.t <= maxT)
+                .map(e => `<circle cx="${x(e.t).toFixed(1)}" cy="${y(cpmAt(e.t)).toFixed(1)}" r="4" class="rg-error"/>`)
+                .join("");
+
+            container.innerHTML = `
+                <svg viewBox="0 0 ${W} ${H}" class="result-graph" role="img"
+                     aria-label="Typing speed over the test, with typos marked">
+                    ${gridLines}
+                    <path d="${area}" class="rg-area"/>
+                    <path d="${line}" class="rg-line"/>
+                    ${errors}
+                    <text x="${PAD_L}" y="${H - 6}" class="rg-axis">0s</text>
+                    <text x="${W - PAD_R}" y="${H - 6}" class="rg-axis" text-anchor="end">${Math.round(maxT)}s</text>
+                </svg>
+                <div class="result-graph-key">
+                    <span><i class="rg-key-line"></i> CPM</span>
+                    <span><i class="rg-key-dot"></i> ${errorMarks.length} typo${errorMarks.length === 1 ? "" : "s"}</span>
+                </div>`;
+        }
+
         function finishTest() {
             clearInterval(testTimerInterval);
+            clearInterval(cpmSampleTimer);
             isTestActive = false;
             typingControlsHint.classList.remove("hint-hidden");
             const elapsedTimeSec = Math.max(1, Math.round((Date.now() - testStartTime) / 1000));
@@ -1781,6 +1855,8 @@ let currentIndex = 0;
             resTime.textContent = `${elapsedTimeSec}s`;
             resTyped.textContent = totalScore;
             resTypedLabel.textContent = (activeSource === "tango") ? "WORDS TYPED" : "CHARS TYPED";
+
+            renderResultGraph(document.getElementById("res-graph"));
 
             resCompletedList.innerHTML = "";
             completedItemsSession.forEach(item => {
@@ -1830,7 +1906,7 @@ let currentIndex = 0;
                 isMultiplayerRace = false;
             }
 
-            resultModal.classList.remove("hidden");
+            showResultPanel(true);
         }
 
         function logCompletedWord(wordObj) {
@@ -1838,11 +1914,28 @@ let currentIndex = 0;
             completedItemsSession.push(wordObj.kanji);
             totalTypedChars += wordObj.romaji.length;
 
-            for (const char of wordObj.kanji) {
-                stats.totalChars++;
-                if (isKanji(char)) stats.kanjiCount++;
-                else if (isHiragana(char)) stats.hiraganaCount++;
-                else if (isKatakana(char)) stats.katakanaCount++;
+            /* A kana entry can be a digraph: ぎょ is two glyphs but three keystrokes, and
+               counting the glyphs credited two. For an all-kana entry the whole romaji
+               spelling is the honest count, and since every glyph is the same script
+               there is nothing to attribute. Mixed entries stay per-character — a kanji's
+               reading isn't in the glyph, so its share of the keystrokes can't be told
+               apart from the okurigana around it. */
+            const chars = [...wordObj.kanji];
+            const keystrokes = wordObj.romaji.length;
+
+            if (chars.length && chars.every(isHiragana)) {
+                stats.hiraganaCount += keystrokes;
+                stats.totalChars += keystrokes;
+            } else if (chars.length && chars.every(isKatakana)) {
+                stats.katakanaCount += keystrokes;
+                stats.totalChars += keystrokes;
+            } else {
+                for (const char of chars) {
+                    stats.totalChars++;
+                    if (isKanji(char)) stats.kanjiCount++;
+                    else if (isHiragana(char)) stats.hiraganaCount++;
+                    else if (isKatakana(char)) stats.katakanaCount++;
+                }
             }
             localStorage.setItem("anki_type_stats", JSON.stringify(stats));
         }
@@ -2506,7 +2599,9 @@ function setMode(mode, shouldReload = true) {
                     finishedWordNode.classList.remove("active");
                     finishedWordNode.classList.add("completed");
 
-                    totalScore++;
+                    // Words mode counts words; kana mode is labelled CHARS TYPED, so it
+                    // counts the keystrokes that spelled them rather than the entries
+                    totalScore += (activeSource === "tango") ? 1 : currentWord.romaji.length;
                     scoreEl.textContent = totalScore;
 
                     logCompletedWord(currentWord);
@@ -2531,6 +2626,9 @@ function setMode(mode, shouldReload = true) {
                 setTimeout(() => activeCard.classList.remove("error-wipe"), 250);
                 typedInput = [];
                 mistakesSession++;
+                if (isTestActive) {
+                    errorMarks.push({ t: (Date.now() - testStartTime) / 1000 });
+                }
             }
 
             updateDisplay();
@@ -3361,8 +3459,18 @@ function setMode(mode, shouldReload = true) {
             applyFontSizes();
         });
 
+        /* The results replace the test area rather than floating over it, so the words,
+           the input box and the hint step aside while they are up. */
+        function showResultPanel(show) {
+            if (show) document.body.classList.remove("typing-focus");
+            resultModal.classList.toggle("hidden", !show);
+            wordsWrapper.classList.toggle("hidden", show);
+            typingControlsHint.classList.toggle("hidden", show);
+            document.getElementById("live-input-container").classList.toggle("hidden", show);
+        }
+
         function closeResultModalAndContinue() {
-            resultModal.classList.add("hidden");
+            showResultPanel(false);
 
             // In a session the words belong to the room, so dismissing your result must
             // not roll a fresh solo test underneath everyone — that was what threw you

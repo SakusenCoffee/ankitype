@@ -1842,15 +1842,13 @@ gap: 12px;
 }
 
 /* MODAL */
+/* The results take the test area's place rather than floating over it, so this is a
+   panel in the flow now instead of a fixed overlay. */
 .modal-overlay {
-    position: fixed;
-    inset: 0;
-    background-color: rgba(0,0,0,0.75);
+    width: 100%;
     display: flex;
     justify-content: center;
-    align-items: center;
-    z-index: 100;
-    backdrop-filter: blur(4px);
+    align-items: flex-start;
 }
 
 .modal-card {
@@ -1858,8 +1856,9 @@ gap: 12px;
     border: 1px solid var(--border-color);
     border-radius: 16px;
     padding: 24px;
-    width: 90%;
-    max-width: 480px;
+    width: 100%;
+    /* wider than the old dialog, since the graph lives here now */
+    max-width: 700px;
     display: flex;
     flex-direction: column;
     gap: 16px;
@@ -1923,12 +1922,17 @@ gap: 12px;
     padding: 4px;
 }
 
+/* Bare text: the boxes made a wall of chrome out of what is just a list of words */
 .completed-word-tag {
-    background-color: var(--nav-bg);
-    border: 1px solid var(--border-color);
-    padding: 4px 8px;
-    border-radius: 6px;
-    font-size: 0.8rem;
+    padding: 2px 0;
+    font-size: 0.85rem;
+    color: var(--text-primary);
+}
+
+.completed-word-tag:not(:last-child)::after {
+    content: "·";
+    color: var(--text-muted);
+    margin: 0 2px 0 8px;
 }
 
 .close-modal-btn {
@@ -2549,4 +2553,108 @@ gap: 12px;
         max-width: 950px;
         margin-top: 20px;
     }
+}
+
+/* RESULT GRAPH */
+.result-graph-wrap {
+    width: 100%;
+}
+
+.result-graph {
+    width: 100%;
+    height: auto;
+    display: block;
+}
+
+.rg-grid {
+    stroke: var(--border-color);
+    stroke-width: 1;
+}
+
+.rg-axis {
+    fill: var(--text-muted);
+    font-size: 10px;
+    font-weight: 700;
+}
+
+.rg-line {
+    fill: none;
+    stroke: var(--accent-main);
+    stroke-width: 2;
+    stroke-linejoin: round;
+    stroke-linecap: round;
+}
+
+.rg-area {
+    fill: var(--accent-main);
+    opacity: 0.12;
+    stroke: none;
+}
+
+/* Typos sit on the line at the second they happened */
+.rg-error {
+    fill: var(--accent-red);
+    stroke: var(--card-bg);
+    stroke-width: 1.5;
+}
+
+.result-graph-empty {
+    margin: 0;
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    text-align: center;
+}
+
+.result-graph-key {
+    display: flex;
+    gap: 16px;
+    justify-content: center;
+    margin-top: 4px;
+    font-size: 0.68rem;
+    font-weight: 700;
+    color: var(--text-muted);
+}
+
+.result-graph-key span {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.rg-key-line {
+    width: 14px;
+    height: 2px;
+    background-color: var(--accent-main);
+    display: inline-block;
+}
+
+.rg-key-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background-color: var(--accent-red);
+    display: inline-block;
+}
+
+/* TYPING FOCUS — the navbar recedes while typing, the brand stays put */
+.top-navbar,
+.nav-actions {
+    transition: opacity 0.35s ease, background-color 0.35s ease,
+                border-color 0.35s ease, box-shadow 0.35s ease;
+}
+
+body.typing-focus .top-navbar {
+    background-color: transparent;
+    border-color: transparent;
+    box-shadow: none;
+}
+
+body.typing-focus .nav-actions {
+    opacity: 0;
+    pointer-events: none;
+}
+
+/* The brand is deliberately untouched: same place, same weight, same colour */
+body.typing-focus .nav-brand {
+    opacity: 1;
 }
