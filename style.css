@@ -2802,3 +2802,32 @@ body.typing-focus .nav-brand {
     font-weight: 700;
     color: var(--text-muted);
 }
+
+/* Definition sizes on its own slider now rather than tracking the romaji */
+.meaning-text {
+    font-size: var(--meaning-font-size, calc(var(--sub-font-size) * 0.9));
+}
+
+/* Closes the horizontal gap between words — for a kana test, between characters */
+body.tight-spacing .words-container {
+    column-gap: 0;
+}
+
+body.tight-spacing .word-item {
+    padding-left: 0;
+    padding-right: 0;
+}
+
+/* Roomier history rows */
+.history-table th {
+    padding: 7px 10px;
+}
+
+.history-table td {
+    padding: 11px 10px;
+    font-size: 0.78rem;
+}
+
+.history-body {
+    max-height: 420px;
+}

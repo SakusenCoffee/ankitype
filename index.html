@@ -354,10 +354,24 @@
                 </div>
                 <div class="selector-container full-width">
                     <div class="slider-label-row">
-                        <label for="sub-font-slider">ROMAJI / DEFINITION FONT SIZE</label>
+                        <label for="sub-font-slider">ROMAJI FONT SIZE</label>
                         <span class="slider-val-display" id="sub-font-val">1.0rem</span>
                     </div>
                     <input type="range" id="sub-font-slider" min="0.6" max="2.0" step="0.05" value="1.0" class="font-slider" />
+                </div>
+                <div class="selector-container full-width">
+                    <div class="slider-label-row">
+                        <label for="meaning-font-slider">DEFINITION FONT SIZE</label>
+                        <span class="slider-val-display" id="meaning-font-val">0.9rem</span>
+                    </div>
+                    <input type="range" id="meaning-font-slider" min="0.5" max="2.0" step="0.05" value="0.9" class="font-slider" />
+                </div>
+                <div class="selector-container full-width">
+                    <label>WORD SPACING</label>
+                    <div class="count-selector-group">
+                        <button class="count-btn active" id="spacing-normal-btn">normal</button>
+                        <button class="count-btn" id="spacing-tight-btn">no spaces</button>
+                    </div>
                 </div>
             </div>
             <div class="selector-container full-width">
@@ -902,7 +916,7 @@
            undo buffer, so every programmatic edit (a filter, a file import) snapshots the
            text it replaced and can be stepped back through. */
 
-        const MAX_WORKSHOP_HISTORY = 50;
+        const MAX_WORKSHOP_HISTORY = 20;
         let workshopHistory = [];
         // What the textarea held right after the last programmatic edit. If it no longer
         // matches, the user has typed since, and Ctrl+Z belongs to the browser instead.
@@ -1172,6 +1186,8 @@ let currentIndex = 0;
 
         let mainFontSize = localStorage.getItem("anki_type_main_font_size") || "2.2";
         let subFontSize = localStorage.getItem("anki_type_sub_font_size") || "1.0";
+        let meaningFontSize = localStorage.getItem("anki_type_meaning_font_size") || "0.9";
+        let tightSpacing = localStorage.getItem("anki_type_tight_spacing") === "true";
 
         let timeRemaining = 0;
         let testTimerInterval = null;
@@ -1277,6 +1293,8 @@ let currentIndex = 0;
 
         const mainFontSlider = document.getElementById("main-font-slider");
         const subFontSlider = document.getElementById("sub-font-slider");
+        const meaningFontSlider = document.getElementById("meaning-font-slider");
+        const meaningFontVal = document.getElementById("meaning-font-val");
         const mainFontVal = document.getElementById("main-font-val");
         const subFontVal = document.getElementById("sub-font-val");
 
@@ -1299,10 +1317,23 @@ let currentIndex = 0;
         function applyFontSizes() {
             document.documentElement.style.setProperty('--kanji-font-size', `${mainFontSize}rem`);
             document.documentElement.style.setProperty('--sub-font-size', `${subFontSize}rem`);
+            // The definition is sized on its own now rather than riding on the romaji
+            document.documentElement.style.setProperty('--meaning-font-size', `${meaningFontSize}rem`);
             mainFontSlider.value = mainFontSize;
             subFontSlider.value = subFontSize;
+            meaningFontSlider.value = meaningFontSize;
             mainFontVal.textContent = `${mainFontSize}rem`;
             subFontVal.textContent = `${subFontSize}rem`;
+            meaningFontVal.textContent = `${meaningFontSize}rem`;
+            applyRowCount();
+        }
+
+        // Closes the horizontal gap between words, which for a kana test is the gap
+        // between single characters
+        function applyWordSpacing() {
+            document.body.classList.toggle("tight-spacing", tightSpacing);
+            document.getElementById("spacing-normal-btn").classList.toggle("active", !tightSpacing);
+            document.getElementById("spacing-tight-btn").classList.toggle("active", tightSpacing);
             applyRowCount();
         }
 
@@ -1541,32 +1572,46 @@ let currentIndex = 0;
         // Which drawer is showing, so the host's navigation can travel to the room
         let mpCurrentTab = "test-options";
 
-        /* The test belongs to PLAY. With any other tab open it is put away and its keys
-           stop being listened for, so typing at the profile or the deck picker can't
-           quietly run down a test nobody is looking at. */
+        /* Being able to see the test and being able to type into it are separate.
+           CONFIG shows it so appearance changes can be judged against real words, and
+           SEED shows what is about to be shared, but only PLAY takes keystrokes — so
+           neither can quietly run a test down while somebody is adjusting settings. */
+        const TABS_SHOWING_TEST = ["test-options", "appearance", "seed"];
+
+        function anyDrawerOpen() {
+            return [profileDrawer, testOptionsDrawer, ankiDrawer,
+                    appearanceDrawer, seedDrawer, multiplayerDrawer]
+                .some(d => d && !d.classList.contains("hidden"));
+        }
+
+        function testAreaIsVisible() {
+            if (typeof isZenMode !== "undefined" && isZenMode) return false;
+            // Mid-race every drawer is closed, and the test is the whole point
+            return !anyDrawerOpen() || TABS_SHOWING_TEST.includes(mpCurrentTab);
+        }
+
         function testAreaIsLive() {
             if (typeof isZenMode !== "undefined" && isZenMode) return false;
-            const anyDrawerOpen = [profileDrawer, testOptionsDrawer, ankiDrawer,
-                                   appearanceDrawer, seedDrawer, multiplayerDrawer]
-                .some(d => d && !d.classList.contains("hidden"));
-            // Mid-race every drawer is closed, and the test is the whole point
-            return !anyDrawerOpen || mpCurrentTab === "test-options";
+            return !anyDrawerOpen() || mpCurrentTab === "test-options";
         }
 
         function updateTestVisibility() {
-            const live = testAreaIsLive();
+            const visible = testAreaIsVisible();
             const resultsUp = resultModal && !resultModal.classList.contains("hidden");
+            const liveInput = document.getElementById("live-input-container");
 
-            if (!live) {
-                [wordsWrapper, typingControlsHint, document.getElementById("live-input-container")]
+            if (!visible) {
+                [wordsWrapper, typingControlsHint, liveInput]
                     .forEach(el => el && el.classList.add("hidden"));
                 return;
             }
             // The results stand in for the test until they are dismissed
             if (resultsUp) return;
 
-            [wordsWrapper, typingControlsHint, document.getElementById("live-input-container")]
-                .forEach(el => el && el.classList.remove("hidden"));
+            wordsWrapper.classList.remove("hidden");
+            // The input box and hint only belong where typing is actually accepted
+            const live = testAreaIsLive();
+            [typingControlsHint, liveInput].forEach(el => el && el.classList.toggle("hidden", !live));
         }
 
         function openTab(tabName) {
@@ -2340,6 +2385,7 @@ function setMode(mode, shouldReload = true) {
         }
 
         applyFontSizes();
+        applyWordSpacing();
 
         async function fetchFromAnki(action, params = {}) {
             try {
@@ -3711,6 +3757,24 @@ function setMode(mode, shouldReload = true) {
             applyFontSizes();
         });
 
+        meaningFontSlider.addEventListener("input", (e) => {
+            meaningFontSize = e.target.value;
+            localStorage.setItem("anki_type_meaning_font_size", meaningFontSize);
+            applyFontSizes();
+        });
+
+        document.getElementById("spacing-normal-btn").addEventListener("click", () => {
+            tightSpacing = false;
+            localStorage.setItem("anki_type_tight_spacing", "false");
+            applyWordSpacing();
+        });
+
+        document.getElementById("spacing-tight-btn").addEventListener("click", () => {
+            tightSpacing = true;
+            localStorage.setItem("anki_type_tight_spacing", "true");
+            applyWordSpacing();
+        });
+
         /* The results replace the test area rather than floating over it, so the words,
            the input box and the hint step aside while they are up. */
         /* The results and the test trade places, so one fades out before the other fades
@@ -4047,7 +4111,7 @@ function setMode(mode, shouldReload = true) {
                     ? Math.round((row.correct_chars / row.total_chars) * 100)
                     : 0;
                 return [
-                    `${when.toLocaleDateString()} ${when.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`,
+                    when.toLocaleDateString(),
                     row.test_type || "—",
                     `${row.wpm} / ${row.cpm}`,
                     `${row.correct_chars}/${row.total_chars} (${accuracy}%)`,
