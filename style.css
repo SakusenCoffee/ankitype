@@ -40,6 +40,42 @@
     --border-color: #ff007f;
 }
 
+/* True black, for OLED panels where an unlit pixel is genuinely off. Panels sit a
+   couple of steps above the page rather than being tinted, so the separation comes
+   from the borders. Text stops short of pure white, which blooms against black. */
+[data-theme="void"] {
+    --bg-color: #000000;
+    --card-bg: #080808;
+    --nav-bg: #0d0d0d;
+    --text-primary: #d6d6d6;
+    --text-muted: #828282;
+    --accent-main: #6ea8d8;
+    --accent-hover: #5a8fbb;
+    --accent-green: #6fbf73;
+    --accent-red: #d96a6a;
+    --border-color: #1c1c1c;
+}
+
+/* Cyberpunk's hues run through a manga colour page: cream newsprint instead of a
+   glowing panel, and the inks knocked back to what offset printing actually put on
+   paper. Cyan becomes faded teal ink, violet a grey-purple, and the magenta a dusty
+   rose — flat and limited the way a Jump colour spread is, rather than the saturated
+   process colour of a western comic. */
+[data-theme="manga-print"] {
+    --bg-color: #efe6d5;
+    --card-bg: #e7dcc7;
+    --nav-bg: #e0d3ba;
+    --text-primary: #34515a;
+    /* Upcoming words render muted at 0.35 opacity, so this is pitched darker than the
+       ink would otherwise be — at a lighter value they wash out on cream */
+    --text-muted: #6b606f;
+    --accent-main: #9c4166;
+    --accent-hover: #833556;
+    --accent-green: #46764f;
+    --accent-red: #ab3b34;
+    --border-color: #cbb8bd;
+}
+
 [data-theme="serika"] {
     --bg-color: #323437;
     --card-bg: #2c2e31;
@@ -64,6 +100,123 @@
     --accent-green: #50fa7b;
     --accent-red: #ff5555;
     --border-color: #6272a4;
+}
+
+[data-theme="nord"] {
+    --bg-color: #2e3440;
+    --card-bg: #3b4252;
+    --nav-bg: #434c5e;
+    --text-primary: #e5e9f0;
+    --text-muted: #7b88a1;
+    --accent-main: #88c0d0;
+    --accent-hover: #6e9cae;
+    --accent-green: #a3be8c;
+    --accent-red: #bf616a;
+    --border-color: #4c566a;
+}
+
+[data-theme="tokyo-night"] {
+    --bg-color: #1a1b26;
+    --card-bg: #1f2335;
+    --nav-bg: #24283b;
+    --text-primary: #c0caf5;
+    --text-muted: #565f89;
+    --accent-main: #7aa2f7;
+    --accent-hover: #6489d6;
+    --accent-green: #9ece6a;
+    --accent-red: #f7768e;
+    --border-color: #292e42;
+}
+
+[data-theme="gruvbox"] {
+    --bg-color: #282828;
+    --card-bg: #3c3836;
+    --nav-bg: #32302f;
+    --text-primary: #ebdbb2;
+    --text-muted: #a89984;
+    --accent-main: #fe8019;
+    --accent-hover: #d65d0e;
+    --accent-green: #b8bb26;
+    --accent-red: #fb4934;
+    --border-color: #504945;
+}
+
+[data-theme="rose-pine"] {
+    --bg-color: #191724;
+    --card-bg: #1f1d2e;
+    --nav-bg: #26233a;
+    --text-primary: #e0def4;
+    --text-muted: #908caa;
+    --accent-main: #c4a7e7;
+    --accent-hover: #a888d1;
+    --accent-green: #31748f;
+    --accent-red: #eb6f92;
+    --border-color: #403d52;
+}
+
+[data-theme="monokai"] {
+    --bg-color: #2d2a2e;
+    --card-bg: #363337;
+    --nav-bg: #221f22;
+    --text-primary: #fcfcfa;
+    --text-muted: #939293;
+    --accent-main: #78dce8;
+    --accent-hover: #5cb8c4;
+    --accent-green: #a9dc76;
+    --accent-red: #ff6188;
+    --border-color: #4b494d;
+}
+
+[data-theme="one-dark"] {
+    --bg-color: #282c34;
+    --card-bg: #2c313c;
+    --nav-bg: #21252b;
+    --text-primary: #abb2bf;
+    --text-muted: #5c6370;
+    --accent-main: #61afef;
+    --accent-hover: #4d97d6;
+    --accent-green: #98c379;
+    --accent-red: #e06c75;
+    --border-color: #3e4451;
+}
+
+[data-theme="everforest"] {
+    --bg-color: #2d353b;
+    --card-bg: #343f44;
+    --nav-bg: #3d484d;
+    --text-primary: #d3c6aa;
+    --text-muted: #859289;
+    --accent-main: #a7c080;
+    --accent-hover: #8fae68;
+    --accent-green: #83c092;
+    --accent-red: #e67e80;
+    --border-color: #475258;
+}
+
+[data-theme="solarized-light"] {
+    --bg-color: #fdf6e3;
+    --card-bg: #eee8d5;
+    --nav-bg: #eee8d5;
+    --text-primary: #586e75;
+    --text-muted: #93a1a1;
+    --accent-main: #268bd2;
+    --accent-hover: #2075b8;
+    --accent-green: #859900;
+    --accent-red: #dc322f;
+    --border-color: #d3cbb7;
+}
+
+[data-theme="github-light"] {
+    --bg-color: #ffffff;
+    --card-bg: #f6f8fa;
+    --nav-bg: #f6f8fa;
+    --text-primary: #24292f;
+    --text-muted: #57606a;
+    --accent-main: #0969da;
+    --accent-hover: #0757ba;
+    --accent-green: #1a7f37;
+    --accent-red: #cf222e;
+    --border-color: #d0d7de;
 }
 
 /* Base Styles */
@@ -147,6 +300,11 @@ body {
     background-color: var(--accent-main);
     border-radius: 50%;
     display: inline-block;
+    flex-shrink: 0;
+}
+
+.logo-text {
+    font-size: 2rem;
 }
 
 .nav-actions {
@@ -167,7 +325,8 @@ body {
     display: flex;
     align-items: center;
     gap: 6px;
-    transition: all 0.2s ease;
+    /* instant for the same reason as the option chips above */
+    transition: border-color 0.2s ease;
 }
 
 .nav-btn svg {
@@ -242,6 +401,61 @@ body {
 .status-offline { background-color: rgba(229, 83, 75, 0.2); color: var(--accent-red); }
 .status-loading { background-color: rgba(83, 155, 245, 0.2); color: var(--accent-main); }
 
+/* ANKI CONNECTION HELP */
+.anki-warning {
+    background-color: rgba(229, 83, 75, 0.1);
+    border: 1px solid var(--accent-red);
+    border-radius: 8px;
+    padding: 12px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.anki-warning-title {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    color: var(--accent-red);
+}
+
+.anki-warning p {
+    margin: 0;
+    font-size: 0.8rem;
+    line-height: 1.5;
+    color: var(--text-primary);
+}
+
+.anki-warning code {
+    font-family: ui-monospace, 'Consolas', monospace;
+    font-size: 0.75rem;
+    background-color: var(--bg-color);
+    border-radius: 4px;
+    padding: 1px 5px;
+    word-break: break-all;
+}
+
+.anki-warning kbd {
+    font-family: ui-monospace, 'Consolas', monospace;
+    font-size: 0.7rem;
+    font-weight: 700;
+    background-color: var(--nav-bg);
+    border: 1px solid var(--border-color);
+    border-bottom-width: 2px;
+    border-radius: 4px;
+    padding: 1px 6px;
+    white-space: nowrap;
+}
+
+.anki-note {
+    margin: 0;
+    font-size: 0.75rem;
+    line-height: 1.5;
+    color: var(--text-muted);
+}
+
 /* CONTROL GROUPS & SELECTORS */
 .word-count-nav {
     flex-direction: row;
@@ -266,7 +480,12 @@ body {
     background-color: var(--border-color);
 }
 
-.mode-btn, .source-btn, .count-btn, .time-btn, .kana-count-btn {
+/* Selection is a state, not an animation. Transitioning background-color meant the
+   option you just left held its fill for 200ms while the new one filled in, so both read
+   as selected at once — and because switching a source also rebuilds the word list, the
+   delayed paint turned that overlap into a flash of the old choice. Only border-color
+   eases now; the highlight itself is instant. */
+.mode-btn, .source-btn, .count-btn, .time-btn, .kana-count-btn, .tango-level-btn {
     background: transparent;
     border: none;
     color: var(--text-muted);
@@ -275,21 +494,50 @@ body {
     font-weight: 700;
     border-radius: 6px;
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: border-color 0.2s ease;
 }
 
-.mode-btn:hover, .source-btn:hover, .count-btn:hover, .time-btn:hover, .kana-count-btn:hover {
+.mode-btn:hover, .source-btn:hover, .count-btn:hover, .time-btn:hover, .kana-count-btn:hover, .tango-level-btn:hover {
     color: var(--text-primary);
 }
 
-.mode-btn.active, .source-btn.active, .count-btn.active, .time-btn.active, .kana-count-btn.active {
+.mode-btn.active, .source-btn.active, .count-btn.active, .time-btn.active, .kana-count-btn.active, .tango-level-btn.active {
     background-color: var(--accent-main);
     color: var(--bg-color);
 }
 
-.mode-btn:disabled {
+.mode-btn:disabled,
+.tango-level-btn:disabled {
     opacity: 0.3;
     cursor: not-allowed;
+}
+
+/* Locked chips must not light up on hover as though they were still clickable */
+.tango-level-btn:disabled:hover {
+    color: var(--text-muted);
+}
+
+/* Takes the place of the "custom" chip while it is being edited, so it has to
+   match the chip's metrics exactly or the row shifts as you type into it. */
+.custom-inline-input {
+    width: 62px;
+    padding: 6px 10px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    font-family: inherit;
+    border-radius: 6px;
+    border: 1px solid var(--accent-main);
+    background-color: var(--nav-bg);
+    color: var(--text-primary);
+    outline: none;
+    text-align: center;
+    -moz-appearance: textfield;
+}
+
+.custom-inline-input::-webkit-outer-spin-button,
+.custom-inline-input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
 }
 
 .selector-container {
@@ -380,6 +628,36 @@ select:focus {
     display: flex;
     gap: 12px;
     align-items: center;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+/* The primary action in this drawer, so it stands out by accent fill rather than
+   by size — it sits at the same height as the Load button beside it */
+.nav-btn.seed-create-btn {
+    background-color: var(--accent-main);
+    border-color: var(--accent-main);
+    color: var(--bg-color);
+    padding: 6px 16px;
+    font-size: 0.8rem;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.nav-btn.seed-create-btn:hover {
+    background-color: var(--accent-hover);
+    border-color: var(--accent-hover);
+    color: var(--bg-color);
+}
+
+.seed-load-wrapper input {
+    width: 190px;
+}
+
+.seed-hint {
+    font-size: 0.72rem;
+    line-height: 1.45;
+    color: var(--text-muted);
+    max-width: 250px;
 }
 
 /* AUTH & PROFILE STYLES */
@@ -462,34 +740,53 @@ select:focus {
 
 .profile-card {
     display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 12px;
+    flex-direction: row;
+    align-items: stretch;
+    gap: 20px;
     width: 100%;
-    max-width: 500px;
+    max-width: 560px;
     margin: 0 auto;
+}
+
+.profile-avatar-col {
+    position: relative;
+    flex-shrink: 0;
+    /* A fixed width keeps the picture from feeding back into the layout: the slot's
+       height then comes purely from the stats column beside it, and the image fills
+       that height via object-fit: cover below. */
+    width: 165px;
+    display: flex;
+    flex-direction: column;
 }
 
 .avatar-wrapper {
     position: relative;
-    width: 72px;
-    height: 72px;
-    border-radius: 50%;
+    flex: 1;
+    min-height: 130px;
+    border-radius: 12px;
     overflow: hidden;
     cursor: pointer;
-    border: 2px solid var(--accent-main);
+    background: transparent;
 }
 
+.avatar-wrapper.avatar-static {
+    cursor: default;
+}
+
+/* cover, so the picture always reaches the full height of the slot. Anything the
+   cropper produced is already 4:5 and fits exactly; an older upload with a
+   different shape gives up a little off its edges rather than letterboxing. */
 .avatar-wrapper img {
     width: 100%;
     height: 100%;
     object-fit: cover;
+    background: transparent;
 }
 
 .avatar-overlay {
     position: absolute;
     inset: 0;
-    background: rgba(0,0,0,0.6);
+    background: rgba(0,0,0,0.5);
     color: #fff;
     display: flex;
     align-items: center;
@@ -504,14 +801,385 @@ select:focus {
     opacity: 1;
 }
 
+/* Lives in normal flow (not an absolute overlay) since .top-navbar clips
+   overflow for its rounded corners, which would otherwise cut off a
+   floating dropdown extending past the drawer's bottom edge. */
+.avatar-picker {
+    width: 100%;
+    max-width: 560px;
+    margin: 0 auto;
+    background: var(--nav-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.avatar-picker-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 6px;
+    min-height: 30px;
+}
+
+/* Positions the remove button over its own thumbnail */
+.avatar-picker-cell {
+    position: relative;
+    display: block;
+    line-height: 0;
+}
+
+.avatar-picker-thumb {
+    width: 100%;
+    aspect-ratio: 1;
+    object-fit: cover;
+    border-radius: 6px;
+    cursor: pointer;
+    border: 1px solid var(--border-color);
+    transition: border-color 0.15s ease;
+}
+
+.avatar-delete-btn {
+    position: absolute;
+    top: 3px;
+    right: 3px;
+    width: 20px;
+    height: 20px;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    border-radius: 5px;
+    background-color: rgba(0, 0, 0, 0.65);
+    color: #fff;
+    cursor: pointer;
+    /* hidden until the thumbnail is hovered, and never swallows the click that
+       selects the avatar underneath */
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.15s ease, background-color 0.15s ease;
+}
+
+.avatar-picker-cell:hover .avatar-delete-btn,
+.avatar-delete-btn:focus-visible {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.avatar-delete-btn:hover {
+    background-color: var(--accent-red);
+}
+
+.avatar-delete-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.avatar-delete-btn svg {
+    width: 12px;
+    height: 12px;
+}
+
+.avatar-picker-thumb:hover {
+    border-color: var(--accent-main);
+}
+
+.avatar-picker-loading,
+.avatar-picker-empty {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    grid-column: 1 / -1;
+}
+
+.avatar-upload-btn {
+    background: var(--accent-main);
+    color: var(--bg-color);
+    border: none;
+    padding: 6px 10px;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.profile-info-col {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    flex: 1;
+    min-width: 0;
+    justify-content: center;
+}
+
+.profile-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 10px;
+}
+
+.profile-actions .auth-btn {
+    flex: 1;
+    margin-top: 0;
+}
+
+.auth-btn.secondary-btn {
+    background-color: var(--nav-bg);
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
+}
+
+.auth-btn.secondary-btn:hover {
+    background-color: var(--nav-bg);
+    border-color: var(--accent-main);
+    color: var(--accent-main);
+}
+
+/* TEST HISTORY */
+.profile-footer-actions {
+    width: 100%;
+    max-width: 560px;
+    margin: 10px auto 0;
+    display: flex;
+    justify-content: flex-end;
+}
+
+.history-toggle-btn {
+    background: transparent;
+    border: 1px solid var(--border-color);
+    color: var(--text-muted);
+    padding: 6px 14px;
+    border-radius: 8px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    font-family: inherit;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.history-toggle-btn:hover {
+    color: var(--accent-main);
+    border-color: var(--accent-main);
+}
+
+.history-panel {
+    width: 100%;
+    max-width: 560px;
+    margin: 10px auto 0;
+    background: var(--nav-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    padding: 10px;
+}
+
+/* The table is wider than the card on a narrow screen, so it scrolls inside the
+   panel rather than pushing the page sideways */
+.history-body {
+    max-height: 260px;
+    overflow: auto;
+}
+
+.history-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.72rem;
+    white-space: nowrap;
+}
+
+.history-table th {
+    position: sticky;
+    top: 0;
+    background: var(--nav-bg);
+    text-align: left;
+    padding: 4px 8px;
+    color: var(--text-muted);
+    font-size: 0.62rem;
+    letter-spacing: 0.5px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.history-table td {
+    padding: 5px 8px;
+    color: var(--text-primary);
+    border-bottom: 1px solid var(--border-color);
+}
+
+.history-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.history-table td:nth-child(3) {
+    color: var(--accent-main);
+    font-weight: 700;
+}
+
+.history-table td:last-child {
+    color: var(--accent-red);
+}
+
+.history-empty {
+    display: block;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    padding: 6px 2px;
+}
+
+.history-empty.is-error {
+    color: var(--accent-red);
+}
+
+/* CHANGE PASSWORD PANEL */
+.password-panel {
+    width: 100%;
+    max-width: 560px;
+    margin: 12px auto 0;
+    background: var(--nav-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.password-panel input {
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-color);
+    color: var(--text-primary);
+    padding: 10px 12px;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    outline: none;
+    transition: border-color 0.2s ease;
+    width: 100%;
+}
+
+.password-panel input:focus {
+    border-color: var(--accent-main);
+}
+
+.auth-error.auth-ok {
+    color: var(--accent-green);
+}
+
+/* AVATAR CROPPER */
+.cropper-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    background: rgba(0, 0, 0, 0.75);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+}
+
+.cropper-box {
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    max-width: 100%;
+}
+
+/* Width/height come from inline styles so the viewport matches the avatar slot's shape */
+.cropper-canvas {
+    max-width: 100%;
+    border-radius: 10px;
+    background: var(--bg-color);
+    cursor: grab;
+    touch-action: none;
+}
+
+.cropper-canvas.dragging {
+    cursor: grabbing;
+}
+
+.cropper-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.cropper-row label {
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    letter-spacing: 0.5px;
+}
+
+.cropper-row input[type="range"] {
+    flex: 1;
+    accent-color: var(--accent-main);
+    cursor: pointer;
+}
+
+.cropper-hint {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    text-align: center;
+}
+
+.cropper-actions {
+    display: flex;
+    gap: 10px;
+}
+
+.cropper-actions .auth-btn {
+    flex: 1;
+}
+
+.viewing-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: var(--bg-color);
+    background: var(--accent-main);
+    padding: 4px 10px;
+    border-radius: 6px;
+    width: fit-content;
+}
+
+.viewing-badge-back {
+    background: none;
+    border: none;
+    color: inherit;
+    text-decoration: underline;
+    cursor: pointer;
+    font: inherit;
+    font-weight: 700;
+    padding: 0;
+}
+
 .profile-username {
     font-size: 1.1rem;
     font-weight: 700;
 }
 
+.member-since {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    margin-top: -6px;
+}
+
 .profile-stats-grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    width: 100%;
+}
+
+.char-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
     gap: 8px;
     width: 100%;
 }
@@ -531,6 +1199,11 @@ select:focus {
 .words-wrapper {
     width: 100%;
     height: 270px;
+    /* This is a flex item, and flex's default min-height: auto is a content-based
+       minimum — it refused to shrink below the full word list, so the height set for
+       the chosen row count was overridden upward and extra rows stayed visible. */
+    min-height: 0;
+    flex-shrink: 0;
     overflow: hidden;
     position: relative;
     margin-top: 10px;
@@ -614,6 +1287,12 @@ select:focus {
     font-weight: 700;
     color: var(--text-muted);
     letter-spacing: 0.5px;
+    transition: opacity 0.25s ease;
+}
+
+.typing-controls-hint.hint-hidden {
+    opacity: 0;
+    pointer-events: none;
 }
 
 /* LIVE INPUT & CONTROLS */
@@ -637,7 +1316,7 @@ select:focus {
     border-radius: 12px;
     padding: 10px 16px;
     display: flex;
-    justify-content: space-between;
+    justify-content: flex-start;
     align-items: center;
     min-height: 44px;
     position: relative;
@@ -652,27 +1331,6 @@ select:focus {
     color: var(--text-primary);
     font-size: 1.1rem;
     font-weight: 700;
-}
-
-.hide-box-btn, .restore-box-btn {
-    background: transparent;
-    border: none;
-    color: var(--text-muted);
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    font-size: 0.75rem;
-    font-weight: 700;
-}
-
-.hide-box-btn svg, .restore-box-btn svg {
-    width: 16px;
-    height: 16px;
-}
-
-.hide-box-btn:hover, .restore-box-btn:hover {
-    color: var(--text-primary);
 }
 
 .toggles-row {
@@ -700,21 +1358,25 @@ select:focus {
     color: var(--accent-main);
 }
 
-.kofi-btn-icon {
+/* Only shown for endless tests (infinite time / max words), where Ctrl+Enter is
+   the sole way to stop */
+.endless-hint {
+    font-size: 0.6rem;
+    font-weight: 700;
+    letter-spacing: 0.5px;
     color: var(--text-muted);
-    display: flex;
-    align-items: center;
-    transition: color 0.2s ease;
+    margin-top: 2px;
+    white-space: nowrap;
 }
 
-.kofi-btn-icon:hover {
-    color: #ff5e5b;
+.abandoned-note {
+    margin: 0 0 4px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--accent-red);
+    text-align: center;
 }
 
-.kofi-icon {
-    width: 20px;
-    height: 20px;
-}
 
 /* ZEN MODE (MOJIKAZU COUNTER STYLES) */
 .zen-layout {
@@ -722,16 +1384,44 @@ select:focus {
     max-width: 950px;
     margin-top: 20px;
     display: flex;
-    justify-content: center;
+    /* left-aligned rather than centred: the text box sits on the left of the page and
+       the counters sit beside it, leaving the navbar exactly where it was */
+    justify-content: flex-start;
     flex-grow: 1;
 }
 
 .zen-container {
     width: 100%;
-    max-width: 830px;
+    display: grid;
+    grid-template-columns: minmax(0, 3fr) minmax(190px, 1fr);
+    align-items: start;
+    gap: 20px;
+}
+
+/* Counters stack down the right-hand side beside the text */
+.zen-container .counter-container {
     display: flex;
     flex-direction: column;
-    gap: 20px;
+    gap: 10px;
+    grid-column: 2;
+    grid-row: 1 / span 2;
+}
+
+.zen-container #app-wrapper,
+.zen-container .workshop-import-status {
+    grid-column: 1;
+}
+
+@media (max-width: 720px) {
+    .zen-container {
+        grid-template-columns: minmax(0, 1fr);
+    }
+    .zen-container .counter-container {
+        grid-column: 1;
+        grid-row: auto;
+        flex-direction: row;
+        flex-wrap: wrap;
+    }
 }
 
 #app-wrapper {
@@ -774,6 +1464,269 @@ z-index: 5;
 #jptext:focus {
 border-color: var(--accent-main);
 box-shadow: 0 0 0 2px rgba(83, 155, 245, 0.2);
+}
+
+/* WORKSHOP REGEX FILTERS */
+.workshop-filter-bar {
+    border-top: 1px solid var(--border-color);
+    padding-top: 12px;
+}
+
+.filter-bar-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+}
+
+.filter-add-btn {
+    background: transparent;
+    border: 1px dashed var(--border-color);
+    color: var(--text-muted);
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    font-family: inherit;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.filter-add-btn:hover {
+    color: var(--accent-main);
+    border-color: var(--accent-main);
+}
+
+.filter-chip-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    align-items: center;
+}
+
+.filter-chip {
+    display: flex;
+    align-items: stretch;
+    background-color: var(--nav-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+.filter-chip:hover {
+    border-color: var(--accent-main);
+}
+
+.filter-apply-btn {
+    background: transparent;
+    border: none;
+    color: var(--text-primary);
+    padding: 5px 10px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    font-family: inherit;
+    cursor: pointer;
+}
+
+.filter-apply-btn:hover {
+    color: var(--accent-main);
+}
+
+.filter-icon-btn {
+    background: transparent;
+    border: none;
+    border-left: 1px solid var(--border-color);
+    color: var(--text-muted);
+    padding: 0 7px;
+    font-size: 0.7rem;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.filter-icon-btn:hover {
+    color: var(--accent-main);
+}
+
+.filter-icon-btn.filter-del-btn:hover {
+    color: var(--accent-red);
+}
+
+/* Separates the built-ins from the user's own saved filters */
+.filter-chip-divider {
+    width: 1px;
+    align-self: stretch;
+    min-height: 20px;
+    background-color: var(--border-color);
+    margin: 0 4px;
+}
+
+.filter-editor {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    background-color: var(--nav-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 12px;
+}
+
+.filter-editor-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.filter-field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    flex: 1 1 120px;
+    min-width: 0;
+}
+
+.filter-field-wide { flex: 2 1 200px; }
+.filter-field-narrow { flex: 0 0 70px; }
+
+.filter-field span {
+    font-size: 0.62rem;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    color: var(--text-muted);
+}
+
+.filter-field input {
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-color);
+    color: var(--text-primary);
+    padding: 6px 8px;
+    border-radius: 6px;
+    font-size: 0.78rem;
+    font-family: ui-monospace, 'Consolas', monospace;
+    outline: none;
+    width: 100%;
+}
+
+.filter-field input:focus {
+    border-color: var(--accent-main);
+}
+
+.filter-editor-error {
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--accent-red);
+    min-height: 14px;
+}
+
+.filter-editor-actions {
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+}
+
+.filter-cancel-btn,
+.filter-save-btn {
+    border: none;
+    padding: 6px 14px;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    font-family: inherit;
+    cursor: pointer;
+}
+
+.filter-cancel-btn {
+    background-color: transparent;
+    border: 1px solid var(--border-color);
+    color: var(--text-muted);
+}
+
+.filter-cancel-btn:hover {
+    color: var(--text-primary);
+}
+
+.filter-save-btn {
+    background-color: var(--accent-main);
+    color: var(--bg-color);
+}
+
+.filter-save-btn:hover {
+    background-color: var(--accent-hover);
+}
+
+.filter-status-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.filter-undo-btn {
+    background: transparent;
+    border: 1px solid var(--border-color);
+    color: var(--text-primary);
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    font-family: inherit;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: all 0.2s ease;
+}
+
+.filter-undo-btn:hover:not(:disabled) {
+    color: var(--accent-main);
+    border-color: var(--accent-main);
+}
+
+.filter-undo-btn:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+}
+
+.filter-status {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    min-height: 14px;
+}
+
+.filter-status.is-error {
+    color: var(--accent-red);
+}
+
+/* WORKSHOP FILE IMPORT */
+.workshop-drop-hint {
+    position: absolute;
+    inset: 0;
+    z-index: 6;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 20px;
+    border: 2px dashed var(--accent-main);
+    border-radius: 16px;
+    background-color: var(--card-bg);
+    color: var(--accent-main);
+    font-weight: 700;
+    font-size: 0.9rem;
+    pointer-events: none;
+}
+
+#app-wrapper.drag-over .workshop-drop-hint {
+    display: flex;
+}
+
+.workshop-import-status {
+    min-height: 18px;
+    margin-top: 8px;
+    font-size: 0.78rem;
+    line-height: 1.4;
+    color: var(--text-muted);
+    text-align: center;
+}
+
+.workshop-import-status.is-error {
+    color: var(--accent-red);
 }
 
 #loader-overlay {
@@ -889,15 +1842,13 @@ gap: 12px;
 }
 
 /* MODAL */
+/* The results take the test area's place rather than floating over it, so this is a
+   panel in the flow now instead of a fixed overlay. */
 .modal-overlay {
-    position: fixed;
-    inset: 0;
-    background-color: rgba(0,0,0,0.75);
+    width: 100%;
     display: flex;
     justify-content: center;
-    align-items: center;
-    z-index: 100;
-    backdrop-filter: blur(4px);
+    align-items: flex-start;
 }
 
 .modal-card {
@@ -905,8 +1856,9 @@ gap: 12px;
     border: 1px solid var(--border-color);
     border-radius: 16px;
     padding: 24px;
-    width: 90%;
-    max-width: 480px;
+    width: 100%;
+    /* wider than the old dialog, since the graph lives here now */
+    max-width: 700px;
     display: flex;
     flex-direction: column;
     gap: 16px;
@@ -970,12 +1922,17 @@ gap: 12px;
     padding: 4px;
 }
 
+/* Bare text: the boxes made a wall of chrome out of what is just a list of words */
 .completed-word-tag {
-    background-color: var(--nav-bg);
-    border: 1px solid var(--border-color);
-    padding: 4px 8px;
-    border-radius: 6px;
-    font-size: 0.8rem;
+    padding: 2px 0;
+    font-size: 0.85rem;
+    color: var(--text-primary);
+}
+
+.completed-word-tag:not(:last-child)::after {
+    content: "·";
+    color: var(--text-muted);
+    margin: 0 2px 0 8px;
 }
 
 .close-modal-btn {
@@ -1008,9 +1965,38 @@ gap: 12px;
 }
 
 .footer-content {
+    width: 100%;
+    max-width: 1100px;
     display: flex;
     align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
     gap: 12px;
+}
+
+.footer-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.footer-brand {
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 700;
+    font-size: 0.85rem;
+    color: var(--text-primary);
+}
+
+.footer-copyright {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+}
+
+.footer-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
 }
 
 .footer-text {
@@ -1019,17 +2005,829 @@ gap: 12px;
     color: var(--text-muted);
 }
 
-.app-footer .kofi-btn-icon {
+.footer-link {
+    display: flex;
+    align-items: center;
+    gap: 6px;
     font-size: 0.85rem;
     font-weight: 700;
     text-decoration: none;
-    background-color: rgba(255, 94, 91, 0.1);
-    color: #ff5e5b;
+    color: var(--text-muted);
     padding: 6px 12px;
     border-radius: 8px;
-    border: 1px solid rgba(255, 94, 91, 0.2);
+    border: 1px solid var(--border-color);
+    transition: all 0.2s ease;
 }
 
-.app-footer .kofi-btn-icon:hover {
-    background-color: rgba(255, 94, 91, 0.2);
+.footer-link:hover {
+    color: var(--text-primary);
+    border-color: var(--text-muted);
+}
+
+.footer-link-icon {
+    width: 15px;
+    height: 15px;
+}
+
+
+/* MULTIPLAYER */
+.mp-lobby,
+.mp-room {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    width: 100%;
+}
+
+.mp-lobby-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: center;
+    justify-content: center;
+}
+
+.mp-create-btn {
+    padding: 10px 22px;
+}
+
+.mp-join-group {
+    display: flex;
+    gap: 8px;
+}
+
+.mp-join-group input {
+    background-color: var(--nav-bg);
+    border: 1px solid var(--border-color);
+    color: var(--text-primary);
+    padding: 8px 12px;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    font-weight: 700;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    width: 130px;
+    text-align: center;
+    outline: none;
+    font-family: inherit;
+}
+
+.mp-join-group input:focus {
+    border-color: var(--accent-main);
+}
+
+.mp-status {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    min-height: 16px;
+    text-align: center;
+}
+
+.mp-status.is-error {
+    color: var(--accent-red);
+}
+
+.mp-room-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.mp-code-block {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.mp-code-label {
+    font-size: 0.6rem;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    color: var(--text-muted);
+}
+
+.mp-code {
+    background: transparent;
+    border: none;
+    padding: 0;
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 1.6rem;
+    font-weight: 700;
+    letter-spacing: 6px;
+    color: var(--accent-main);
+    cursor: pointer;
+    text-align: left;
+}
+
+.mp-room-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.mp-small-btn {
+    background: transparent;
+    border: 1px solid var(--border-color);
+    color: var(--text-muted);
+    padding: 5px 12px;
+    border-radius: 6px;
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    font-family: inherit;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.mp-small-btn:hover {
+    color: var(--accent-main);
+    border-color: var(--accent-main);
+}
+
+.mp-leave-btn:hover {
+    color: var(--accent-red);
+    border-color: var(--accent-red);
+}
+
+.mp-members {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+/* The progress bar is the row's own background rather than a separate element, so a
+   long roster stays compact */
+.mp-member {
+    position: relative;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    padding: 7px 10px;
+    border-radius: 8px;
+    background-color: var(--nav-bg);
+    border: 1px solid var(--border-color);
+    overflow: hidden;
+}
+
+.mp-member.is-you {
+    border-color: var(--accent-main);
+}
+
+.mp-member-bar {
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    background-color: var(--accent-main);
+    opacity: 0.18;
+    transition: width 0.25s ease;
+}
+
+.mp-member-name,
+.mp-member-result {
+    position: relative;
+    font-size: 0.78rem;
+    font-weight: 700;
+}
+
+.mp-member-name {
+    color: var(--text-primary);
+}
+
+.mp-member-result {
+    color: var(--accent-main);
+    white-space: nowrap;
+}
+
+.mp-host-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    border-top: 1px solid var(--border-color);
+    padding-top: 12px;
+}
+
+.mp-host-note,
+.mp-guest-note {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+}
+
+.mp-start-btn {
+    padding: 9px 24px;
+}
+
+/* MULTIPLAYER RACE TRACK — stands in for the navbar while a race is running */
+.race-track {
+    margin-top: 20px;
+    width: 90%;
+    max-width: 950px;
+    background-color: var(--nav-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 16px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+    padding: 14px 20px 6px;
+    z-index: 10;
+}
+
+.race-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 10px;
+}
+
+.race-code {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 0.85rem;
+    font-weight: 700;
+    letter-spacing: 4px;
+    color: var(--accent-main);
+}
+
+.race-status {
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: var(--text-muted);
+}
+
+.race-lanes {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+/* The dashed edge is the finish line */
+.race-lane {
+    position: relative;
+    height: 54px;
+    border-bottom: 1px dashed var(--border-color);
+}
+
+.race-lane:last-child {
+    border-bottom: none;
+}
+
+.race-lane.is-you .race-name {
+    color: var(--accent-main);
+}
+
+/* left is set inline as a share of the lane less one runner's width, so a runner at
+   100% finishes flush with the line rather than overshooting it */
+.race-runner {
+    position: absolute;
+    top: 2px;
+    width: 52px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    transition: left 0.12s linear;
+}
+
+.race-avatar {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid var(--border-color);
+    background-color: var(--card-bg);
+}
+
+.race-runner.is-finished .race-avatar {
+    border-color: var(--accent-green);
+}
+
+.race-name {
+    font-size: 0.58rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    max-width: 52px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    text-align: center;
+}
+
+.mp-limit-field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.mp-limit-field span {
+    font-size: 0.6rem;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    color: var(--text-muted);
+}
+
+.mp-limit-field input {
+    width: 70px;
+    background-color: var(--nav-bg);
+    border: 1px solid var(--border-color);
+    color: var(--text-primary);
+    padding: 8px 10px;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    font-weight: 700;
+    text-align: center;
+    outline: none;
+    font-family: inherit;
+}
+
+.mp-limit-field input:focus {
+    border-color: var(--accent-main);
+}
+
+/* MULTIPLAYER SESSION BAR — lives in PLAY while a room is open */
+.mp-session-bar {
+    border-top: 1px solid var(--border-color);
+    padding-top: 12px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.mp-session-note {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    flex: 1 1 220px;
+}
+
+.mp-session-toggles {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px;
+}
+
+.mp-toggle {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    cursor: pointer;
+}
+
+.mp-toggle input {
+    accent-color: var(--accent-main);
+    cursor: pointer;
+}
+
+.mp-end-session-btn {
+    background: transparent;
+    border: 1px solid var(--accent-red);
+    color: var(--accent-red);
+    padding: 6px 14px;
+    border-radius: 8px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    font-family: inherit;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+.mp-end-session-btn:hover {
+    background-color: var(--accent-red);
+    color: var(--bg-color);
+}
+
+/* Guests can see the host's choices but not touch them */
+.mp-locked .count-selector-group button:disabled,
+.mp-locked .count-selector-group input:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+.mp-confirm-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 1200;
+    background: rgba(0, 0, 0, 0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+}
+
+.mp-confirm-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 20px;
+    max-width: 380px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.mp-confirm-question {
+    margin: 0;
+    font-size: 0.85rem;
+    line-height: 1.5;
+    color: var(--text-primary);
+}
+
+.mp-confirm-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+}
+
+.mp-confirm-no,
+.mp-confirm-yes {
+    border: none;
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    font-family: inherit;
+    cursor: pointer;
+}
+
+.mp-confirm-no {
+    background: transparent;
+    border: 1px solid var(--border-color);
+    color: var(--text-muted);
+}
+
+.mp-confirm-yes {
+    background-color: var(--accent-red);
+    color: var(--bg-color);
+}
+
+/* IN-SESSION CHROME
+   The multiplayer tab reads as selected for as long as a room is open, whichever drawer
+   is actually showing. A softer fill than .active so the two are distinguishable when
+   both apply. */
+.nav-btn.mp-session-active:not(.active) {
+    color: var(--accent-main);
+    background-color: rgba(83, 155, 245, 0.12);
+}
+
+/* The PLAY chips, once moved into the multiplayer drawer */
+.mp-options-slot:empty {
+    display: none;
+}
+
+.word-count-nav.mp-compact {
+    gap: 6px;
+    padding: 10px 0 0;
+    border-top: 1px solid var(--border-color);
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+.word-count-nav.mp-compact .count-selector-group {
+    gap: 2px;
+}
+
+.word-count-nav.mp-compact button {
+    padding: 4px 8px;
+    font-size: 0.7rem;
+}
+
+.word-count-nav.mp-compact .custom-inline-input {
+    width: 52px;
+    padding: 4px 6px;
+    font-size: 0.7rem;
+}
+
+.word-count-nav.mp-compact .selector-divider {
+    margin: 0 2px;
+}
+
+/* The room's board sits above everything and stays put between races */
+.mp-session .race-track {
+    margin-top: 20px;
+}
+
+/* In a session the workshop moves out of the centre column and into the empty space on
+   the left, so the board and drawers keep the middle. */
+.mp-session .zen-layout {
+    position: fixed;
+    left: 16px;
+    top: 96px;
+    width: min(340px, 26vw);
+    max-width: 340px;
+    margin-top: 0;
+    z-index: 5;
+}
+
+.mp-session .zen-container {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 10px;
+}
+
+.mp-session .zen-container .counter-container {
+    grid-column: 1;
+    grid-row: auto;
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+}
+
+.mp-session #jptext {
+    min-height: 220px;
+    font-size: 0.9rem;
+    padding: 12px;
+}
+
+.mp-session .counter-card {
+    padding: 8px;
+}
+
+@media (max-width: 1400px) {
+    .mp-session .zen-layout {
+        position: static;
+        width: 100%;
+        max-width: 950px;
+        margin-top: 20px;
+    }
+}
+
+/* RESULT GRAPH */
+.result-graph-wrap {
+    width: 100%;
+}
+
+.result-graph {
+    width: 100%;
+    height: auto;
+    display: block;
+}
+
+.rg-grid {
+    stroke: var(--border-color);
+    stroke-width: 1;
+}
+
+.rg-axis {
+    fill: var(--text-muted);
+    font-size: 10px;
+    font-weight: 700;
+}
+
+.rg-line {
+    fill: none;
+    stroke: var(--accent-main);
+    stroke-width: 2;
+    stroke-linejoin: round;
+    stroke-linecap: round;
+}
+
+.rg-area {
+    fill: var(--accent-main);
+    opacity: 0.12;
+    stroke: none;
+}
+
+/* Typos sit on the line at the second they happened */
+.rg-error {
+    fill: var(--accent-red);
+    stroke: var(--card-bg);
+    stroke-width: 1.5;
+}
+
+.result-graph-empty {
+    margin: 0;
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    text-align: center;
+}
+
+.result-graph-key {
+    display: flex;
+    gap: 16px;
+    justify-content: center;
+    margin-top: 4px;
+    font-size: 0.68rem;
+    font-weight: 700;
+    color: var(--text-muted);
+}
+
+.result-graph-key span {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.rg-key-line {
+    width: 14px;
+    height: 2px;
+    background-color: var(--accent-main);
+    display: inline-block;
+}
+
+.rg-key-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background-color: var(--accent-red);
+    display: inline-block;
+}
+
+/* TYPING FOCUS — the navbar recedes while typing, the brand stays put */
+.top-navbar,
+.nav-actions {
+    transition: opacity 0.35s ease, background-color 0.35s ease,
+                border-color 0.35s ease, box-shadow 0.35s ease;
+}
+
+body.typing-focus .top-navbar {
+    background-color: transparent;
+    border-color: transparent;
+    box-shadow: none;
+}
+
+body.typing-focus .nav-actions {
+    opacity: 0;
+    pointer-events: none;
+}
+
+/* The brand is deliberately untouched: same place, same weight, same colour */
+body.typing-focus .nav-brand {
+    opacity: 1;
+}
+
+/* FADES
+   Panels are swapped through .fade-out rather than being switched on and off, so nothing
+   in the site appears or disappears abruptly. Kept short deliberately: enough to read as
+   a transition, not enough to feel like waiting. */
+.nav-drawer,
+.modal-overlay,
+.words-wrapper,
+.live-input-container,
+.typing-controls-hint,
+.race-track {
+    transition: opacity 0.11s ease;
+}
+
+.fade-out {
+    opacity: 0 !important;
+}
+
+/* The result sheds its card: same background as the test it replaces, so it reads as the
+   page changing rather than a dialog opening on top of it. */
+#result-modal .modal-card {
+    background-color: transparent;
+    border: none;
+    box-shadow: none;
+    padding: 8px 0 0;
+    max-width: 700px;
+}
+
+#result-modal .modal-title {
+    font-size: 0.72rem;
+    letter-spacing: 1px;
+    color: var(--text-muted);
+    text-align: center;
+}
+
+/* ANKI FIELD MAPPING + ORDERING */
+.anki-config {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    border-top: 1px solid var(--border-color);
+    padding-top: 12px;
+}
+
+.anki-field-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.anki-field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    flex: 1 1 200px;
+    min-width: 0;
+}
+
+.anki-field span {
+    font-size: 0.62rem;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    color: var(--text-muted);
+}
+
+.anki-field select,
+.anki-field input {
+    background-color: var(--nav-bg);
+    border: 1px solid var(--border-color);
+    color: var(--text-primary);
+    padding: 7px 10px;
+    border-radius: 8px;
+    font-size: 0.8rem;
+    font-family: inherit;
+    outline: none;
+    width: 100%;
+}
+
+.anki-field select:focus,
+.anki-field input:focus {
+    border-color: var(--accent-main);
+}
+
+.anki-order {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.anki-order-label {
+    font-size: 0.62rem;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    color: var(--text-muted);
+}
+
+.anki-order-note {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+}
+
+/* TEST HISTORY, now always shown on the profile */
+.history-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.history-pager {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.history-page-btn {
+    background: transparent;
+    border: 1px solid var(--border-color);
+    color: var(--text-muted);
+    width: 22px;
+    height: 22px;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    line-height: 1;
+    font-family: inherit;
+    cursor: pointer;
+}
+
+.history-page-btn:hover:not(:disabled) {
+    color: var(--accent-main);
+    border-color: var(--accent-main);
+}
+
+.history-page-btn:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+}
+
+.history-page-label {
+    font-size: 0.68rem;
+    font-weight: 700;
+    color: var(--text-muted);
+}
+
+/* Definition sizes on its own slider now rather than tracking the romaji */
+.meaning-text {
+    font-size: var(--meaning-font-size, calc(var(--sub-font-size) * 0.9));
+}
+
+/* Closes the horizontal gap between words — for a kana test, between characters */
+body.tight-spacing .words-container {
+    column-gap: 0;
+}
+
+body.tight-spacing .word-item {
+    padding-left: 0;
+    padding-right: 0;
+}
+
+/* Roomier history rows */
+.history-table th {
+    padding: 7px 10px;
+}
+
+.history-table td {
+    padding: 11px 10px;
+    font-size: 0.78rem;
+}
+
+.history-body {
+    max-height: 420px;
 }

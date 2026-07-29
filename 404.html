@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Tango Type</title>
+    <script>
+        // GitHub Pages has no server-side router, so any deep link (e.g. /user/someone)
+        // hits this 404 page. Redirect back to index.html with the original path tucked
+        // into a query param; index.html restores it via history.replaceState on load.
+        var path = location.pathname + location.search + location.hash;
+        location.replace('/?redirect=' + encodeURIComponent(path));
+    </script>
+</head>
+<body></body>
+</html>

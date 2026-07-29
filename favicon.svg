@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Tango Type">
+  <!-- Drawn as paths rather than text: a CJK glyph would render as tofu wherever the
+       system lacks a Japanese font, and at 16px that reads as a broken icon. -->
+  <rect width="64" height="64" rx="14" fill="#539bf5"/>
+  <!-- T -->
+  <rect x="13" y="15" width="30" height="7" rx="2" fill="#ffffff"/>
+  <rect x="24.5" y="15" width="7" height="30" rx="2" fill="#ffffff"/>
+  <!-- the brand's accent dot, echoing .logo-dot in the navbar -->
+  <circle cx="46" cy="43" r="6" fill="#ffffff"/>
+</svg>
