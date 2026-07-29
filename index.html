@@ -275,6 +275,12 @@
                             <input type="text" id="anki-meaning-custom" class="hidden"
                                    placeholder="Field name..." spellcheck="false" />
                         </label>
+                        <label class="anki-field">
+                            <span>FREQUENCY FIELD <span class="anki-field-opt">(optional)</span></span>
+                            <select id="anki-frequency-field"></select>
+                            <input type="text" id="anki-frequency-custom" class="hidden"
+                                   placeholder="Field name..." spellcheck="false" />
+                        </label>
                     </div>
 
                     <div class="anki-order">
@@ -380,6 +386,15 @@
                     <span class="slider-val-display" id="row-count-val">3</span>
                 </div>
                 <input type="range" id="row-count-slider" min="1" max="5" step="1" value="3" class="font-slider" />
+            </div>
+            <!-- The top of the range is "auto", which is the natural wrapping the row
+                 always used; every other stop pins the row to that many words. -->
+            <div class="selector-container full-width">
+                <div class="slider-label-row">
+                    <label for="words-per-row-slider">WORDS PER ROW</label>
+                    <span class="slider-val-display" id="words-per-row-val">auto</span>
+                </div>
+                <input type="range" id="words-per-row-slider" min="1" max="16" step="1" value="16" class="font-slider" />
             </div>
             <div class="selector-container full-width">
                 <label>LIVE INPUT BOX</label>
@@ -1144,6 +1159,46 @@
             localStorage.setItem("anki_type_row_count", rowCountSetting);
             applyRowCount();
         });
+
+        /* How many words a row holds. "auto" is the natural wrapping the container has
+           always done; any number pins the row to that many equal columns instead.
+           Stored as the literal string "auto" so the top of the slider's range can move
+           later without silently turning into a fixed count. */
+        const WORDS_PER_ROW_AUTO = "auto";
+        let wordsPerRowSetting = localStorage.getItem("anki_type_words_per_row") || WORDS_PER_ROW_AUTO;
+
+        const wordsPerRowSlider = document.getElementById("words-per-row-slider");
+        const wordsPerRowVal = document.getElementById("words-per-row-val");
+        const wordsPerRowMax = parseInt(wordsPerRowSlider.max, 10);
+
+        function applyWordsPerRow() {
+            const isAuto = wordsPerRowSetting === WORDS_PER_ROW_AUTO;
+            const count = isAuto ? wordsPerRowMax : (parseInt(wordsPerRowSetting, 10) || 1);
+
+            wordsPerRowSlider.value = count;
+            wordsPerRowVal.textContent = isAuto ? "auto" : String(count);
+
+            wordsContainer.classList.toggle("fixed-columns", !isAuto);
+            wordsContainer.style.setProperty("--words-per-row", count);
+
+            // The row height is measured off the rendered words, and the column count
+            // changes how tall a row is
+            applyRowCount();
+        }
+
+        wordsPerRowSlider.addEventListener("input", (e) => {
+            const raw = parseInt(e.target.value, 10);
+            wordsPerRowSetting = raw >= wordsPerRowMax ? WORDS_PER_ROW_AUTO : String(raw);
+            localStorage.setItem("anki_type_words_per_row", wordsPerRowSetting);
+            applyWordsPerRow();
+            // Scrolling follows the active word's row, which has just moved
+            if (wordsContainer.children.length) updateDisplay();
+        });
+
+        /* On the wrapper as well as on the words themselves, so the gaps between them
+           and the empty space under the last row lead back to PLAY too — the block is
+           meant to read as one target. No-op once typing is live. */
+        wordsWrapper.addEventListener("click", () => { enterPlayFromPreview(); });
         const KANJI_FIELDS = ["Expression", "Kanji", "Word", "Japanese", "Vocabulary-Kanji", "Front"];
         const READING_FIELDS = ["ExpressionReading", "Reading", "Furigana", "Kana", "Pronunciation", "Romaji", "Vocabulary-Kana"];
         const MEANING_FIELDS = ["MainDefinition", "Meaning", "Definition", "English", "Glossary", "Vocabulary-English", "Back"];
@@ -1178,6 +1233,10 @@ let currentIndex = 0;
         let totalScore = 0;
         let showRomaji = false;
         let showMeaning = false;
+
+        // True while the words area is standing in for the ANKI drawer's deck rather than
+        // for the test, so the real list is only re-rendered on the way back out
+        let deckPreviewShowing = false;
 
         // First-ever visit defaults to a 15s timed hiragana test with 10 characters.
         // Returning visitors keep whatever they last picked.
@@ -1578,10 +1637,16 @@ let currentIndex = 0;
         let mpCurrentTab = "test-options";
 
         /* Being able to see the test and being able to type into it are separate.
-           CONFIG shows it so appearance changes can be judged against real words, and
-           SEED shows what is about to be shared, but only PLAY takes keystrokes — so
-           neither can quietly run a test down while somebody is adjusting settings. */
-        const TABS_SHOWING_TEST = ["test-options", "appearance", "seed"];
+           CONFIG shows it so appearance changes can be judged against real words, SEED
+           shows what is about to be shared, and ANKI shows what the selected deck and
+           field mapping actually produce — but only PLAY takes keystrokes, so none of
+           them can quietly run a test down while somebody is adjusting settings. */
+        const TABS_SHOWING_TEST = ["test-options", "appearance", "seed", "anki"];
+
+        // Shown in place of the typing hints while the words are only a preview
+        const TYPING_HINT_DEFAULT =
+            "<span>[TAB] TOGGLE ROMAJI READINGS</span> • <span>[CLICK WORD] SHOW MEANING</span>";
+        const PREVIEW_HINT = "<span>[CLICK THE WORDS] GO TO PLAY AND START TYPING</span>";
 
         function anyDrawerOpen() {
             return [profileDrawer, testOptionsDrawer, ankiDrawer,
@@ -1608,15 +1673,56 @@ let currentIndex = 0;
             if (!visible) {
                 [wordsWrapper, typingControlsHint, liveInput]
                     .forEach(el => el && el.classList.add("hidden"));
+                wordsWrapper.classList.remove("is-preview");
+                syncDeckPreview(false);
                 return;
             }
             // The results stand in for the test until they are dismissed
             if (resultsUp) return;
 
             wordsWrapper.classList.remove("hidden");
-            // The input box and hint only belong where typing is actually accepted
+
+            // The input box only belongs where typing is actually accepted; the hint
+            // stays, but says how to get back to typing instead of how to type.
             const live = testAreaIsLive();
-            [typingControlsHint, liveInput].forEach(el => el && el.classList.toggle("hidden", !live));
+            if (liveInput) liveInput.classList.toggle("hidden", !live);
+            wordsWrapper.classList.toggle("is-preview", !live);
+
+            if (typingControlsHint) {
+                typingControlsHint.classList.remove("hidden");
+                typingControlsHint.innerHTML = live ? TYPING_HINT_DEFAULT : PREVIEW_HINT;
+            }
+
+            /* Read off mpCurrentTab rather than the drawer's own class: the outgoing
+               drawer is still on screen for the length of the fade when this runs, so
+               the ANKI panel has not been un-hidden yet. */
+            syncDeckPreview(!live && mpCurrentTab === "anki");
+        }
+
+        /* A preview is one big button back to the test: clicking the words leaves the
+           settings tab and drops you into PLAY with whatever is currently selected,
+           rather than making you find the tab yourself.
+
+           From ANKI it also switches the word source over, since the whole point of
+           looking at the deck there is to type it — and the deck is a long list, so
+           it goes to a word run over the lot. */
+        function enterPlayFromPreview() {
+            if (testAreaIsLive()) return false;
+
+            /* Guarded on the level chip rather than done unconditionally: with Anki
+               unreachable there is no deck to switch to, and forcing the source over
+               would leave the Anki chip selected over an empty word list. */
+            const toAnkiDeck = mpCurrentTab === "anki" && ankiLevelBtn && !ankiLevelBtn.disabled;
+            openTab("test-options");
+
+            if (toAnkiDeck) {
+                setSource("tango", false);
+                setTangoLevel("anki", false);
+                setMode("words", false);
+                applyWordCount("max");
+                loadTangoSource("anki");
+            }
+            return true;
         }
 
         function openTab(tabName) {
@@ -1661,6 +1767,7 @@ let currentIndex = 0;
                 testOptionsTabBtn.classList.add("active");
             } else if (tabName === "anki") {
                 ankiTabBtn.classList.add("active");
+                ensureAnkiDeckLoaded();
             } else if (tabName === "appearance") {
                 appearanceTabBtn.classList.add("active");
             } else if (tabName === "seed") {
@@ -2391,6 +2498,7 @@ function setMode(mode, shouldReload = true) {
 
         applyFontSizes();
         applyWordSpacing();
+        applyWordsPerRow();
 
         async function fetchFromAnki(action, params = {}) {
             try {
@@ -2422,7 +2530,20 @@ function setMode(mode, shouldReload = true) {
             }
         }
 
+        // Set while the deck list is being fetched, so opening ANKI mid-flight doesn't
+        // stack a second attempt on top of the first
+        let ankiDecksInFlight = false;
+
         async function populateDecks() {
+            ankiDecksInFlight = true;
+            try {
+                await populateDecksInner();
+            } finally {
+                ankiDecksInFlight = false;
+            }
+        }
+
+        async function populateDecksInner() {
             const response = await fetchFromAnki("deckNames");
             if (!response || !response.result) {
                 statusEl.textContent = "OFFLINE - START ANKI";
@@ -2453,26 +2574,36 @@ function setMode(mode, shouldReload = true) {
                 deckDropdown.appendChild(option);
             });
 
-            deckDropdown.addEventListener("change", (e) => {
-                if (e.target.value) {
-                    localStorage.setItem("anki_type_deck", e.target.value);
-                    if (activeSource === "tango" && activeTangoLevel !== "anki") {
-                        activeTangoLevel = "anki";
-                        localStorage.setItem("anki_type_tango_level", activeTangoLevel);
-                        updateTangoLevelUI();
+            // Bound once. populateDecks() can run again — opening ANKI retries it when
+            // Anki wasn't up at page load — and a second listener would double every load.
+            if (!deckDropdown.dataset.wired) {
+                deckDropdown.dataset.wired = "1";
+                deckDropdown.addEventListener("change", (e) => {
+                    if (e.target.value) {
+                        localStorage.setItem("anki_type_deck", e.target.value);
+                        if (activeSource === "tango" && activeTangoLevel !== "anki") {
+                            activeTangoLevel = "anki";
+                            localStorage.setItem("anki_type_tango_level", activeTangoLevel);
+                            updateTangoLevelUI();
+                        }
+                        loadAnkiDeck(e.target.value);
                     }
-                    loadAnkiDeck(e.target.value);
-                }
-            });
+                });
+            }
 
             if (decks.length > 0) {
-                const targetDeck = (savedSelectedDeck && decks.includes(savedSelectedDeck))
-                    ? savedSelectedDeck
-                    : decks[0];
+                // Read fresh rather than from the value captured at startup: a retry has
+                // to honour a deck chosen since, not the one the page opened with
+                const saved = localStorage.getItem("anki_type_deck") || savedSelectedDeck;
+                const targetDeck = (saved && decks.includes(saved)) ? saved : decks[0];
                 deckDropdown.value = targetDeck;
-                if (activeSource === "tango" && activeTangoLevel === "anki") {
-                    loadAnkiDeck(targetDeck);
-                }
+
+                /* Always load it, not only when the Anki source happens to be selected.
+                   The field pickers are filled from whatever deck is loaded, so gating
+                   this left them empty until you switched decks and switched back.
+                   loadAnkiDeck guards the parts that touch the running test and the
+                   status badge, so this only warms the cache and the pickers. */
+                loadAnkiDeck(targetDeck, { silent: true });
             }
         }
 
@@ -2501,20 +2632,32 @@ function setMode(mode, shouldReload = true) {
             localStorage.setItem(ANKI_FIELD_STORE, JSON.stringify(map));
         }
 
+        /* Stored for an optional field that was deliberately turned off. Without it,
+           "None" only cleared the choice and the auto-detection immediately put the
+           field back, so there was no way to switch one off on a deck that has it. */
+        const NO_FIELD = "__none__";
+
         // The chosen field if it is set and still exists, else the first known name that
         // the deck actually has
         function resolveField(kind, fallbacks) {
             const chosen = loadFieldMap()[kind];
+            if (chosen === NO_FIELD) return null;
             if (chosen && ankiFieldNames.includes(chosen)) return chosen;
             return fallbacks.find(name => ankiFieldNames.includes(name)) || null;
         }
 
-        function fillFieldSelect(select, customInput, kind, fallbacks) {
+        function fillFieldSelect(select, customInput, kind, fallbacks, optional = false) {
             const current = resolveField(kind, fallbacks);
             const stored = loadFieldMap()[kind];
-            const isCustom = stored && !ankiFieldNames.includes(stored);
+            const isCustom = stored && stored !== NO_FIELD && !ankiFieldNames.includes(stored);
 
             select.innerHTML = "";
+            if (optional) {
+                const none = document.createElement("option");
+                none.value = "";
+                none.textContent = "None";
+                select.appendChild(none);
+            }
             ankiFieldNames.forEach(name => {
                 const opt = document.createElement("option");
                 opt.value = name;
@@ -2528,18 +2671,22 @@ function setMode(mode, shouldReload = true) {
             customOpt.textContent = "Custom...";
             select.appendChild(customOpt);
 
-            select.value = isCustom ? "__custom__" : (current || "__custom__");
+            select.value = isCustom ? "__custom__" : (current || (optional ? "" : "__custom__"));
             customInput.classList.toggle("hidden", select.value !== "__custom__");
             if (isCustom) customInput.value = stored;
         }
 
-        function wireFieldSelect(selectId, inputId, kind, fallbacks) {
+        function wireFieldSelect(selectId, inputId, kind, fallbacks, optional = false) {
             const select = document.getElementById(selectId);
             const input = document.getElementById(inputId);
 
             const commit = value => {
                 const map = loadFieldMap();
-                if (value) map[kind] = value; else delete map[kind];
+                // Clearing an optional field is a choice worth keeping; clearing a
+                // required one just hands it back to auto-detection
+                if (value) map[kind] = value;
+                else if (optional) map[kind] = NO_FIELD;
+                else delete map[kind];
                 saveFieldMap(map);
                 if (deckDropdown.value) loadAnkiDeck(deckDropdown.value);
             };
@@ -2549,6 +2696,7 @@ function setMode(mode, shouldReload = true) {
                 input.classList.toggle("hidden", !custom);
                 if (custom) { input.focus(); return; }
                 commit(select.value);
+                updateFrequencyAvailability();
             });
 
             input.addEventListener("keydown", e => e.stopPropagation());
@@ -2562,7 +2710,10 @@ function setMode(mode, shouldReload = true) {
             if (order === "difficulty") return meta.factor ?? Number.MAX_SAFE_INTEGER;
             if (order === "lapses") return -(meta.lapses ?? 0);
             if (order === "frequency") {
-                const raw = getFieldValue(note.fields, FREQUENCY_FIELDS);
+                const field = resolveField("frequency", FREQUENCY_FIELDS);
+                const raw = field && note.fields[field]
+                    ? note.fields[field].value
+                    : getFieldValue(note.fields, FREQUENCY_FIELDS);
                 const n = parseInt(String(cleanHtmlText(raw || "")).replace(/[^0-9]/g, ""), 10);
                 return Number.isFinite(n) ? n : Number.MAX_SAFE_INTEGER;
             }
@@ -2593,26 +2744,95 @@ function setMode(mode, shouldReload = true) {
             fillFieldSelect(document.getElementById("anki-meaning-field"),
                             document.getElementById("anki-meaning-custom"),
                             "meaning", MEANING_FIELDS);
+            fillFieldSelect(document.getElementById("anki-frequency-field"),
+                            document.getElementById("anki-frequency-custom"),
+                            "frequency", FREQUENCY_FIELDS, true);
+            updateFrequencyAvailability();
         }
 
-        async function loadAnkiDeck(targetDeckName) {
-            statusEl.className = "status-badge status-loading";
-            statusEl.textContent = "LOADING QUEUE";
+        // Ordering by frequency needs a field to read it from, so the button is only
+        // usable once one is picked — automatically for a deck that has one, by hand
+        // otherwise.
+        function updateFrequencyAvailability() {
+            const field = resolveField("frequency", FREQUENCY_FIELDS);
+            const btn = document.querySelector('#anki-order-group [data-anki-order="frequency"]');
+            if (!btn) return;
 
-            const findResult = await fetchFromAnki("findNotes", { query: `deck:"${targetDeckName}"` });
-            if (!findResult || !findResult.result || findResult.result.length === 0) {
-                statusEl.textContent = "DECK EMPTY";
-                statusEl.className = "status-badge status-offline";
-                ankiDeckCache = [];
-                if (activeSource === "tango" && activeTangoLevel === "anki") {
-                    wordsContainer.innerHTML = `<div class="empty-state">No cards found in deck "${targetDeckName}".</div>`;
-                }
-                return;
+            btn.disabled = !field;
+            btn.title = field ? `Ordering by "${field}"` : "Pick a frequency field first";
+
+            if (!field && ankiOrder === "frequency") {
+                ankiOrder = "deck";
+                localStorage.setItem("anki_type_order", ankiOrder);
+                document.querySelectorAll("#anki-order-group [data-anki-order]")
+                    .forEach(b => b.classList.toggle("active", b.dataset.ankiOrder === "deck"));
             }
+        }
 
-            const notesResult = await fetchFromAnki("notesInfo", { notes: findResult.result });
-            const notes = (notesResult && notesResult.result) || [];
+        /* Which deck the cache and the field pickers currently describe, and why the last
+           load produced nothing if it did. Between them these let the ANKI drawer say
+           what happened, and let opening the tab retry a load that never landed. */
+        let ankiLoadedDeck = null;
+        let ankiLoadMessage = "";
+        let ankiLoadInFlight = false;
 
+        /* `silent` is for the warm-up load at startup, which exists only to fill the deck
+           cache and the field pickers. The badge reports whichever source is on screen,
+           and that may well be a JLPT list — it must not end up reading DECK EMPTY for a
+           deck nobody asked to play. */
+        async function loadAnkiDeck(targetDeckName, { silent = false } = {}) {
+            const usingAnkiDeck = () => activeSource === "tango" && activeTangoLevel === "anki";
+            const setStatus = (text, cls) => {
+                if (silent && !usingAnkiDeck()) return;
+                statusEl.textContent = text;
+                statusEl.className = `status-badge ${cls}`;
+            };
+
+            // Whatever the outcome, the drawer's preview should end up showing it
+            const fail = message => {
+                ankiDeckCache = [];
+                ankiLoadedDeck = null;
+                ankiLoadMessage = message;
+                if (usingAnkiDeck()) wordsContainer.innerHTML = `<div class="empty-state">${message}</div>`;
+                else if (deckPreviewShowing) renderDeckPreview();
+            };
+
+            ankiLoadInFlight = true;
+            setStatus("LOADING QUEUE", "status-loading");
+
+            try {
+                const findResult = await fetchFromAnki("findNotes", { query: `deck:"${targetDeckName}"` });
+                if (!findResult || !findResult.result) {
+                    setStatus("OFFLINE - START ANKI", "status-offline");
+                    fail("Anki didn't answer. Check that it is open with AnkiConnect installed.");
+                    return;
+                }
+                if (findResult.result.length === 0) {
+                    setStatus("DECK EMPTY", "status-offline");
+                    fail(`No cards found in deck "${targetDeckName}".`);
+                    return;
+                }
+
+                const notesResult = await fetchFromAnki("notesInfo", { notes: findResult.result });
+                const notes = (notesResult && notesResult.result) || [];
+
+                /* findNotes found cards but notesInfo came back with none. Overwriting
+                   ankiFieldNames with [] on the way past is what emptied the field
+                   pickers with nothing on screen to explain it — a load that told us
+                   nothing leaves the previous mapping alone and says so instead. */
+                if (notes.length === 0) {
+                    setStatus("NO CARD DATA", "status-offline");
+                    fail(`Anki found ${findResult.result.length} card(s) in "${targetDeckName}" but returned no card data for them.`);
+                    return;
+                }
+
+                await buildAnkiDeck(targetDeckName, notes, { setStatus, usingAnkiDeck, fail });
+            } finally {
+                ankiLoadInFlight = false;
+            }
+        }
+
+        async function buildAnkiDeck(targetDeckName, notes, { setStatus, usingAnkiDeck, fail }) {
             // Every field the deck has, so the pickers can offer real names
             ankiFieldNames = [...new Set(notes.flatMap(n => Object.keys(n.fields || {})))];
             refreshFieldSelects();
@@ -2667,18 +2887,23 @@ function setMode(mode, shouldReload = true) {
             }).filter(word => word.romaji !== "");
 
             if (ankiDeckCache.length === 0) {
-                statusEl.textContent = "PARSE ERROR";
-                statusEl.className = "status-badge status-offline";
-                if (activeSource === "tango" && activeTangoLevel === "anki") {
-                    wordsContainer.innerHTML = '<div class="empty-state">Unable to parse cards from selected deck.</div>';
-                }
+                setStatus("PARSE ERROR", "status-offline");
+                const expression = resolveField("expression", KANJI_FIELDS);
+                const reading = resolveField("reading", READING_FIELDS);
+                fail(reading
+                    ? `Read "${targetDeckName}", but no card produced a typable reading from "${reading}".`
+                    : `Read "${targetDeckName}", but none of its fields look like a reading. Pick the right EXPRESSION field above${expression ? "" : " — none was detected"}.`);
                 return;
             }
 
-            statusEl.className = "status-badge status-online";
-            statusEl.textContent = `${ankiDeckCache.length} TRACKS SYNCED`;
+            ankiLoadedDeck = targetDeckName;
+            ankiLoadMessage = "";
+            setStatus(`${ankiDeckCache.length} TRACKS SYNCED`, "status-online");
 
-            if (activeSource === "tango" && activeTangoLevel === "anki") {
+            // The drawer may have been waiting on exactly this
+            if (deckPreviewShowing) renderDeckPreview();
+
+            if (usingAnkiDeck()) {
                 masterDeckList = ankiDeckCache;
                 if (initialSeedParam) {
                     loadFromSeed(initialSeedParam);
@@ -2687,6 +2912,22 @@ function setMode(mode, shouldReload = true) {
                     applyWordCountFilter();
                 }
             }
+        }
+
+        /* Opening ANKI is the moment the deck's words and field pickers have to be right,
+           and the load at startup can easily have missed: Anki not up yet, a first call
+           that timed out, a deck picked in another tab. Re-running it here is what
+           "switch to another deck and switch back" was doing by hand. */
+        function ensureAnkiDeckLoaded() {
+            if (ankiLoadInFlight || ankiDecksInFlight) return;
+
+            const deck = deckDropdown.value;
+            /* No deck list at all: Anki was unreachable when the page loaded, and the
+               usual reason to open this tab is that it has been started since. Ask again
+               from the top rather than leaving the drawer showing "Network Error". */
+            if (!deck) { populateDecks(); return; }
+
+            if (ankiLoadedDeck !== deck) loadAnkiDeck(deck, { silent: true });
         }
 
         function generateKanaList(charSet, count = 100) {
@@ -2714,9 +2955,18 @@ function setMode(mode, shouldReload = true) {
             } else {
                 if (masterDeckList.length === 0) return;
 
+                /* An Anki deck arrives in the order chosen in the ANKI drawer — deck
+                   order, hardest first, most lapses, frequency — and reshuffling here
+                   threw all of that away, so "deck order" never actually played in deck
+                   order. Only the shuffle setting wants a fresh order per test. The
+                   JLPT lists have no meaningful order of their own and still shuffle. */
+                const keepDeckOrder = activeSource === "tango"
+                    && activeTangoLevel === "anki"
+                    && ankiOrder !== "random";
+
                 if (reshuffle || currentSessionDeck.length === 0) {
                     currentSessionDeck = [...masterDeckList];
-                    shuffleArray(currentSessionDeck);
+                    if (!keepDeckOrder) shuffleArray(currentSessionDeck);
                 }
 
                 if (activeMode === "time") {
@@ -2750,53 +3000,97 @@ function setMode(mode, shouldReload = true) {
             renderWordBlock();
         }
 
+        function buildWordNode(wordObj, isActive) {
+            const wordNode = document.createElement("div");
+            wordNode.className = "word-item";
+            if (isActive) wordNode.classList.add("active");
+
+            const kanjiWrapperNode = document.createElement("div");
+            kanjiWrapperNode.className = "kanji-wrapper";
+
+            const kanjiNode = document.createElement("div");
+            kanjiNode.className = `kanji-text ${currentFontClass}`;
+            kanjiNode.textContent = wordObj.kanji;
+            kanjiWrapperNode.appendChild(kanjiNode);
+
+            const romajiNode = document.createElement("div");
+            romajiNode.className = `romaji-text ${!showRomaji ? 'hidden' : ''}`;
+
+            for (let i = 0; i < wordObj.romaji.length; i++) {
+                const charSpan = document.createElement("span");
+                charSpan.className = "char";
+                charSpan.textContent = wordObj.romaji[i];
+                romajiNode.appendChild(charSpan);
+            }
+
+            const meaningNode = document.createElement("div");
+            meaningNode.className = `meaning-text ${!showMeaning ? 'hidden' : ''}`;
+            meaningNode.textContent = wordObj.meaning;
+
+            wordNode.appendChild(kanjiWrapperNode);
+            wordNode.appendChild(romajiNode);
+            wordNode.appendChild(meaningNode);
+
+            wordNode.addEventListener("click", () => {
+                // Outside PLAY a click is the way back to typing, not a meaning toggle
+                if (enterPlayFromPreview()) return;
+                showMeaning = !showMeaning;
+                updateVisibility();
+            });
+
+            return wordNode;
+        }
+
         function renderWordBlock() {
+            // While the ANKI drawer is previewing its deck the words area belongs to it;
+            // a reload happening behind it must not steal the display back
+            if (deckPreviewShowing) { renderDeckPreview(); return; }
+
             wordsContainer.innerHTML = "";
             wordsContainer.style.transform = `translateY(0px)`;
 
             activeWordList.forEach((wordObj, idx) => {
-                const wordNode = document.createElement("div");
-                wordNode.className = "word-item";
-                if (idx === currentIndex) wordNode.classList.add("active");
-
-                const kanjiWrapperNode = document.createElement("div");
-                kanjiWrapperNode.className = "kanji-wrapper";
-
-                const kanjiNode = document.createElement("div");
-                kanjiNode.className = `kanji-text ${currentFontClass}`;
-                kanjiNode.textContent = wordObj.kanji;
-                kanjiWrapperNode.appendChild(kanjiNode);
-
-                const romajiNode = document.createElement("div");
-                romajiNode.className = `romaji-text ${!showRomaji ? 'hidden' : ''}`;
-
-                for (let i = 0; i < wordObj.romaji.length; i++) {
-                    const charSpan = document.createElement("span");
-                    charSpan.className = "char";
-                    charSpan.textContent = wordObj.romaji[i];
-                    romajiNode.appendChild(charSpan);
-                }
-
-                const meaningNode = document.createElement("div");
-                meaningNode.className = `meaning-text ${!showMeaning ? 'hidden' : ''}`;
-                meaningNode.textContent = wordObj.meaning;
-
-                wordNode.appendChild(kanjiWrapperNode);
-                wordNode.appendChild(romajiNode);
-                wordNode.appendChild(meaningNode);
-
-                wordNode.addEventListener("click", () => {
-                    showMeaning = !showMeaning;
-                    updateVisibility();
-                });
-
-                wordsContainer.appendChild(wordNode);
+                wordsContainer.appendChild(buildWordNode(wordObj, idx === currentIndex));
             });
 
             // Re-fit now that there is real geometry to measure; the row height depends
             // on the font sizes and on whether readings/meanings are showing.
             applyRowCount();
             updateDisplay();
+        }
+
+        /* Enough to fill the deepest row setting several times over; the point is to show
+           what the deck looks like, not to list it. */
+        const DECK_PREVIEW_WORDS = 60;
+
+        /* The ANKI drawer configures a deck, so the words underneath it have to be that
+           deck's — showing whatever source the test happened to be set to told you
+           nothing about the mapping you were editing. Display only: activeWordList and
+           the run's position are untouched, and renderWordBlock() restores the real
+           list on the way out. */
+        function renderDeckPreview() {
+            wordsContainer.innerHTML = "";
+            wordsContainer.style.transform = `translateY(0px)`;
+
+            if (!ankiDeckCache.length) {
+                wordsContainer.innerHTML =
+                    `<div class="empty-state">${ankiLoadMessage || "Connect Anki and pick a deck to preview it here."}</div>`;
+                return;
+            }
+
+            ankiDeckCache.slice(0, DECK_PREVIEW_WORDS)
+                .forEach(wordObj => wordsContainer.appendChild(buildWordNode(wordObj, false)));
+
+            applyRowCount();
+        }
+
+        function syncDeckPreview(wantPreview) {
+            const was = deckPreviewShowing;
+            // Set first: renderWordBlock reads it to decide whose display this is
+            deckPreviewShowing = wantPreview;
+
+            if (wantPreview) renderDeckPreview();
+            else if (was) renderWordBlock();
         }
 
         function updateDisplay() {
@@ -3476,6 +3770,13 @@ function setMode(mode, shouldReload = true) {
                 .forEach(d => d && d.classList.add("hidden"));
             [profileTabBtn, testOptionsTabBtn, ankiTabBtn, appearanceTabBtn, seedTabBtn, multiplayerTabBtn]
                 .forEach(b => b && b.classList.remove("active"));
+
+            /* Closing the drawers by hand is the one route to the test that doesn't go
+               through openTab, so the test area has to be told. Without this a race that
+               started from the MULTIPLAYER drawer kept the words hidden and the hint on
+               its preview wording, since both were last set for a tab that isn't open
+               any more. */
+            updateTestVisibility();
         }
 
         document.getElementById("mp-create-btn").onclick = async () => {
@@ -4545,6 +4846,13 @@ function setMode(mode, shouldReload = true) {
            whole remainder of the script's initialisation with it. */
         wireFieldSelect("anki-expression-field", "anki-expression-custom", "expression", KANJI_FIELDS);
         wireFieldSelect("anki-meaning-field", "anki-meaning-custom", "meaning", MEANING_FIELDS);
+        wireFieldSelect("anki-frequency-field", "anki-frequency-custom", "frequency", FREQUENCY_FIELDS, true);
+
+        /* Fill the pickers before any deck is read, so they are never literally empty:
+           with nothing known they offer "Custom...", which is the way to name a field by
+           hand when Anki won't tell us what the deck has. The frequency chip starts
+           locked for the same reason and populateDecks() unlocks it if the deck has one. */
+        refreshFieldSelects();
 
         document.querySelectorAll("#anki-order-group [data-anki-order]").forEach(btn => {
             btn.classList.toggle("active", btn.dataset.ankiOrder === ankiOrder);
@@ -4554,9 +4862,11 @@ function setMode(mode, shouldReload = true) {
                 document.querySelectorAll("#anki-order-group [data-anki-order]")
                     .forEach(b => b.classList.toggle("active", b === btn));
 
+                // Reads the resolved field, not just the well-known names, so a field
+                // named by hand counts and one switched off to "None" does not
                 const note = document.getElementById("anki-order-note");
-                note.textContent = (ankiOrder === "frequency" && !ankiFieldNames.some(f => FREQUENCY_FIELDS.includes(f)))
-                    ? "This deck has no Frequency field; cards keep their deck order."
+                note.textContent = (ankiOrder === "frequency" && !resolveField("frequency", FREQUENCY_FIELDS))
+                    ? "No frequency field is set for this deck; cards keep their deck order."
                     : "";
 
                 if (deckDropdown.value) loadAnkiDeck(deckDropdown.value);

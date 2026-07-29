@@ -507,9 +507,15 @@ body {
 }
 
 .mode-btn:disabled,
+.count-btn:disabled,
 .tango-level-btn:disabled {
     opacity: 0.3;
     cursor: not-allowed;
+}
+
+.count-btn:disabled:hover {
+    color: var(--text-muted);
+    background-color: transparent;
 }
 
 /* Locked chips must not light up on hover as though they were still clickable */
@@ -1197,7 +1203,10 @@ select:focus {
 }
 
 .words-wrapper {
-    width: 100%;
+    /* The words are what the page is for, so they get more room than the navbar's
+       column and spill past it evenly on either side. Capped against the viewport,
+       since body hides horizontal overflow and anything past it would be lost. */
+    width: min(1320px, 94vw);
     height: 270px;
     /* This is a flex item, and flex's default min-height: auto is a content-based
        minimum — it refused to shrink below the full word list, so the height set for
@@ -1219,6 +1228,14 @@ select:focus {
     transition: transform 0.2s ease-out;
 }
 
+/* A fixed number of words per row. Equal columns rather than natural wrapping, so the
+   count holds however long the individual words are. */
+.words-container.fixed-columns {
+    display: grid;
+    grid-template-columns: repeat(var(--words-per-row, 6), minmax(0, 1fr));
+    justify-items: center;
+}
+
 .word-item {
     display: inline-flex;
     flex-direction: column;
@@ -1234,6 +1251,20 @@ select:focus {
 
 .word-item.active {
     opacity: 1;
+}
+
+/* Outside PLAY the words are only a preview — the whole block is one big button back
+   to the test, so it reads as clickable rather than as a dead sample. */
+.words-wrapper.is-preview {
+    cursor: pointer;
+}
+
+.words-wrapper.is-preview .words-container {
+    transition: opacity 0.2s ease, transform 0.2s ease-out;
+}
+
+.words-wrapper.is-preview:hover .words-container {
+    opacity: 0.85;
 }
 
 .word-item.completed {
@@ -2649,9 +2680,19 @@ body.typing-focus .top-navbar {
     box-shadow: none;
 }
 
-body.typing-focus .nav-actions {
+/* The drawer is part of the navbar, so it recedes with it. Faded rather than hidden:
+   it keeps its space, and collapsing it would jerk the words up the page the moment
+   you started typing.
+
+   The duration is restated here so the drawer leaves in step with the tabs above it —
+   its own 0.11s is tuned to the tab-switch fade, which times out after exactly
+   FADE_MS before hiding the panel, so that value can't simply be lengthened. Scoping
+   the override to this state leaves the switch untouched. */
+body.typing-focus .nav-actions,
+body.typing-focus .nav-drawer {
     opacity: 0;
     pointer-events: none;
+    transition: opacity 0.35s ease;
 }
 
 /* The brand is deliberately untouched: same place, same weight, same colour */
@@ -2683,7 +2724,15 @@ body.typing-focus .nav-brand {
     border: none;
     box-shadow: none;
     padding: 8px 0 0;
-    max-width: 700px;
+    /* Full navbar width. The five stat tiles and the graph were being squeezed into
+       700px with empty column either side, which read as a narrow dialog rather than
+       as the page's own result screen. */
+    max-width: 100%;
+}
+
+/* With the room to do it, every stat sits on one row */
+#result-modal .stats-grid {
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
 }
 
 #result-modal .modal-title {
@@ -2721,6 +2770,14 @@ body.typing-focus .nav-brand {
     font-weight: 700;
     letter-spacing: 0.5px;
     color: var(--text-muted);
+}
+
+/* Reads as an aside on the label rather than part of the field's name */
+.anki-field-opt {
+    font-weight: 500;
+    opacity: 0.7;
+    text-transform: none;
+    letter-spacing: 0;
 }
 
 .anki-field select,
