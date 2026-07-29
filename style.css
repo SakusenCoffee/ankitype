@@ -12,6 +12,12 @@
 
     --kanji-font-size: 2.2rem;
     --sub-font-size: 1.0rem;
+
+    /* Everything below the navbar shares one measure, wider than the navbar itself, so
+       the words, the results and the race board all line up with each other rather than
+       with the settings panel. Capped against the viewport since body hides horizontal
+       overflow and anything past it would be lost. */
+    --test-area-width: min(1320px, 94vw);
 }
 
 [data-theme="carbon"] {
@@ -1203,8 +1209,9 @@ select:focus {
 
 /* APP LAYOUT & WORD DISPLAY */
 .app-layout {
-    width: 90%;
-    max-width: 950px;
+    /* The whole column runs past the navbar, not just the words: the results and the
+       graph sat in a 950px well underneath a word list half again as wide. */
+    width: var(--test-area-width);
     margin-top: 10px;
     display: flex;
     flex-direction: column;
@@ -1214,10 +1221,7 @@ select:focus {
 }
 
 .words-wrapper {
-    /* The words are what the page is for, so they get more room than the navbar's
-       column and spill past it evenly on either side. Capped against the viewport,
-       since body hides horizontal overflow and anything past it would be lost. */
-    width: min(1320px, 94vw);
+    width: 100%;
     height: 270px;
     /* This is a flex item, and flex's default min-height: auto is a content-based
        minimum — it refused to shrink below the full word list, so the height set for
@@ -1946,6 +1950,18 @@ gap: 12px;
     margin-top: 2px;
 }
 
+/* Rides alongside a stat's own figure without competing with it */
+.stat-aside {
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: var(--text-muted);
+}
+
+.stat-aside:not(:empty)::before {
+    content: "·";
+    margin: 0 5px;
+}
+
 .typed-words-section {
     display: flex;
     flex-direction: column;
@@ -2267,11 +2283,10 @@ gap: 12px;
     padding: 9px 24px;
 }
 
-/* MULTIPLAYER RACE TRACK — stands in for the navbar while a race is running */
+/* MULTIPLAYER RACE TRACK — sits under the navbar, on the test area's wider measure */
 .race-track {
-    margin-top: 20px;
-    width: 90%;
-    max-width: 950px;
+    margin-top: 16px;
+    width: var(--test-area-width);
     background-color: var(--nav-bg);
     border: 1px solid var(--border-color);
     border-radius: 16px;
@@ -2554,7 +2569,7 @@ gap: 12px;
 
 /* The room's board sits above everything and stays put between races */
 .mp-session .race-track {
-    margin-top: 20px;
+    margin-top: 16px;
 }
 
 /* In a session the workshop moves out of the centre column and into the empty space on

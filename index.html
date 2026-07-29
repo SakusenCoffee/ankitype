@@ -51,15 +51,6 @@
 <body>
 
     <!-- ROUNDED FLOATING NAVBAR -->
-    <!-- Takes the navbar's place during a race so the track gets the full width -->
-    <div class="race-track hidden" id="race-track">
-        <div class="race-head">
-            <span class="race-code" id="race-code"></span>
-            <span class="race-status" id="race-status"></span>
-        </div>
-        <div class="race-lanes" id="race-lanes"></div>
-    </div>
-
     <nav class="top-navbar">
         <div class="nav-content">
             <div class="nav-left-group">
@@ -478,6 +469,17 @@
         </div>
     </nav>
 
+    <!-- Below the navbar rather than in place of it, and on the same wider measure as
+         the words, so the room's board reads as part of the test area. Up for the whole
+         session, not just a race: the avatars stay on screen while everyone waits. -->
+    <div class="race-track hidden" id="race-track">
+        <div class="race-head">
+            <span class="race-code" id="race-code"></span>
+            <span class="race-status" id="race-status"></span>
+        </div>
+        <div class="race-lanes" id="race-lanes"></div>
+    </div>
+
     <!-- MAIN TYPING APP CONTAINER -->
     <div class="app-layout" id="typing-app-layout">
         <div class="words-wrapper" id="words-wrapper">
@@ -528,8 +530,12 @@
         <span class="stat-value" id="res-mistakes" style="color: var(--accent-red);">0</span>
         <span class="stat-label">MISTAKES</span>
     </div>
+                    <!-- The run's length, and beside it the part of it that was spent
+                         typing. They only differ on a test you end yourself. -->
                     <div class="stat-box">
-                        <span class="stat-value" id="res-time">0s</span>
+                        <span class="stat-value">
+                            <span id="res-time">0s</span><span class="stat-aside" id="res-active-time"></span>
+                        </span>
                         <span class="stat-label">TIME</span>
                     </div>
                     <div class="stat-box">
@@ -1269,9 +1275,15 @@ let currentIndex = 0;
         let showRomaji = false;
         let showMeaning = false;
 
-        // True while the words area is standing in for the ANKI drawer's deck rather than
-        // for the test, so the real list is only re-rendered on the way back out
-        let deckPreviewShowing = false;
+        /* The words area can stand in for something other than the run in progress: the
+           deck the ANKI drawer is configuring, or the words the room is about to race.
+           Holds which of those is on screen, or null when the real test is. The real list
+           is only re-rendered on the way back out. */
+        let testAreaPreview = null;
+
+        // The host's opening words, as sent to the room, so everyone in the lobby is
+        // looking at the same text before the race starts
+        let mpRoomPreview = null;
 
         // First-ever visit defaults to a 15s timed hiragana test with 10 characters.
         // Returning visitors keep whatever they last picked.
@@ -1292,6 +1304,11 @@ let currentIndex = 0;
         let testTimerInterval = null;
         let isTestActive = false;
         let testStartTime = 0;
+        /* Time spent actually typing during this run, as opposed to the wall clock since
+           it started. An infinite or max-length test is only over when you end it, so the
+           clock had been counting every pause, every look-away and every interruption —
+           a five-minute reading of two minutes' typing. This is what reaches the profile. */
+        let testActiveMs = 0;
         let totalTypedChars = 0;
         // Every matching keystroke, including ones later discarded when a typo resets the
         // word. Paired with mistakesSession this gives the keystroke totals the history
@@ -1403,6 +1420,7 @@ let currentIndex = 0;
         const resultModal = document.getElementById("result-modal");
         const resCpm = document.getElementById("res-cpm");
         const resTime = document.getElementById("res-time");
+        const resActiveTime = document.getElementById("res-active-time");
         const resTyped = document.getElementById("res-typed");
         const resTypedLabel = document.getElementById("res-typed-label");
         const resCompletedList = document.getElementById("res-completed-list");
@@ -1673,15 +1691,17 @@ let currentIndex = 0;
 
         /* Being able to see the test and being able to type into it are separate.
            CONFIG shows it so appearance changes can be judged against real words, SEED
-           shows what is about to be shared, and ANKI shows what the selected deck and
-           field mapping actually produce — but only PLAY takes keystrokes, so none of
-           them can quietly run a test down while somebody is adjusting settings. */
-        const TABS_SHOWING_TEST = ["test-options", "appearance", "seed", "anki"];
+           shows what is about to be shared, ANKI shows what the selected deck and field
+           mapping actually produce, and MULTIPLAYER shows the room what it is about to
+           race — but only PLAY takes keystrokes, so none of them can quietly run a test
+           down while somebody is adjusting settings. */
+        const TABS_SHOWING_TEST = ["test-options", "appearance", "seed", "anki", "multiplayer"];
 
         // Shown in place of the typing hints while the words are only a preview
         const TYPING_HINT_DEFAULT =
             "<span>[TAB] TOGGLE ROMAJI READINGS</span> • <span>[CLICK WORD] SHOW MEANING</span>";
         const PREVIEW_HINT = "<span>[CLICK THE WORDS] GO TO PLAY AND START TYPING</span>";
+        const LOBBY_HINT = "<span>THE ROOM RACES THIS — THE HOST STARTS IT</span>";
 
         function anyDrawerOpen() {
             return [profileDrawer, testOptionsDrawer, ankiDrawer,
@@ -1689,15 +1709,39 @@ let currentIndex = 0;
                 .some(d => d && !d.classList.contains("hidden"));
         }
 
+        /* Which drawer is actually on screen. In a room PLAY opens the multiplayer panel
+           instead of its own, so the tab that was clicked and the panel you are looking
+           at are not always the same thing, and it is the panel that decides what the
+           words below it are for. */
+        function openDrawerName() {
+            const inSession = typeof mpInSession === "function" && mpInSession();
+            return (inSession && mpCurrentTab === "test-options") ? "multiplayer" : mpCurrentTab;
+        }
+
         function testAreaIsVisible() {
             if (typeof isZenMode !== "undefined" && isZenMode) return false;
             // Mid-race every drawer is closed, and the test is the whole point
-            return !anyDrawerOpen() || TABS_SHOWING_TEST.includes(mpCurrentTab);
+            return !anyDrawerOpen() || TABS_SHOWING_TEST.includes(openDrawerName());
         }
 
         function testAreaIsLive() {
             if (typeof isZenMode !== "undefined" && isZenMode) return false;
-            return !anyDrawerOpen() || mpCurrentTab === "test-options";
+            // A race decides when typing starts, so nothing under the room's own panel
+            // takes keystrokes; closing it for the race is what makes the test live.
+            return !anyDrawerOpen() || openDrawerName() === "test-options";
+        }
+
+        // Which of the previews, if any, the open drawer wants under it. Outside a room
+        // the multiplayer panel is a lobby form, not a room, so its words are the same
+        // ordinary preview every other settings tab shows.
+        function testAreaPreviewKind(live) {
+            if (live) return null;
+            const drawer = openDrawerName();
+            if (drawer === "anki") return "anki";
+            if (drawer === "multiplayer" && typeof mpInSession === "function" && mpInSession()) {
+                return "room";
+            }
+            return null;
         }
 
         function updateTestVisibility() {
@@ -1709,7 +1753,7 @@ let currentIndex = 0;
                 [wordsWrapper, typingControlsHint, liveInput]
                     .forEach(el => el && el.classList.add("hidden"));
                 wordsWrapper.classList.remove("is-preview");
-                syncDeckPreview(false);
+                syncTestAreaPreview(null);
                 return;
             }
             // The results stand in for the test until they are dismissed
@@ -1720,18 +1764,23 @@ let currentIndex = 0;
             // The input box only belongs where typing is actually accepted; the hint
             // stays, but says how to get back to typing instead of how to type.
             const live = testAreaIsLive();
+            /* Read off mpCurrentTab rather than the drawers' own classes: the outgoing
+               drawer is still on screen for the length of the fade when this runs, so the
+               incoming panel has not been un-hidden yet. */
+            const preview = testAreaPreviewKind(live);
+
             if (liveInput) liveInput.classList.toggle("hidden", !live);
-            wordsWrapper.classList.toggle("is-preview", !live);
+            // The lobby's words aren't a way back to typing, so they don't offer to be one
+            wordsWrapper.classList.toggle("is-preview", !live && preview !== "room");
 
             if (typingControlsHint) {
                 typingControlsHint.classList.remove("hidden");
-                typingControlsHint.innerHTML = live ? TYPING_HINT_DEFAULT : PREVIEW_HINT;
+                typingControlsHint.innerHTML = live
+                    ? TYPING_HINT_DEFAULT
+                    : (preview === "room" ? LOBBY_HINT : PREVIEW_HINT);
             }
 
-            /* Read off mpCurrentTab rather than the drawer's own class: the outgoing
-               drawer is still on screen for the length of the fade when this runs, so
-               the ANKI panel has not been un-hidden yet. */
-            syncDeckPreview(!live && mpCurrentTab === "anki");
+            syncTestAreaPreview(preview);
         }
 
         /* A preview is one big button back to the test: clicking the words leaves the
@@ -1978,13 +2027,25 @@ let currentIndex = 0;
         // The instant 3s of inactivity passes, the timer pauses and whatever's
         // accumulated (playtime + kanji/hiragana/katakana counts + new mistakes)
         // is flushed to the server immediately, even mid-test.
+        let lastPlayTick = Date.now();
+
         setInterval(() => {
             const now = Date.now();
             const idleFor = now - lastTypingTimestamp;
 
+            /* What actually elapsed since the last tick, not the 100ms the interval was
+               asked for. A background tab has its timers throttled to about once a
+               second, so counting a flat 100ms a tick quietly lost most of the time it
+               was meant to be measuring. Capped at the idle window, since anything longer
+               than that is a gap we would not have counted anyway. */
+            const tickMs = Math.min(Math.max(now - lastPlayTick, 0), IDLE_TIMEOUT_MS);
+            lastPlayTick = now;
+
             if (lastTypingTimestamp !== 0 && idleFor <= IDLE_TIMEOUT_MS) {
                 isPlayTimerActive = true;
-                activePlayTimeMs += 100;
+                activePlayTimeMs += tickMs;
+                // Same tick, but only counted against a run that is actually under way
+                if (isTestActive) testActiveMs += tickMs;
                 localStorage.setItem("anki_type_play_time", activePlayTimeMs.toString());
             } else if (isPlayTimerActive) {
                 isPlayTimerActive = false;
@@ -2022,6 +2083,9 @@ let currentIndex = 0;
         function startTestTimer() {
             isTestActive = true;
             testStartTime = Date.now();
+            // Every route into a run comes through here, so this is the one place the
+            // active clock has to be cleared
+            testActiveMs = 0;
 
             cpmSamples = [];
             errorMarks = [];
@@ -2066,12 +2130,16 @@ let currentIndex = 0;
         // Seeded runs are excluded: the words came from someone else's test, so logging
         // them as your own result would misrepresent the history. Idled-out runs are
         // already filtered by the caller, alongside the profile stats.
-        function recordTestInHistory({ cpm, elapsedTimeSec }) {
+        /* The duration kept is the time actually spent typing, not the wall clock. An
+           infinite or max-length run ends when you end it, so the clock counted every
+           pause in between and the record read like a five-minute test that was two
+           minutes of typing. */
+        function recordTestInHistory({ cpm, activeTimeSec }) {
             if (!currentUserToken || isSeededTest) return;
 
             const payload = {
                 testType: describeTestType(),
-                durationSec: elapsedTimeSec,
+                durationSec: activeTimeSec,
                 cpm,
                 wpm: Math.round(cpm / 5),   // the usual five-character word
                 totalChars: correctKeystrokes + mistakesSession,
@@ -2146,10 +2214,22 @@ let currentIndex = 0;
             isTestActive = false;
             typingControlsHint.classList.remove("hint-hidden");
             const elapsedTimeSec = Math.max(1, Math.round((Date.now() - testStartTime) / 1000));
+            /* Never longer than the run itself, and never zero once a key was actually
+               pressed — the active clock is sampled, so a run that starts and ends
+               between two samples has nothing on it yet. */
+            const typedSomething = correctKeystrokes > 0 || mistakesSession > 0;
+            const activeTimeSec = Math.min(
+                elapsedTimeSec,
+                Math.max(typedSomething ? 1 : 0, Math.round(testActiveMs / 1000))
+            );
             const cpm = Math.round((totalTypedChars / elapsedTimeSec) * 60);
 
             resCpm.textContent = cpm;
             resTime.textContent = `${elapsedTimeSec}s`;
+            // Only worth saying when it differs; on a timed run the two are the same
+            resActiveTime.textContent = (activeTimeSec > 0 && activeTimeSec < elapsedTimeSec)
+                ? `${activeTimeSec}s typing`
+                : "";
             resTyped.textContent = totalScore;
             resTypedLabel.textContent = (activeSource === "tango") ? "WORDS TYPED" : "CHARS TYPED";
 
@@ -2184,7 +2264,7 @@ let currentIndex = 0;
             } else {
                 resAbandonedNote.classList.add("hidden");
                 flushProgress({ cpm });
-                recordTestInHistory({ cpm, elapsedTimeSec });
+                recordTestInHistory({ cpm, activeTimeSec });
             }
 
             if (isMultiplayerRace) {
@@ -2884,7 +2964,7 @@ function setMode(mode, shouldReload = true) {
                 ankiLoadedDeck = null;
                 ankiLoadMessage = message;
                 if (usingAnkiDeck()) wordsContainer.innerHTML = `<div class="empty-state">${message}</div>`;
-                else if (deckPreviewShowing) renderDeckPreview();
+                else if (testAreaPreview === "anki") renderDeckPreview();
             };
 
             ankiLoadInFlight = true;
@@ -3003,7 +3083,7 @@ function setMode(mode, shouldReload = true) {
             setStatus(`${ankiDeckCache.length} TRACKS SYNCED`, "status-online");
 
             // The drawer may have been waiting on exactly this
-            if (deckPreviewShowing) renderDeckPreview();
+            if (testAreaPreview === "anki") renderDeckPreview();
 
             if (usingAnkiDeck()) {
                 masterDeckList = ankiDeckCache;
@@ -3144,9 +3224,15 @@ function setMode(mode, shouldReload = true) {
         }
 
         function renderWordBlock() {
-            // While the ANKI drawer is previewing its deck the words area belongs to it;
-            // a reload happening behind it must not steal the display back
-            if (deckPreviewShowing) { renderDeckPreview(); return; }
+            /* The room races the host's words, so it is shown them as they change. Sent
+               before the early return below, not after: the host watching its own lobby
+               preview is exactly when the list is changing and the room most needs to
+               hear about it. */
+            if (typeof mpBroadcastSettings === "function") mpBroadcastSettings();
+
+            // While a drawer is previewing something the words area belongs to it; a
+            // reload happening behind it must not steal the display back
+            if (testAreaPreview) { renderTestAreaPreview(); return; }
 
             wordsContainer.innerHTML = "";
             wordsContainer.style.transform = `translateY(0px)`;
@@ -3163,36 +3249,58 @@ function setMode(mode, shouldReload = true) {
         }
 
         /* Enough to fill the deepest row setting several times over; the point is to show
-           what the deck looks like, not to list it. */
-        const DECK_PREVIEW_WORDS = 60;
+           what is coming, not to list it. Also the cap on what the host sends the room,
+           so a max-length deck doesn't put its whole word list on the wire. */
+        const PREVIEW_WORDS = 60;
 
-        /* The ANKI drawer configures a deck, so the words underneath it have to be that
-           deck's — showing whatever source the test happened to be set to told you
-           nothing about the mapping you were editing. Display only: activeWordList and
-           the run's position are untouched, and renderWordBlock() restores the real
-           list on the way out. */
-        function renderDeckPreview() {
+        /* Display only: activeWordList and the run's position are untouched, and
+           renderWordBlock() restores the real list on the way out. */
+        function renderPreviewWords(list, emptyMessage) {
             wordsContainer.innerHTML = "";
             wordsContainer.style.transform = `translateY(0px)`;
 
-            if (!ankiDeckCache.length) {
-                wordsContainer.innerHTML =
-                    `<div class="empty-state">${ankiLoadMessage || "Connect Anki and pick a deck to preview it here."}</div>`;
+            if (!list || !list.length) {
+                wordsContainer.innerHTML = `<div class="empty-state">${emptyMessage}</div>`;
                 return;
             }
 
-            ankiDeckCache.slice(0, DECK_PREVIEW_WORDS)
+            list.slice(0, PREVIEW_WORDS)
                 .forEach(wordObj => wordsContainer.appendChild(buildWordNode(wordObj, false)));
 
             applyWordsPerRow();
         }
 
-        function syncDeckPreview(wantPreview) {
-            const was = deckPreviewShowing;
-            // Set first: renderWordBlock reads it to decide whose display this is
-            deckPreviewShowing = wantPreview;
+        /* The ANKI drawer configures a deck, so the words underneath it have to be that
+           deck's — showing whatever source the test happened to be set to told you
+           nothing about the mapping you were editing. */
+        function renderDeckPreview() {
+            renderPreviewWords(
+                ankiDeckCache,
+                ankiLoadMessage || "Connect Anki and pick a deck to preview it here.");
+        }
 
-            if (wantPreview) renderDeckPreview();
+        /* What the room is about to race. The host is looking at its own list, which is
+           the one being sent; everyone else is looking at the copy that arrived. */
+        function renderRoomPreview() {
+            const mine = mpState.isHost || !mpRoomPreview;
+            renderPreviewWords(
+                mine ? activeWordList : mpRoomPreview,
+                mpState.isHost
+                    ? "Pick a test in PLAY and the room will see it here."
+                    : "Waiting for the host to pick a test...");
+        }
+
+        function renderTestAreaPreview() {
+            if (testAreaPreview === "room") renderRoomPreview();
+            else renderDeckPreview();
+        }
+
+        function syncTestAreaPreview(kind) {
+            const was = testAreaPreview;
+            // Set first: renderWordBlock reads it to decide whose display this is
+            testAreaPreview = kind;
+
+            if (kind) renderTestAreaPreview();
             else if (was) renderWordBlock();
         }
 
@@ -3612,6 +3720,11 @@ function setMode(mode, shouldReload = true) {
             }
 
             document.body.classList.toggle("mp-session", inRoom);
+
+            /* Joining or leaving changes what the words below the panel are for — the
+               room's next race, or just your own settings — and neither goes through
+               openTab, so the test area has to be told separately. */
+            updateTestVisibility();
         }
 
         function mpUpdateSessionBar() {
@@ -3655,7 +3768,15 @@ function setMode(mode, shouldReload = true) {
                 kanaCount: kanaCountSetting,
                 time: testTimeSetting,
                 zen: isZenMode,
-                guestsMayEdit: mpGuestsMayEdit
+                guestsMayEdit: mpGuestsMayEdit,
+                /* The opening words themselves, so the lobby shows everyone the same text
+                   rather than each guest's own idea of what the settings produce — an
+                   Anki deck the host has and they don't would have shown them nothing.
+                   Capped, since a max-length run would otherwise put a few hundred words
+                   on the wire every time anything changed. The server stores the last
+                   settings and replays them to late joiners, so this arrives with them. */
+                preview: activeWordList.slice(0, PREVIEW_WORDS)
+                    .map(w => [w.kanji, w.romaji, w.meaning])
             };
         }
 
@@ -3673,6 +3794,11 @@ function setMode(mode, shouldReload = true) {
             mpApplyingRemote = true;
             try {
                 mpGuestsMayEdit = !!cfg.guestsMayEdit;
+
+                mpRoomPreview = Array.isArray(cfg.preview)
+                    ? cfg.preview.map(([kanji, romaji, meaning]) => ({ kanji, romaji, meaning }))
+                    : null;
+                if (testAreaPreview === "room") renderRoomPreview();
 
                 if (!!cfg.zen !== isZenMode) toggleZenMode();
 
