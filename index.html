@@ -283,6 +283,10 @@
                         </label>
                     </div>
 
+                    <!-- The note below the row explains whichever chip is under the
+                         pointer, and falls back to describing the active one. Two of
+                         these read almost alike from the label alone: "hardest first" is
+                         Anki's ease factor, "most lapses" is how often you forgot. -->
                     <div class="anki-order">
                         <span class="anki-order-label">ORDER</span>
                         <div class="count-selector-group" id="anki-order-group">
@@ -293,7 +297,7 @@
                             <button class="count-btn" data-anki-order="random">shuffle</button>
                         </div>
                     </div>
-                    <span class="anki-order-note" id="anki-order-note"></span>
+                    <span class="anki-order-note" id="anki-order-note" aria-live="polite"></span>
                 </div>
                 <p class="anki-note">Words are pulled from <strong>Lapis</strong>-styled decks. Decks built on other note types may not expose a compatible expression field, so not every deck will load correctly.</p>
             </div>
@@ -2620,6 +2624,47 @@ function setMode(mode, shouldReload = true) {
         let ankiCardMeta = new Map();     // noteId -> what Anki knows about the card
         let ankiOrder = localStorage.getItem("anki_type_order") || "deck";
 
+        /* Which way round the frequency ordering runs. Frequency fields almost always
+           hold a rank — 1 is the commonest word — so "high to low" frequency means the
+           smallest numbers first, which is why this isn't simply called ascending. */
+        let ankiFreqDir = localStorage.getItem("anki_type_freq_dir") || "high-low";
+
+        function frequencyLabel() {
+            return ankiFreqDir === "low-high" ? "frequency low→high" : "frequency high→low";
+        }
+
+        /* Said in full under the row, because the labels alone don't separate the two
+           orderings that come from Anki's own scheduling numbers. */
+        function describeAnkiOrder(order) {
+            if (order === "deck") {
+                return "The deck's own order, exactly as Anki lists it.";
+            }
+            if (order === "difficulty") {
+                return "Lowest ease factor first. Ease is Anki's running verdict on a card — every time you answer it wrong the card's ease drops, so this is what you find hard right now.";
+            }
+            if (order === "lapses") {
+                return "Most lapses first. A lapse is a card you had already learned and then failed, so this is what keeps slipping away — however easy Anki currently rates it.";
+            }
+            if (order === "frequency") {
+                const field = resolveField("frequency", FREQUENCY_FIELDS);
+                if (!field) return "Set a frequency field above to order by it.";
+                return ankiFreqDir === "low-high"
+                    ? `Rarest first — highest number in "${field}". Click again to reverse.`
+                    : `Commonest first — lowest number in "${field}". Click again to reverse.`;
+            }
+            if (order === "random") {
+                return "Random order, reshuffled every time the deck is loaded.";
+            }
+            return "";
+        }
+
+        // Hovering a chip previews what it does; with nothing hovered the line describes
+        // the ordering actually in force
+        function setAnkiOrderNote(order) {
+            const note = document.getElementById("anki-order-note");
+            if (note) note.textContent = describeAnkiOrder(order || ankiOrder);
+        }
+
         function loadFieldMap() {
             try {
                 return JSON.parse(localStorage.getItem(ANKI_FIELD_STORE) || "{}");
@@ -2750,16 +2795,21 @@ function setMode(mode, shouldReload = true) {
             updateFrequencyAvailability();
         }
 
-        // Ordering by frequency needs a field to read it from, so the button is only
-        // usable once one is picked — automatically for a deck that has one, by hand
-        // otherwise.
+        /* Ordering by frequency needs a field to read it from, so the chip is only usable
+           once one is picked — automatically for a deck that has one, by hand otherwise.
+
+           Locked with a class rather than the disabled attribute: browsers don't fire
+           mouse events on a disabled control, so a disabled chip couldn't have said why
+           it was unavailable — which is the one moment the explanation is worth most. */
         function updateFrequencyAvailability() {
             const field = resolveField("frequency", FREQUENCY_FIELDS);
             const btn = document.querySelector('#anki-order-group [data-anki-order="frequency"]');
             if (!btn) return;
 
-            btn.disabled = !field;
-            btn.title = field ? `Ordering by "${field}"` : "Pick a frequency field first";
+            btn.textContent = frequencyLabel();
+            btn.classList.toggle("is-locked", !field);
+            btn.setAttribute("aria-disabled", String(!field));
+            btn.title = describeAnkiOrder("frequency");
 
             if (!field && ankiOrder === "frequency") {
                 ankiOrder = "deck";
@@ -2767,6 +2817,7 @@ function setMode(mode, shouldReload = true) {
                 document.querySelectorAll("#anki-order-group [data-anki-order]")
                     .forEach(b => b.classList.toggle("active", b.dataset.ankiOrder === "deck"));
             }
+            setAnkiOrderNote();
         }
 
         /* Which deck the cache and the field pickers currently describe, and why the last
@@ -2860,6 +2911,18 @@ function setMode(mode, shouldReload = true) {
                     const j = Math.floor(Math.random() * (i + 1));
                     [ordered[i], ordered[j]] = [ordered[j], ordered[i]];
                 }
+            } else if (ankiOrder === "frequency") {
+                /* Reversing the whole comparison would drag the cards that have no
+                   frequency at all to the front, since "missing" is stored as the largest
+                   possible value. They stay at the back either way round; only the cards
+                   that actually carry a number swap ends. */
+                const MISSING = Number.MAX_SAFE_INTEGER;
+                ordered.sort((a, b) => {
+                    const av = ankiSortValue(a, "frequency");
+                    const bv = ankiSortValue(b, "frequency");
+                    if (av === MISSING || bv === MISSING) return av - bv;
+                    return ankiFreqDir === "low-high" ? bv - av : av - bv;
+                });
             } else if (ankiOrder !== "deck") {
                 ordered.sort((a, b) => ankiSortValue(a, ankiOrder) - ankiSortValue(b, ankiOrder));
             }
@@ -4855,23 +4918,47 @@ function setMode(mode, shouldReload = true) {
         refreshFieldSelects();
 
         document.querySelectorAll("#anki-order-group [data-anki-order]").forEach(btn => {
-            btn.classList.toggle("active", btn.dataset.ankiOrder === ankiOrder);
+            const order = btn.dataset.ankiOrder;
+            btn.classList.toggle("active", order === ankiOrder);
+            btn.title = describeAnkiOrder(order);
+
+            // Hovering explains the chip without committing to it; the pointer leaving
+            // hands the line back to whichever ordering is actually in force
+            btn.addEventListener("mouseenter", () => setAnkiOrderNote(order));
+            btn.addEventListener("focus", () => setAnkiOrderNote(order));
+            btn.addEventListener("mouseleave", () => setAnkiOrderNote());
+            btn.addEventListener("blur", () => setAnkiOrderNote());
+
             btn.addEventListener("click", () => {
-                ankiOrder = btn.dataset.ankiOrder;
+                if (btn.classList.contains("is-locked")) return;
+
+                /* Frequency is a direction as well as an ordering, so once it is the
+                   active one each further click reverses it. Arriving on it from another
+                   ordering keeps the direction you left it in rather than flipping on the
+                   way in, which would have made the first click land somewhere you didn't
+                   choose. */
+                if (order === "frequency" && ankiOrder === "frequency") {
+                    ankiFreqDir = ankiFreqDir === "low-high" ? "high-low" : "low-high";
+                    localStorage.setItem("anki_type_freq_dir", ankiFreqDir);
+                    btn.textContent = frequencyLabel();
+                }
+
+                ankiOrder = order;
                 localStorage.setItem("anki_type_order", ankiOrder);
                 document.querySelectorAll("#anki-order-group [data-anki-order]")
                     .forEach(b => b.classList.toggle("active", b === btn));
 
-                // Reads the resolved field, not just the well-known names, so a field
-                // named by hand counts and one switched off to "None" does not
-                const note = document.getElementById("anki-order-note");
-                note.textContent = (ankiOrder === "frequency" && !resolveField("frequency", FREQUENCY_FIELDS))
-                    ? "No frequency field is set for this deck; cards keep their deck order."
-                    : "";
+                btn.title = describeAnkiOrder(order);
+                setAnkiOrderNote(order);
 
                 if (deckDropdown.value) loadAnkiDeck(deckDropdown.value);
             });
         });
+
+        // The frequency chip carries its direction in its label, and the note starts on
+        // whichever ordering was restored from last time
+        document.querySelector('#anki-order-group [data-anki-order="frequency"]').textContent = frequencyLabel();
+        setAnkiOrderNote();
 
         setSource(activeSource);
         populateDecks();
