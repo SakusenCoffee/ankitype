@@ -1474,17 +1474,69 @@ let currentIndex = 0;
             return btoa(encodeURIComponent(JSON.stringify(seedPayload)));
         }
 
+        /* Everything that swaps in or out does it through these, so nothing ever snaps.
+           Short on purpose: long enough to read as a transition, short enough that it
+           never feels like waiting. display:none can't be eased, so the fade runs first
+           and the element is hidden at the end of it. */
+        const FADE_MS = 110;
+
+        function fadeOut(el) {
+            if (!el || el.classList.contains("hidden")) return Promise.resolve();
+            el.classList.add("fade-out");
+            return new Promise(resolve => setTimeout(() => {
+                el.classList.add("hidden");
+                el.classList.remove("fade-out");
+                resolve();
+            }, FADE_MS));
+        }
+
+        function fadeIn(el) {
+            if (!el) return;
+
+            // Drawers already carry their own entry animation, which un-hiding replays.
+            // Layering a second opacity fade on top of it left them stuck transparent, so
+            // anything with an animation of its own is simply shown and left to it.
+            const hasEntryAnimation = getComputedStyle(el).animationName !== "none";
+
+            el.classList.remove("fade-out");
+            el.classList.remove("hidden");
+            if (hasEntryAnimation) return;
+
+            el.classList.add("fade-out");
+            void el.offsetWidth;          // commit the un-hide before easing the opacity
+            el.classList.remove("fade-out");
+        }
+
         // Which drawer is showing, so the host's navigation can travel to the room
         let mpCurrentTab = "test-options";
 
         function openTab(tabName) {
             mpCurrentTab = tabName;
-            profileDrawer.classList.add("hidden");
-            testOptionsDrawer.classList.add("hidden");
-            ankiDrawer.classList.add("hidden");
-            appearanceDrawer.classList.add("hidden");
-            seedDrawer.classList.add("hidden");
-            multiplayerDrawer.classList.add("hidden");
+
+            const drawers = {
+                "profile": profileDrawer,
+                "test-options": testOptionsDrawer,
+                "anki": ankiDrawer,
+                "appearance": appearanceDrawer,
+                "seed": seedDrawer,
+                "multiplayer": multiplayerDrawer
+            };
+
+            // In a room PLAY never opens; multiplayer stands in for it
+            let target = tabName;
+            if (typeof mpInSession === "function" && mpInSession() && tabName === "test-options") {
+                target = "multiplayer";
+            }
+
+            const next = drawers[target] || null;
+            const open = Object.values(drawers).find(d => !d.classList.contains("hidden"));
+
+            // The highlight moves at once; only the panels are eased
+            if (open && open !== next) {
+                fadeOut(open).then(() => { if (next) fadeIn(next); });
+            } else if (next && next.classList.contains("hidden")) {
+                fadeIn(next);
+            }
 
             profileTabBtn.classList.remove("active");
             testOptionsTabBtn.classList.remove("active");
@@ -1494,34 +1546,26 @@ let currentIndex = 0;
             multiplayerTabBtn.classList.remove("active");
 
             if (tabName === "profile") {
-                profileDrawer.classList.remove("hidden");
                 profileTabBtn.classList.add("active");
                 loadProfileUI();
             } else if (tabName === "test-options") {
-                testOptionsDrawer.classList.remove("hidden");
                 testOptionsTabBtn.classList.add("active");
             } else if (tabName === "anki") {
-                ankiDrawer.classList.remove("hidden");
                 ankiTabBtn.classList.add("active");
             } else if (tabName === "appearance") {
-                appearanceDrawer.classList.remove("hidden");
                 appearanceTabBtn.classList.add("active");
             } else if (tabName === "seed") {
-                seedDrawer.classList.remove("hidden");
                 seedTabBtn.classList.add("active");
             } else if (tabName === "multiplayer") {
-                multiplayerDrawer.classList.remove("hidden");
                 multiplayerTabBtn.classList.add("active");
             }
 
-            // In a room the multiplayer tab stays lit whichever drawer is showing, and
-            // PLAY is never opened — its controls live in the multiplayer drawer now.
+            // The redirect above already picked the drawer; this only settles the
+            // highlight, which stays on multiplayer for as long as the room is open.
             if (typeof mpInSession === "function" && mpInSession()) {
                 multiplayerTabBtn.classList.add("mp-session-active");
                 if (tabName === "test-options") {
-                    testOptionsDrawer.classList.add("hidden");
                     testOptionsTabBtn.classList.remove("active");
-                    multiplayerDrawer.classList.remove("hidden");
                     multiplayerTabBtn.classList.add("active");
                 }
             }
@@ -3267,27 +3311,15 @@ function setMode(mode, shouldReload = true) {
             openTab("multiplayer");
             mpSetStatus(mpStatus, `Room ${roomFromUrl.toUpperCase()} — press JOIN to enter.`);
         }
+        // Seed is a toggle rather than a plain tab, but the opening half is the same
+        // work as everywhere else, so it goes through openTab and only handles the close.
         seedTabBtn.addEventListener("click", () => {
-            profileDrawer.classList.add("hidden");
-            testOptionsDrawer.classList.add("hidden");
-            ankiDrawer.classList.add("hidden");
-            appearanceDrawer.classList.add("hidden");
-            multiplayerDrawer.classList.add("hidden");
-
-            profileTabBtn.classList.remove("active");
-            testOptionsTabBtn.classList.remove("active");
-            ankiTabBtn.classList.remove("active");
-            appearanceTabBtn.classList.remove("active");
-            multiplayerTabBtn.classList.remove("active");
-
-            const isHidden = seedDrawer.classList.contains("hidden");
-            if (isHidden) {
-                seedDrawer.classList.remove("hidden");
-                seedTabBtn.classList.add("active");
-            } else {
-                seedDrawer.classList.add("hidden");
-                seedTabBtn.classList.remove("active");
+            if (seedDrawer.classList.contains("hidden")) {
+                openTab("seed");
+                return;
             }
+            fadeOut(seedDrawer);
+            seedTabBtn.classList.remove("active");
         });
 
         modeWordsBtn.addEventListener("click", () => setMode("words", false));
@@ -3461,12 +3493,18 @@ function setMode(mode, shouldReload = true) {
 
         /* The results replace the test area rather than floating over it, so the words,
            the input box and the hint step aside while they are up. */
+        /* The results and the test trade places, so one fades out before the other fades
+           in — the test used to reappear the instant the results were dismissed. */
         function showResultPanel(show) {
-            if (show) document.body.classList.remove("typing-focus");
-            resultModal.classList.toggle("hidden", !show);
-            wordsWrapper.classList.toggle("hidden", show);
-            typingControlsHint.classList.toggle("hidden", show);
-            document.getElementById("live-input-container").classList.toggle("hidden", show);
+            const liveInput = document.getElementById("live-input-container");
+            const testParts = [wordsWrapper, typingControlsHint, liveInput];
+
+            if (show) {
+                document.body.classList.remove("typing-focus");
+                Promise.all(testParts.map(fadeOut)).then(() => fadeIn(resultModal));
+            } else {
+                fadeOut(resultModal).then(() => testParts.forEach(fadeIn));
+            }
         }
 
         function closeResultModalAndContinue() {
