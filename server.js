@@ -564,17 +564,31 @@ function broadcastRoster(room) {
 
 function leaveRoom(ws) {
     const room = rooms.get(ws.roomCode);
-    if (!room || !ws.memberId) return;
 
-    room.members.delete(ws.memberId);
+    /* Cleared up front, and whatever else happens below. Leaving used to null the room
+       code but leave the member id on the socket, so a connection carried its old
+       identity around after it was no longer anybody. */
+    const memberId = ws.memberId;
     ws.roomCode = null;
+    ws.memberId = null;
+
+    if (!room || !memberId) return;
+
+    /* Only if the seat is still this socket's. Deleting by id alone meant a close
+       arriving late — or any other path that reached this with a stale id — could evict
+       whoever was holding that id by then, which on screen reads as a new player
+       replacing an existing one instead of taking a row of their own. */
+    const seated = room.members.get(memberId);
+    if (!seated || seated.ws !== ws) return;
+
+    room.members.delete(memberId);
 
     if (room.members.size === 0) {
         rooms.delete(room.code);
         return;
     }
     // Host left: the longest-present remaining player takes over rather than the room dying
-    if (room.hostId === ws.memberId) {
+    if (room.hostId === memberId) {
         room.hostId = room.members.keys().next().value;
     }
     broadcastRoster(room);
@@ -633,11 +647,15 @@ wss.on('connection', (ws) => {
             const code = String(msg.code || '').trim().toUpperCase();
             const room = rooms.get(code);
             if (!room) return send(ws, { type: 'error', message: 'No room with that code.' });
+
+            // Give up the old seat before counting, or re-joining a room you are already
+            // in is refused for being full by your own presence in it
+            leaveRoom(ws);
+
             if (room.members.size >= room.limit) {
                 return send(ws, { type: 'error', message: `That room is full (${room.limit} players).` });
             }
 
-            leaveRoom(ws);
             ws.memberId = nextMemberId++;
             ws.roomCode = code;
             room.members.set(ws.memberId, {
