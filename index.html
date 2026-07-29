@@ -613,25 +613,18 @@
 
     <!-- RESULT MODAL SCREEN -->
 
+    <!-- Deliberately unframed: no panel, no border, no fill. The footer is a row of quiet
+         labels sitting on the page background, so the words above it stay the only thing
+         with any weight. -->
     <footer class="app-footer">
         <div class="footer-content">
             <div class="footer-left">
-                <span class="footer-brand">単語タイプ</span>
-                <span class="footer-copyright">&copy; <span id="footer-year"></span> Tango Type. All rights reserved.</span>
-            </div>
-            <div class="footer-right">
-                <a href="https://github.com/SakusenCoffee/tangotype" target="_blank" rel="noopener noreferrer" class="footer-link" title="View source on GitHub">
-                    <svg class="footer-link-icon" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M12 .5C5.65.5.5 5.65.5 12c0 5.08 3.29 9.39 7.86 10.91.58.11.79-.25.79-.56 0-.27-.01-1.17-.02-2.12-3.2.7-3.88-1.36-3.88-1.36-.52-1.34-1.28-1.69-1.28-1.69-1.04-.72.08-.7.08-.7 1.15.08 1.76 1.19 1.76 1.19 1.03 1.76 2.69 1.25 3.35.96.1-.75.4-1.25.73-1.54-2.55-.29-5.24-1.28-5.24-5.7 0-1.26.45-2.29 1.19-3.1-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.18 1.18a11.1 11.1 0 0 1 5.79 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.81 1.19 1.84 1.19 3.1 0 4.43-2.69 5.41-5.25 5.69.41.36.78 1.06.78 2.14 0 1.55-.01 2.79-.01 3.17 0 .31.21.68.8.56A10.51 10.51 0 0 0 23.5 12C23.5 5.65 18.35.5 12 .5z"></path>
-                    </svg>
-                    GitHub
-                </a>
                 <a href="mailto:contact@tangotype.com" class="footer-link" title="Email contact@tangotype.com">
                     <svg class="footer-link-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
                         <rect x="2" y="4" width="20" height="16" rx="2"></rect>
                         <path d="m2 7 10 6 10-6"></path>
                     </svg>
-                    Contact
+                    contact
                 </a>
                 <a href="https://ko-fi.com/mojikazu" target="_blank" rel="noopener noreferrer" class="footer-link" title="Support via Ko-fi">
                     <svg class="footer-link-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
@@ -641,8 +634,17 @@
                         <line x1="10" y1="1" x2="10" y2="4"></line>
                         <line x1="14" y1="1" x2="14" y2="4"></line>
                     </svg>
-                    Ko-fi
+                    support
                 </a>
+                <a href="https://github.com/SakusenCoffee/tangotype" target="_blank" rel="noopener noreferrer" class="footer-link" title="View source on GitHub">
+                    <svg class="footer-link-icon" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12 .5C5.65.5.5 5.65.5 12c0 5.08 3.29 9.39 7.86 10.91.58.11.79-.25.79-.56 0-.27-.01-1.17-.02-2.12-3.2.7-3.88-1.36-3.88-1.36-.52-1.34-1.28-1.69-1.28-1.69-1.04-.72.08-.7.08-.7 1.15.08 1.76 1.19 1.76 1.19 1.03 1.76 2.69 1.25 3.35.96.1-.75.4-1.25.73-1.54-2.55-.29-5.24-1.28-5.24-5.7 0-1.26.45-2.29 1.19-3.1-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.18 1.18a11.1 11.1 0 0 1 5.79 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.81 1.19 1.84 1.19 3.1 0 4.43-2.69 5.41-5.25 5.69.41.36.78 1.06.78 2.14 0 1.55-.01 2.79-.01 3.17 0 .31.21.68.8.56A10.51 10.51 0 0 0 23.5 12C23.5 5.65 18.35.5 12 .5z"></path>
+                    </svg>
+                    github
+                </a>
+            </div>
+            <div class="footer-right">
+                <span class="footer-copyright">&copy; <span id="footer-year"></span> Tango Type. All rights reserved.</span>
             </div>
         </div>
     </footer>
@@ -2540,10 +2542,21 @@ function setMode(mode, shouldReload = true) {
             if (typeof mpBroadcastSettings === "function") mpBroadcastSettings();
         }
 
+        /* Anki fields are HTML, so they get parsed rather than regex-stripped. Two things
+           make that affordable over a whole deck: the parser is made once instead of per
+           call, and a field with no tag and no entity in it is already its own text — on
+           a word deck that skips the parse for nearly every field.
+
+           An offscreen div with innerHTML would be cheaper still, but Anki fields
+           routinely carry <img> for card images and assigning innerHTML would fetch every
+           one of them. DOMParser doesn't load anything. */
+        const htmlTextParser = new DOMParser();
+
         function cleanHtmlText(rawHtml) {
             if (!rawHtml) return "";
-            const parser = new DOMParser();
-            const doc = parser.parseFromString(rawHtml, 'text/html');
+            const text = String(rawHtml);
+            if (!text.includes("<") && !text.includes("&")) return text;
+            const doc = htmlTextParser.parseFromString(text, 'text/html');
             return doc.body.textContent || "";
         }
 
@@ -2743,6 +2756,24 @@ function setMode(mode, shouldReload = true) {
         let ankiCardMeta = new Map();     // noteId -> what Anki knows about the card
         let ankiOrder = localStorage.getItem("anki_type_order") || "deck";
 
+        /* ---- The deck, held in memory ------------------------------------------------
+           Every ordering used to re-read the whole deck from AnkiConnect: notesInfo
+           returns every field of every note, and turning that into typable words costs an
+           HTML parse and a romaji conversion per card. On a 1500-card deck that was a
+           second or two of work and a spun-up fan for each click of a chip — and none of
+           it depends on the ordering.
+
+           So the deck is fetched once and kept. Changing the ordering re-sorts what is
+           already here; changing a field mapping rebuilds the words from the same notes.
+           Only a different deck goes back to Anki.
+
+           One deck at a time, deliberately: switching away and back is the way to pick up
+           cards edited in Anki since, which a per-deck cache would have swallowed. */
+        let ankiRawDeck = null;     // the deck ankiRawNotes holds, if any
+        let ankiRawNotes = [];      // notesInfo output, exactly as Anki gave it
+        let ankiEntries = [];       // words built from those notes, with their sort keys
+        let ankiEntriesKey = "";    // deck + field mapping ankiEntries was built from
+
         /* Which way round the frequency ordering runs. Frequency fields almost always
            hold a rank — 1 is the commonest word — so "high to low" frequency means the
            smallest numbers first, which is why this isn't simply called ascending. */
@@ -2867,21 +2898,141 @@ function setMode(mode, shouldReload = true) {
             input.addEventListener("change", () => commit(input.value.trim()));
         }
 
-        // Anki's own numbers: a low ease factor means the card fights back, and lapses
-        // count how often it has been forgotten.
-        function ankiSortValue(note, order) {
-            const meta = ankiCardMeta.get(note.noteId) || {};
+        /* A card with no frequency at all. Sorted as the largest possible value so those
+           cards sit at the back, whichever way round the ordering runs. */
+        const FREQ_MISSING = Number.MAX_SAFE_INTEGER;
+
+        function readFrequency(fields, field) {
+            const raw = field && fields[field]
+                ? fields[field].value
+                : getFieldValue(fields, FREQUENCY_FIELDS);
+            const n = parseInt(String(cleanHtmlText(raw || "")).replace(/[^0-9]/g, ""), 10);
+            return Number.isFinite(n) ? n : FREQ_MISSING;
+        }
+
+        /* Anki's own numbers: a low ease factor means the card fights back, and lapses
+           count how often it has been forgotten.
+
+           Read off the prepared entry rather than the raw note. The frequency ordering
+           used to parse the field's HTML inside the comparator, so a 1500-card deck ran
+           some sixteen thousand parses to sort itself; the number is now read once when
+           the entry is built. */
+        function ankiSortValue(entry, order) {
+            const meta = ankiCardMeta.get(entry.noteId) || {};
             if (order === "difficulty") return meta.factor ?? Number.MAX_SAFE_INTEGER;
             if (order === "lapses") return -(meta.lapses ?? 0);
-            if (order === "frequency") {
-                const field = resolveField("frequency", FREQUENCY_FIELDS);
-                const raw = field && note.fields[field]
-                    ? note.fields[field].value
-                    : getFieldValue(note.fields, FREQUENCY_FIELDS);
-                const n = parseInt(String(cleanHtmlText(raw || "")).replace(/[^0-9]/g, ""), 10);
-                return Number.isFinite(n) ? n : Number.MAX_SAFE_INTEGER;
-            }
+            if (order === "frequency") return entry.freq;
             return 0;
+        }
+
+        /* The HTML stripping and romaji conversion for a whole deck, done once per deck
+           and field mapping. Each entry carries the word the test will use and the keys
+           every ordering sorts on, so sorting afterwards touches nothing but numbers. */
+        function buildAnkiEntries(notes) {
+            const expressionField = resolveField("expression", KANJI_FIELDS);
+            const readingField = resolveField("reading", READING_FIELDS);
+            const meaningField = resolveField("meaning", MEANING_FIELDS);
+            const frequencyField = resolveField("frequency", FREQUENCY_FIELDS);
+
+            const entries = [];
+
+            notes.forEach(note => {
+                const fields = note.fields || {};
+                const rawRomaji = readingField && fields[readingField]
+                    ? fields[readingField].value
+                    : getFieldValue(fields, READING_FIELDS);
+
+                const cleanedRomajiText = cleanHtmlText(rawRomaji).trim();
+                const romaji = normalizeRomaji(wanakana.toRomaji(cleanedRomajiText));
+
+                // A card with nothing typable is dropped, as before. Checked before the
+                // other two fields are cleaned so a dropped card costs as little as possible
+                if (romaji === "") return;
+
+                const rawKanji = expressionField && fields[expressionField]
+                    ? fields[expressionField].value
+                    : getFieldValue(fields, KANJI_FIELDS);
+                const rawMeaning = meaningField && fields[meaningField]
+                    ? fields[meaningField].value
+                    : getFieldValue(fields, MEANING_FIELDS);
+
+                entries.push({
+                    noteId: note.noteId,
+                    freq: readFrequency(fields, frequencyField),
+                    word: {
+                        kanji: cleanHtmlText(rawKanji || "N/A"),
+                        romaji,
+                        meaning: shortenMeaning(cleanHtmlText(rawMeaning || "N/A"))
+                    }
+                });
+            });
+
+            return entries;
+        }
+
+        /* Anki's scheduling numbers, for the difficulty and lapse orderings. Optional: if
+           the call fails the deck still loads, just without those two orders.
+
+           Asked for by the number needed rather than in one go. cardsInfo is the only
+           source of lapse counts, but it also renders every card's question and answer
+           HTML — on a 1500-card deck that is seconds of work inside Anki to return two
+           integers per card, and it was the bulk of what made "hardest first" slow.
+           getEaseFactors returns the ease numbers on their own, so that ordering no longer
+           pays for a full render of the deck.
+
+           Cached per deck and per number, so switching between the two orderings, or back
+           and forth between them, asks Anki once each. */
+        let ankiCardMetaDeck = null;
+        let ankiCardMetaKeys = new Set();
+
+        async function ensureAnkiCardMeta(deckName, notes, order) {
+            const want = order === "difficulty" ? "factor" : "lapses";
+
+            if (ankiCardMetaDeck !== deckName) {
+                ankiCardMeta = new Map();
+                ankiCardMetaKeys = new Set();
+                ankiCardMetaDeck = deckName;
+            }
+            if (ankiCardMetaKeys.has(want)) return;
+
+            /* One card per note. A note's cards share its fields, so they'd all give the
+               same word — the previous code likewise kept whichever card came back first.
+               Paired with the note rather than flattened because getEaseFactors answers
+               positionally, so the two lists have to line up. */
+            const pairs = [];
+            notes.forEach(note => {
+                const card = (note.cards || [])[0];
+                if (card != null) pairs.push({ noteId: note.noteId, card });
+            });
+            if (pairs.length === 0) return;
+
+            const cards = pairs.map(p => p.card);
+            const record = (noteId, values) =>
+                ankiCardMeta.set(noteId, { ...ankiCardMeta.get(noteId), ...values });
+
+            if (want === "factor") {
+                const res = await fetchFromAnki("getEaseFactors", { cards });
+                if (Array.isArray(res?.result)) {
+                    res.result.forEach((factor, i) => {
+                        if (pairs[i]) record(pairs[i].noteId, { factor });
+                    });
+                    ankiCardMetaKeys.add("factor");
+                    return;
+                }
+                // An AnkiConnect too old to know getEaseFactors: fall through to cardsInfo,
+                // which has carried the ease factor all along
+            }
+
+            const res = await fetchFromAnki("cardsInfo", { cards });
+            const byCard = new Map((res?.result || []).map(c => [c.cardId, c]));
+            if (byCard.size === 0) return;
+
+            pairs.forEach(({ noteId, card }) => {
+                const info = byCard.get(card);
+                if (info) record(noteId, { factor: info.factor, lapses: info.lapses });
+            });
+            // cardsInfo answers both questions at once
+            ankiCardMetaKeys.add("lapses").add("factor");
         }
 
         /* Definitions can run to a paragraph with usage notes. The word list shows them
@@ -2968,9 +3119,18 @@ function setMode(mode, shouldReload = true) {
             };
 
             ankiLoadInFlight = true;
-            setStatus("LOADING QUEUE", "status-loading");
 
             try {
+                /* Reordering the deck you are already on, or remapping its fields, asks
+                   nothing of Anki: the notes are here and they haven't changed. No status
+                   flicker either — there is no queue to load. */
+                if (ankiRawDeck === targetDeckName && ankiRawNotes.length > 0) {
+                    await buildAnkiDeck(targetDeckName, ankiRawNotes, { setStatus, usingAnkiDeck, fail });
+                    return;
+                }
+
+                setStatus("LOADING QUEUE", "status-loading");
+
                 const findResult = await fetchFromAnki("findNotes", { query: `deck:"${targetDeckName}"` });
                 if (!findResult || !findResult.result) {
                     setStatus("OFFLINE - START ANKI", "status-offline");
@@ -2996,6 +3156,12 @@ function setMode(mode, shouldReload = true) {
                     return;
                 }
 
+                // Kept for every later ordering. Set only once the notes are actually in
+                // hand, so a failed fetch leaves whatever was already cached alone.
+                ankiRawDeck = targetDeckName;
+                ankiRawNotes = notes;
+                ankiEntriesKey = "";
+
                 await buildAnkiDeck(targetDeckName, notes, { setStatus, usingAnkiDeck, fail });
             } finally {
                 ankiLoadInFlight = false;
@@ -3007,24 +3173,27 @@ function setMode(mode, shouldReload = true) {
             ankiFieldNames = [...new Set(notes.flatMap(n => Object.keys(n.fields || {})))];
             refreshFieldSelects();
 
-            // Anki's scheduling numbers, for the difficulty and lapse orderings. Optional:
-            // if this call fails the deck still loads, just without those two orders.
-            ankiCardMeta = new Map();
-            const cardIds = notes.flatMap(n => n.cards || []);
-            if (cardIds.length && (ankiOrder === "difficulty" || ankiOrder === "lapses")) {
-                const info = await fetchFromAnki("cardsInfo", { cards: cardIds });
-                const byCard = new Map((info?.result || []).map(c => [c.cardId, c]));
-                notes.forEach(n => {
-                    const card = (n.cards || []).map(id => byCard.get(id)).find(Boolean);
-                    if (card) ankiCardMeta.set(n.noteId, { factor: card.factor, lapses: card.lapses });
-                });
+            /* The field pickers decide what the words are, so the entries are rebuilt when
+               the mapping changes and reused when only the ordering did — which is the
+               common case, and the one that used to cost a full re-read of the deck. */
+            const entriesKey = [
+                targetDeckName,
+                resolveField("expression", KANJI_FIELDS),
+                resolveField("reading", READING_FIELDS),
+                resolveField("meaning", MEANING_FIELDS),
+                resolveField("frequency", FREQUENCY_FIELDS)
+            ].join("\n"); // no deck or field name holds a newline, so the parts can't run together
+
+            if (ankiEntriesKey !== entriesKey) {
+                ankiEntries = buildAnkiEntries(notes);
+                ankiEntriesKey = entriesKey;
             }
 
-            const expressionField = resolveField("expression", KANJI_FIELDS);
-            const readingField = resolveField("reading", READING_FIELDS);
-            const meaningField = resolveField("meaning", MEANING_FIELDS);
+            if (ankiOrder === "difficulty" || ankiOrder === "lapses") {
+                await ensureAnkiCardMeta(targetDeckName, notes, ankiOrder);
+            }
 
-            const ordered = [...notes];
+            const ordered = [...ankiEntries];
             if (ankiOrder === "random") {
                 for (let i = ordered.length - 1; i > 0; i--) {
                     const j = Math.floor(Math.random() * (i + 1));
@@ -3035,38 +3204,15 @@ function setMode(mode, shouldReload = true) {
                    frequency at all to the front, since "missing" is stored as the largest
                    possible value. They stay at the back either way round; only the cards
                    that actually carry a number swap ends. */
-                const MISSING = Number.MAX_SAFE_INTEGER;
                 ordered.sort((a, b) => {
-                    const av = ankiSortValue(a, "frequency");
-                    const bv = ankiSortValue(b, "frequency");
-                    if (av === MISSING || bv === MISSING) return av - bv;
-                    return ankiFreqDir === "low-high" ? bv - av : av - bv;
+                    if (a.freq === FREQ_MISSING || b.freq === FREQ_MISSING) return a.freq - b.freq;
+                    return ankiFreqDir === "low-high" ? b.freq - a.freq : a.freq - b.freq;
                 });
             } else if (ankiOrder !== "deck") {
                 ordered.sort((a, b) => ankiSortValue(a, ankiOrder) - ankiSortValue(b, ankiOrder));
             }
 
-            ankiDeckCache = ordered.map(note => {
-                const fields = note.fields;
-                const rawKanji = expressionField && fields[expressionField]
-                    ? fields[expressionField].value
-                    : getFieldValue(fields, KANJI_FIELDS);
-                const rawRomaji = readingField && fields[readingField]
-                    ? fields[readingField].value
-                    : getFieldValue(fields, READING_FIELDS);
-                const rawMeaning = meaningField && fields[meaningField]
-                    ? fields[meaningField].value
-                    : getFieldValue(fields, MEANING_FIELDS);
-
-                const cleanedRomajiText = cleanHtmlText(rawRomaji).trim();
-                const finalRomaji = normalizeRomaji(wanakana.toRomaji(cleanedRomajiText));
-
-                return {
-                    kanji: cleanHtmlText(rawKanji || "N/A"),
-                    romaji: finalRomaji,
-                    meaning: shortenMeaning(cleanHtmlText(rawMeaning || "N/A"))
-                };
-            }).filter(word => word.romaji !== "");
+            ankiDeckCache = ordered.map(entry => entry.word);
 
             if (ankiDeckCache.length === 0) {
                 setStatus("PARSE ERROR", "status-offline");

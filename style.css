@@ -2013,13 +2013,14 @@ gap: 12px;
     background-color: var(--accent-hover);
 }
 
-/* Footer Styles */
+/* Footer Styles
+   No fill and no rule above it: the footer sits directly on the page background so the
+   bottom of the page reads as empty space rather than as another panel. */
 .app-footer {
     width: 100%;
     margin-top: auto;
-    padding: 16px 20px;
-    background-color: var(--nav-bg);
-    border-top: 1px solid var(--border-color);
+    padding: 14px 20px;
+    background-color: transparent;
     display: flex;
     justify-content: center;
     align-items: center;
@@ -2039,19 +2040,13 @@ gap: 12px;
 .footer-left {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 4px;
     flex-wrap: wrap;
-}
-
-.footer-brand {
-    font-family: 'Space Grotesk', sans-serif;
-    font-weight: 700;
-    font-size: 0.85rem;
-    color: var(--text-primary);
 }
 
 .footer-copyright {
     font-size: 0.75rem;
+    font-weight: 700;
     color: var(--text-muted);
 }
 
@@ -2061,34 +2056,33 @@ gap: 12px;
     gap: 8px;
 }
 
-.footer-text {
-    font-size: 0.8rem;
-    font-weight: 700;
-    color: var(--text-muted);
-}
+/* Unboxed on purpose — the pill borders these used to carry were the loudest thing at the
+   bottom of the page. Padding stays so each label keeps a comfortable hit area.
 
+   Colour comes from --text-muted alone. Dimming it further looked right on the dark themes
+   and left it barely readable on the light ones, which is a contrast floor each theme has
+   already set for itself. */
 .footer-link {
     display: flex;
     align-items: center;
     gap: 6px;
-    font-size: 0.85rem;
+    font-size: 0.8rem;
     font-weight: 700;
     text-decoration: none;
     color: var(--text-muted);
-    padding: 6px 12px;
+    padding: 6px 10px;
     border-radius: 8px;
-    border: 1px solid var(--border-color);
-    transition: all 0.2s ease;
+    transition: color 0.15s ease;
 }
 
 .footer-link:hover {
-    color: var(--text-primary);
-    border-color: var(--text-muted);
+    color: var(--accent-main);
 }
 
 .footer-link-icon {
-    width: 15px;
-    height: 15px;
+    width: 14px;
+    height: 14px;
+    flex-shrink: 0;
 }
 
 
@@ -2697,9 +2691,11 @@ gap: 12px;
     display: inline-block;
 }
 
-/* TYPING FOCUS — the navbar recedes while typing, the brand stays put */
+/* TYPING FOCUS — the whole header recedes while typing, leaving only the words */
 .top-navbar,
-.nav-actions {
+.nav-actions,
+.nav-brand,
+.app-footer {
     transition: opacity 0.35s ease, background-color 0.35s ease,
                 border-color 0.35s ease, box-shadow 0.35s ease;
 }
@@ -2725,9 +2721,14 @@ body.typing-focus .nav-drawer {
     transition: opacity 0.35s ease;
 }
 
-/* The brand is deliberately untouched: same place, same weight, same colour */
-body.typing-focus .nav-brand {
-    opacity: 1;
+/* The brand goes with them. It used to be held at full opacity as the one fixed point on
+   the page, but it was then the only thing left lit up while you typed, which drew the eye
+   exactly where the words aren't. Faded, not collapsed, for the same reason as the drawer:
+   it keeps its space, so nothing on the page moves when typing starts. */
+body.typing-focus .nav-brand,
+body.typing-focus .app-footer {
+    opacity: 0;
+    pointer-events: none;
 }
 
 /* FADES
