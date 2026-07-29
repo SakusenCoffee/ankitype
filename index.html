@@ -259,6 +259,36 @@
                         <option value="">Querying local database...</option>
                     </select>
                 </div>
+
+                <!-- Which note fields to read, and in what order to serve the cards -->
+                <div class="anki-config">
+                    <div class="anki-field-row">
+                        <label class="anki-field">
+                            <span>EXPRESSION FIELD</span>
+                            <select id="anki-expression-field"></select>
+                            <input type="text" id="anki-expression-custom" class="hidden"
+                                   placeholder="Field name..." spellcheck="false" />
+                        </label>
+                        <label class="anki-field">
+                            <span>MEANING FIELD</span>
+                            <select id="anki-meaning-field"></select>
+                            <input type="text" id="anki-meaning-custom" class="hidden"
+                                   placeholder="Field name..." spellcheck="false" />
+                        </label>
+                    </div>
+
+                    <div class="anki-order">
+                        <span class="anki-order-label">ORDER</span>
+                        <div class="count-selector-group" id="anki-order-group">
+                            <button class="count-btn active" data-anki-order="deck">deck order</button>
+                            <button class="count-btn" data-anki-order="difficulty">hardest first</button>
+                            <button class="count-btn" data-anki-order="lapses">most lapses</button>
+                            <button class="count-btn" data-anki-order="frequency">frequency</button>
+                            <button class="count-btn" data-anki-order="random">shuffle</button>
+                        </div>
+                    </div>
+                    <span class="anki-order-note" id="anki-order-note"></span>
+                </div>
                 <p class="anki-note">Words are pulled from <strong>Lapis</strong>-styled decks. Decks built on other note types may not expose a compatible expression field, so not every deck will load correctly.</p>
             </div>
         </div>
@@ -1080,6 +1110,7 @@
         renderFilterChips();
         updateUndoButton();
 
+
         let rowCountSetting = localStorage.getItem("anki_type_row_count") || "3";
 
         const rowCountSlider = document.getElementById("row-count-slider");
@@ -1510,6 +1541,34 @@ let currentIndex = 0;
         // Which drawer is showing, so the host's navigation can travel to the room
         let mpCurrentTab = "test-options";
 
+        /* The test belongs to PLAY. With any other tab open it is put away and its keys
+           stop being listened for, so typing at the profile or the deck picker can't
+           quietly run down a test nobody is looking at. */
+        function testAreaIsLive() {
+            if (typeof isZenMode !== "undefined" && isZenMode) return false;
+            const anyDrawerOpen = [profileDrawer, testOptionsDrawer, ankiDrawer,
+                                   appearanceDrawer, seedDrawer, multiplayerDrawer]
+                .some(d => d && !d.classList.contains("hidden"));
+            // Mid-race every drawer is closed, and the test is the whole point
+            return !anyDrawerOpen || mpCurrentTab === "test-options";
+        }
+
+        function updateTestVisibility() {
+            const live = testAreaIsLive();
+            const resultsUp = resultModal && !resultModal.classList.contains("hidden");
+
+            if (!live) {
+                [wordsWrapper, typingControlsHint, document.getElementById("live-input-container")]
+                    .forEach(el => el && el.classList.add("hidden"));
+                return;
+            }
+            // The results stand in for the test until they are dismissed
+            if (resultsUp) return;
+
+            [wordsWrapper, typingControlsHint, document.getElementById("live-input-container")]
+                .forEach(el => el && el.classList.remove("hidden"));
+        }
+
         function openTab(tabName) {
             mpCurrentTab = tabName;
 
@@ -1573,6 +1632,8 @@ let currentIndex = 0;
             if (tabName !== "profile" && window.location.pathname.startsWith("/user/")) {
                 history.pushState({}, '', '/');
             }
+
+            updateTestVisibility();
 
             // Guests follow the host's navigation; mpBroadcastSettings ignores everyone else
             if (typeof mpBroadcastSettings === "function") mpBroadcastSettings();
@@ -2364,6 +2425,125 @@ function setMode(mode, shouldReload = true) {
             }
         }
 
+        /* ---- Anki field mapping and ordering -----------------------------------------
+           Lapis names its fields Expression / MainDefinition, and the lists below are the
+           other names decks commonly use. Whichever is found first is shown as the
+           current pick, and can be overridden per deck — including with a name typed by
+           hand, since a home-made note type can call its fields anything. */
+
+        const ANKI_FIELD_STORE = "anki_type_field_map";
+        const FREQUENCY_FIELDS = ["Frequency", "FrequencySort", "Freq", "frequency"];
+
+        let ankiFieldNames = [];          // every field on the selected deck's notes
+        let ankiCardMeta = new Map();     // noteId -> what Anki knows about the card
+        let ankiOrder = localStorage.getItem("anki_type_order") || "deck";
+
+        function loadFieldMap() {
+            try {
+                return JSON.parse(localStorage.getItem(ANKI_FIELD_STORE) || "{}");
+            } catch {
+                return {};
+            }
+        }
+
+        function saveFieldMap(map) {
+            localStorage.setItem(ANKI_FIELD_STORE, JSON.stringify(map));
+        }
+
+        // The chosen field if it is set and still exists, else the first known name that
+        // the deck actually has
+        function resolveField(kind, fallbacks) {
+            const chosen = loadFieldMap()[kind];
+            if (chosen && ankiFieldNames.includes(chosen)) return chosen;
+            return fallbacks.find(name => ankiFieldNames.includes(name)) || null;
+        }
+
+        function fillFieldSelect(select, customInput, kind, fallbacks) {
+            const current = resolveField(kind, fallbacks);
+            const stored = loadFieldMap()[kind];
+            const isCustom = stored && !ankiFieldNames.includes(stored);
+
+            select.innerHTML = "";
+            ankiFieldNames.forEach(name => {
+                const opt = document.createElement("option");
+                opt.value = name;
+                // Say which one it settled on, so a Lapis deck reads as expected
+                opt.textContent = name === current ? `${name} (in use)` : name;
+                select.appendChild(opt);
+            });
+
+            const customOpt = document.createElement("option");
+            customOpt.value = "__custom__";
+            customOpt.textContent = "Custom...";
+            select.appendChild(customOpt);
+
+            select.value = isCustom ? "__custom__" : (current || "__custom__");
+            customInput.classList.toggle("hidden", select.value !== "__custom__");
+            if (isCustom) customInput.value = stored;
+        }
+
+        function wireFieldSelect(selectId, inputId, kind, fallbacks) {
+            const select = document.getElementById(selectId);
+            const input = document.getElementById(inputId);
+
+            const commit = value => {
+                const map = loadFieldMap();
+                if (value) map[kind] = value; else delete map[kind];
+                saveFieldMap(map);
+                if (deckDropdown.value) loadAnkiDeck(deckDropdown.value);
+            };
+
+            select.addEventListener("change", () => {
+                const custom = select.value === "__custom__";
+                input.classList.toggle("hidden", !custom);
+                if (custom) { input.focus(); return; }
+                commit(select.value);
+            });
+
+            input.addEventListener("keydown", e => e.stopPropagation());
+            input.addEventListener("change", () => commit(input.value.trim()));
+        }
+
+        // Anki's own numbers: a low ease factor means the card fights back, and lapses
+        // count how often it has been forgotten.
+        function ankiSortValue(note, order) {
+            const meta = ankiCardMeta.get(note.noteId) || {};
+            if (order === "difficulty") return meta.factor ?? Number.MAX_SAFE_INTEGER;
+            if (order === "lapses") return -(meta.lapses ?? 0);
+            if (order === "frequency") {
+                const raw = getFieldValue(note.fields, FREQUENCY_FIELDS);
+                const n = parseInt(String(cleanHtmlText(raw || "")).replace(/[^0-9]/g, ""), 10);
+                return Number.isFinite(n) ? n : Number.MAX_SAFE_INTEGER;
+            }
+            return 0;
+        }
+
+        /* Definitions can run to a paragraph with usage notes. The word list shows them
+           under the word, so only the first sense is kept — cut at the first sentence or
+           separator, then hard-capped. */
+        const MEANING_MAX_CHARS = 60;
+
+        function shortenMeaning(text) {
+            if (!text) return "N/A";
+            let first = text.split(/\r?\n/)[0].trim();
+            first = first.split(/[;；]|\s\u2014\s|\s-\s/)[0].trim();
+            const sentence = first.match(/^[^.。!?！？]*[.。!?！？]?/);
+            if (sentence && sentence[0].trim().length >= 3) first = sentence[0].trim();
+            first = first.replace(/[.。]$/, "");
+            return first.length > MEANING_MAX_CHARS
+                ? first.slice(0, MEANING_MAX_CHARS - 1).trimEnd() + "…"
+                : first;
+        }
+
+        function refreshFieldSelects() {
+            fillFieldSelect(document.getElementById("anki-expression-field"),
+                            document.getElementById("anki-expression-custom"),
+                            "expression", KANJI_FIELDS);
+            fillFieldSelect(document.getElementById("anki-meaning-field"),
+                            document.getElementById("anki-meaning-custom"),
+                            "meaning", MEANING_FIELDS);
+        }
+
         async function loadAnkiDeck(targetDeckName) {
             statusEl.className = "status-badge status-loading";
             statusEl.textContent = "LOADING QUEUE";
@@ -2380,20 +2560,58 @@ function setMode(mode, shouldReload = true) {
             }
 
             const notesResult = await fetchFromAnki("notesInfo", { notes: findResult.result });
+            const notes = (notesResult && notesResult.result) || [];
 
-            ankiDeckCache = notesResult.result.map(note => {
+            // Every field the deck has, so the pickers can offer real names
+            ankiFieldNames = [...new Set(notes.flatMap(n => Object.keys(n.fields || {})))];
+            refreshFieldSelects();
+
+            // Anki's scheduling numbers, for the difficulty and lapse orderings. Optional:
+            // if this call fails the deck still loads, just without those two orders.
+            ankiCardMeta = new Map();
+            const cardIds = notes.flatMap(n => n.cards || []);
+            if (cardIds.length && (ankiOrder === "difficulty" || ankiOrder === "lapses")) {
+                const info = await fetchFromAnki("cardsInfo", { cards: cardIds });
+                const byCard = new Map((info?.result || []).map(c => [c.cardId, c]));
+                notes.forEach(n => {
+                    const card = (n.cards || []).map(id => byCard.get(id)).find(Boolean);
+                    if (card) ankiCardMeta.set(n.noteId, { factor: card.factor, lapses: card.lapses });
+                });
+            }
+
+            const expressionField = resolveField("expression", KANJI_FIELDS);
+            const readingField = resolveField("reading", READING_FIELDS);
+            const meaningField = resolveField("meaning", MEANING_FIELDS);
+
+            const ordered = [...notes];
+            if (ankiOrder === "random") {
+                for (let i = ordered.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [ordered[i], ordered[j]] = [ordered[j], ordered[i]];
+                }
+            } else if (ankiOrder !== "deck") {
+                ordered.sort((a, b) => ankiSortValue(a, ankiOrder) - ankiSortValue(b, ankiOrder));
+            }
+
+            ankiDeckCache = ordered.map(note => {
                 const fields = note.fields;
-                let rawKanji = getFieldValue(fields, KANJI_FIELDS);
-                let rawRomaji = getFieldValue(fields, READING_FIELDS);
-                let rawMeaning = getFieldValue(fields, MEANING_FIELDS);
+                const rawKanji = expressionField && fields[expressionField]
+                    ? fields[expressionField].value
+                    : getFieldValue(fields, KANJI_FIELDS);
+                const rawRomaji = readingField && fields[readingField]
+                    ? fields[readingField].value
+                    : getFieldValue(fields, READING_FIELDS);
+                const rawMeaning = meaningField && fields[meaningField]
+                    ? fields[meaningField].value
+                    : getFieldValue(fields, MEANING_FIELDS);
 
-                let cleanedRomajiText = cleanHtmlText(rawRomaji).trim();
-                let finalRomaji = wanakana.toRomaji(cleanedRomajiText).toLowerCase().trim();
+                const cleanedRomajiText = cleanHtmlText(rawRomaji).trim();
+                const finalRomaji = wanakana.toRomaji(cleanedRomajiText).toLowerCase().trim();
 
                 return {
                     kanji: cleanHtmlText(rawKanji || "N/A"),
                     romaji: finalRomaji,
-                    meaning: cleanHtmlText(rawMeaning || "N/A")
+                    meaning: shortenMeaning(cleanHtmlText(rawMeaning || "N/A"))
                 };
             }).filter(word => word.romaji !== "");
 
@@ -2588,6 +2806,8 @@ function setMode(mode, shouldReload = true) {
         window.addEventListener("keydown", (e) => {
             if (isZenMode) return;
             if (e.target.tagName === "INPUT" || e.target.tagName === "SELECT" || e.target.tagName === "TEXTAREA") return;
+            // Only PLAY takes typing; elsewhere the test isn't on screen to type into
+            if (!testAreaIsLive()) return;
 
             // While the results are up, Enter and Tab dismiss them. Handled before
             // anything else so Tab doesn't also toggle readings on the way out, and so
@@ -3982,10 +4202,15 @@ function setMode(mode, shouldReload = true) {
                             <div class="auth-error" id="pw-msg"></div>
                             <button class="auth-btn" id="pw-submit-btn">UPDATE PASSWORD</button>
                         </div>
-                        <div class="profile-footer-actions">
-                            <button class="history-toggle-btn" id="history-toggle-btn">TEST HISTORY</button>
-                        </div>
-                        <div class="history-panel hidden" id="history-panel">
+                        <div class="history-panel" id="history-panel">
+                            <div class="history-head">
+                                <span class="drawer-title">TEST HISTORY</span>
+                                <div class="history-pager hidden" id="history-pager">
+                                    <button class="history-page-btn" id="history-prev" aria-label="Newer">‹</button>
+                                    <span class="history-page-label" id="history-page-label"></span>
+                                    <button class="history-page-btn" id="history-next" aria-label="Older">›</button>
+                                </div>
+                            </div>
                             <div class="history-body" id="history-body"></div>
                         </div>
                     `;
@@ -4132,31 +4357,45 @@ function setMode(mode, shouldReload = true) {
                     const passwordPanel = document.getElementById('password-panel');
                     const pwMsg = document.getElementById('pw-msg');
 
-                    const historyPanel = document.getElementById('history-panel');
                     const historyBody = document.getElementById('history-body');
-                    const historyToggleBtn = document.getElementById('history-toggle-btn');
+                    const historyPager = document.getElementById('history-pager');
+                    const historyPageLabel = document.getElementById('history-page-label');
 
-                    historyToggleBtn.onclick = async () => {
-                        if (!historyPanel.classList.contains('hidden')) {
-                            historyPanel.classList.add('hidden');
-                            return;
-                        }
+                    // The record is kept in full, so it arrives a page at a time
+                    const HISTORY_PER_PAGE = 10;
+                    let historyPage = 0;
 
-                        historyPanel.classList.remove('hidden');
+                    async function loadHistoryPage(page) {
                         historyBody.innerHTML = '<span class="history-empty">Loading...</span>';
-
                         try {
-                            const res = await fetch(`${API_BASE}/api/profile/history`, {
-                                headers: { 'Authorization': `Bearer ${currentUserToken}` }
-                            });
+                            const offset = page * HISTORY_PER_PAGE;
+                            const res = await fetch(
+                                `${API_BASE}/api/profile/history?limit=${HISTORY_PER_PAGE}&offset=${offset}`,
+                                { headers: { 'Authorization': `Bearer ${currentUserToken}` } });
                             if (!res.ok) throw new Error(`HTTP ${res.status}`);
-                            const { history: rows = [] } = await res.json();
+
+                            const { history: rows = [], total = 0 } = await res.json();
+                            historyPage = page;
                             renderTestHistory(historyBody, rows);
+
+                            const pages = Math.max(1, Math.ceil(total / HISTORY_PER_PAGE));
+                            historyPager.classList.toggle('hidden', pages <= 1);
+                            historyPageLabel.textContent = `${page + 1} / ${pages}`;
+                            document.getElementById('history-prev').disabled = page === 0;
+                            document.getElementById('history-next').disabled = page >= pages - 1;
                         } catch (err) {
                             console.error('Could not load test history:', err);
                             historyBody.innerHTML = '<span class="history-empty is-error">Couldn\'t load your test history.</span>';
+                            historyPager.classList.add('hidden');
                         }
+                    }
+
+                    document.getElementById('history-prev').onclick = () => {
+                        if (historyPage > 0) loadHistoryPage(historyPage - 1);
                     };
+                    document.getElementById('history-next').onclick = () => loadHistoryPage(historyPage + 1);
+
+                    loadHistoryPage(0);
 
                     document.getElementById('change-pw-btn').onclick = () => {
                         passwordPanel.classList.toggle('hidden');
@@ -4230,6 +4469,30 @@ function setMode(mode, shouldReload = true) {
         if (/^\/user\/[^/]+\/?$/.test(window.location.pathname)) {
             openTab("profile");
         }
+
+        /* Wired here rather than beside the filter setup: these read ankiOrder and
+           FREQUENCY_FIELDS, which are declared further down with the rest of the Anki
+           code. Running earlier hit their temporal dead zone and threw, which took the
+           whole remainder of the script's initialisation with it. */
+        wireFieldSelect("anki-expression-field", "anki-expression-custom", "expression", KANJI_FIELDS);
+        wireFieldSelect("anki-meaning-field", "anki-meaning-custom", "meaning", MEANING_FIELDS);
+
+        document.querySelectorAll("#anki-order-group [data-anki-order]").forEach(btn => {
+            btn.classList.toggle("active", btn.dataset.ankiOrder === ankiOrder);
+            btn.addEventListener("click", () => {
+                ankiOrder = btn.dataset.ankiOrder;
+                localStorage.setItem("anki_type_order", ankiOrder);
+                document.querySelectorAll("#anki-order-group [data-anki-order]")
+                    .forEach(b => b.classList.toggle("active", b === btn));
+
+                const note = document.getElementById("anki-order-note");
+                note.textContent = (ankiOrder === "frequency" && !ankiFieldNames.some(f => FREQUENCY_FIELDS.includes(f)))
+                    ? "This deck has no Frequency field; cards keep their deck order."
+                    : "";
+
+                if (deckDropdown.value) loadAnkiDeck(deckDropdown.value);
+            });
+        });
 
         setSource(activeSource);
         populateDecks();

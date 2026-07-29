@@ -2692,3 +2692,113 @@ body.typing-focus .nav-brand {
     color: var(--text-muted);
     text-align: center;
 }
+
+/* ANKI FIELD MAPPING + ORDERING */
+.anki-config {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    border-top: 1px solid var(--border-color);
+    padding-top: 12px;
+}
+
+.anki-field-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.anki-field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    flex: 1 1 200px;
+    min-width: 0;
+}
+
+.anki-field span {
+    font-size: 0.62rem;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    color: var(--text-muted);
+}
+
+.anki-field select,
+.anki-field input {
+    background-color: var(--nav-bg);
+    border: 1px solid var(--border-color);
+    color: var(--text-primary);
+    padding: 7px 10px;
+    border-radius: 8px;
+    font-size: 0.8rem;
+    font-family: inherit;
+    outline: none;
+    width: 100%;
+}
+
+.anki-field select:focus,
+.anki-field input:focus {
+    border-color: var(--accent-main);
+}
+
+.anki-order {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.anki-order-label {
+    font-size: 0.62rem;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    color: var(--text-muted);
+}
+
+.anki-order-note {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+}
+
+/* TEST HISTORY, now always shown on the profile */
+.history-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.history-pager {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.history-page-btn {
+    background: transparent;
+    border: 1px solid var(--border-color);
+    color: var(--text-muted);
+    width: 22px;
+    height: 22px;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    line-height: 1;
+    font-family: inherit;
+    cursor: pointer;
+}
+
+.history-page-btn:hover:not(:disabled) {
+    color: var(--accent-main);
+    border-color: var(--accent-main);
+}
+
+.history-page-btn:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+}
+
+.history-page-label {
+    font-size: 0.68rem;
+    font-weight: 700;
+    color: var(--text-muted);
+}

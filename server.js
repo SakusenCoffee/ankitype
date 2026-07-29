@@ -436,7 +436,8 @@ app.post('/api/tokenize', async (req, res) => {
     }
 });
 
-const MAX_TEST_HISTORY = 100;
+// One page of history; the full record is kept and paged through
+const HISTORY_PAGE_SIZE = 10;
 
 // Record one completed test. The client withholds seeded and idled-out runs.
 app.post('/api/profile/history', authenticateToken, (req, res) => {
@@ -455,26 +456,25 @@ app.post('/api/profile/history', authenticateToken, (req, res) => {
         int(totalChars), int(correctChars), int(mistakes)
     );
 
-    // Keep the list bounded; it is a recent-history view, not an audit log
-    db.prepare(`
-        DELETE FROM test_history
-        WHERE user_id = ?
-          AND id NOT IN (
-              SELECT id FROM test_history WHERE user_id = ?
-              ORDER BY created_at DESC, id DESC LIMIT ?
-          )
-    `).run(userId, userId, MAX_TEST_HISTORY);
-
+    // Kept in full: it is the player's record, and the client pages through it
     res.json({ success: true });
 });
 
 app.get('/api/profile/history', authenticateToken, (req, res) => {
+    const limit = Math.max(1, Math.min(100, Math.round(Number(req.query.limit) || HISTORY_PAGE_SIZE)));
+    const offset = Math.max(0, Math.round(Number(req.query.offset) || 0));
+
+    const { total } = db.prepare('SELECT COUNT(*) AS total FROM test_history WHERE user_id = ?')
+        .get(req.user.id);
+
     const rows = db.prepare(`
         SELECT created_at, test_type, duration_sec, cpm, wpm, total_chars, correct_chars, mistakes
         FROM test_history WHERE user_id = ?
-        ORDER BY created_at DESC, id DESC LIMIT ?
-    `).all(req.user.id, MAX_TEST_HISTORY);
-    res.json({ history: rows });
+        ORDER BY created_at DESC, id DESC
+        LIMIT ? OFFSET ?
+    `).all(req.user.id, limit, offset);
+
+    res.json({ history: rows, total, limit, offset });
 });
 
 // Sync Playtime & Stats Endpoint (also reachable via sendBeacon on tab-hide/close)
