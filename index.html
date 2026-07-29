@@ -391,14 +391,16 @@
                 </div>
                 <input type="range" id="row-count-slider" min="1" max="5" step="1" value="3" class="font-slider" />
             </div>
-            <!-- The top of the range is "auto", which is the natural wrapping the row
-                 always used; every other stop pins the row to that many words. -->
+            <!-- One word centred at the bottom, as many as reach across the area at the
+                 top. The max is measured against the words on screen at the current font
+                 size, so these bounds are replaced as soon as there is anything to
+                 measure; the ones here are only what the control opens with. -->
             <div class="selector-container full-width">
                 <div class="slider-label-row">
                     <label for="words-per-row-slider">WORDS PER ROW</label>
-                    <span class="slider-val-display" id="words-per-row-val">auto</span>
+                    <span class="slider-val-display" id="words-per-row-val">fits</span>
                 </div>
-                <input type="range" id="words-per-row-slider" min="1" max="16" step="1" value="16" class="font-slider" />
+                <input type="range" id="words-per-row-slider" min="1" max="10" step="1" value="10" class="font-slider" />
             </div>
             <div class="selector-container full-width">
                 <label>LIVE INPUT BOX</label>
@@ -1164,25 +1166,53 @@
             applyRowCount();
         });
 
-        /* How many words a row holds. "auto" is the natural wrapping the container has
-           always done; any number pins the row to that many equal columns instead.
-           Stored as the literal string "auto" so the top of the slider's range can move
-           later without silently turning into a fixed count. */
+        /* How many words a row holds. The range runs from one word, centred, up to as
+           many as actually fit — which depends on the font size and on how long the words
+           themselves are, so the top of the slider is measured rather than fixed. Sitting
+           at the top means natural wrapping, stored as the literal "auto" so the setting
+           survives a change of font size that moves where the top is. */
         const WORDS_PER_ROW_AUTO = "auto";
         let wordsPerRowSetting = localStorage.getItem("anki_type_words_per_row") || WORDS_PER_ROW_AUTO;
 
         const wordsPerRowSlider = document.getElementById("words-per-row-slider");
         const wordsPerRowVal = document.getElementById("words-per-row-val");
-        const wordsPerRowMax = parseInt(wordsPerRowSlider.max, 10);
+
+        /* The most words any one row holds when they are left to wrap on their own. Read
+           off a real natural layout rather than estimated from an average width: the
+           words vary in length, so the widest row is the honest answer to "how many fit".
+           The fixed-column layout is lifted for the measurement and put straight back. */
+        function naturalWordsPerRow() {
+            const items = wordsContainer.querySelectorAll(".word-item");
+            if (!items.length) return 1;
+
+            const hadFixed = wordsContainer.classList.contains("fixed-columns");
+            if (hadFixed) wordsContainer.classList.remove("fixed-columns");
+
+            const perRow = new Map();
+            items.forEach(el => perRow.set(el.offsetTop, (perRow.get(el.offsetTop) || 0) + 1));
+
+            if (hadFixed) wordsContainer.classList.add("fixed-columns");
+            return Math.max(1, ...perRow.values());
+        }
 
         function applyWordsPerRow() {
+            const natural = naturalWordsPerRow();
+            wordsPerRowSlider.min = "1";
+            wordsPerRowSlider.max = String(natural);
+
             const isAuto = wordsPerRowSetting === WORDS_PER_ROW_AUTO;
-            const count = isAuto ? wordsPerRowMax : (parseInt(wordsPerRowSetting, 10) || 1);
+            // A stored count above what now fits is simply the top of the range
+            const count = isAuto
+                ? natural
+                : Math.min(Math.max(parseInt(wordsPerRowSetting, 10) || 1, 1), natural);
+            const atTop = count >= natural;
 
-            wordsPerRowSlider.value = count;
-            wordsPerRowVal.textContent = isAuto ? "auto" : String(count);
+            wordsPerRowSlider.value = String(count);
+            wordsPerRowVal.textContent = atTop ? `${count} (fits)` : String(count);
 
-            wordsContainer.classList.toggle("fixed-columns", !isAuto);
+            // At the top of the range the grid would only reproduce the wrapping the
+            // container does by itself, so it is left to do it
+            wordsContainer.classList.toggle("fixed-columns", !atTop);
             wordsContainer.style.setProperty("--words-per-row", count);
 
             // The row height is measured off the rendered words, and the column count
@@ -1192,7 +1222,8 @@
 
         wordsPerRowSlider.addEventListener("input", (e) => {
             const raw = parseInt(e.target.value, 10);
-            wordsPerRowSetting = raw >= wordsPerRowMax ? WORDS_PER_ROW_AUTO : String(raw);
+            const natural = naturalWordsPerRow();
+            wordsPerRowSetting = raw >= natural ? WORDS_PER_ROW_AUTO : String(raw);
             localStorage.setItem("anki_type_words_per_row", wordsPerRowSetting);
             applyWordsPerRow();
             // Scrolling follows the active word's row, which has just moved
@@ -1393,7 +1424,7 @@ let currentIndex = 0;
             mainFontVal.textContent = `${mainFontSize}rem`;
             subFontVal.textContent = `${subFontSize}rem`;
             meaningFontVal.textContent = `${meaningFontSize}rem`;
-            applyRowCount();
+            applyWordsPerRow();
         }
 
         // Closes the horizontal gap between words, which for a kana test is the gap
@@ -1402,7 +1433,7 @@ let currentIndex = 0;
             document.body.classList.toggle("tight-spacing", tightSpacing);
             document.getElementById("spacing-normal-btn").classList.toggle("active", !tightSpacing);
             document.getElementById("spacing-tight-btn").classList.toggle("active", tightSpacing);
-            applyRowCount();
+            applyWordsPerRow();
         }
 
         function applyInputBoxVisibility() {
@@ -1548,7 +1579,7 @@ let currentIndex = 0;
                 if (!surface) continue;
                 if (token.pos === "記号") continue;   // punctuation and symbols
 
-                const romaji = wanakana.toRomaji(token.reading || surface).toLowerCase().trim();
+                const romaji = normalizeRomaji(wanakana.toRomaji(token.reading || surface));
 
                 if (!/^[a-z]+$/.test(romaji)) {
                     skipped++;
@@ -1838,7 +1869,7 @@ let currentIndex = 0;
         // This ensures the seed data overwrites any default words loaded by setSource
         activeWordList = seedData.map(([kanji, romaji, meaning]) => ({
             kanji,
-            romaji: romaji || wanakana.toRomaji(kanji).toLowerCase().trim(),
+            romaji: normalizeRomaji(romaji || wanakana.toRomaji(kanji)),
             meaning: meaning || "Custom Seed"
         }));
 
@@ -2295,7 +2326,7 @@ async function fetchTangoJson(level) {
 
         const parsed = data.map(item => ({
             kanji: item.kanji || item.expression || "N/A",
-            romaji: (item.romaji || wanakana.toRomaji(item.reading || item.kanji || "")).toLowerCase().trim(),
+            romaji: normalizeRomaji(item.romaji || wanakana.toRomaji(item.reading || item.kanji || "")),
             meaning: item.meaning || item.definition || "N/A"
         })).filter(word => word.romaji !== "");
 
@@ -2434,6 +2465,14 @@ function setMode(mode, shouldReload = true) {
             const parser = new DOMParser();
             const doc = parser.parseFromString(rawHtml, 'text/html');
             return doc.body.textContent || "";
+        }
+
+        /* wanakana marks the syllable boundary after ん with an apostrophe, so きんようび
+           comes back as kin'youbi. Nobody types that, and since the reading doubles as
+           the string being typed the apostrophe was a key you could never get right.
+           Both the straight and curly forms go, in case a deck typed one by hand. */
+        function normalizeRomaji(text) {
+            return String(text || "").toLowerCase().replace(/['’]/g, "").trim();
         }
 
         function getFieldValue(fields, targetKeys) {
@@ -2940,7 +2979,7 @@ function setMode(mode, shouldReload = true) {
                     : getFieldValue(fields, MEANING_FIELDS);
 
                 const cleanedRomajiText = cleanHtmlText(rawRomaji).trim();
-                const finalRomaji = wanakana.toRomaji(cleanedRomajiText).toLowerCase().trim();
+                const finalRomaji = normalizeRomaji(wanakana.toRomaji(cleanedRomajiText));
 
                 return {
                     kanji: cleanHtmlText(rawKanji || "N/A"),
@@ -2999,7 +3038,7 @@ function setMode(mode, shouldReload = true) {
                 const char = charSet[Math.floor(Math.random() * charSet.length)];
                 list.push({
                     kanji: char,
-                    romaji: wanakana.toRomaji(char).toLowerCase(),
+                    romaji: normalizeRomaji(wanakana.toRomaji(char)),
                     meaning: "Kana Character"
                 });
             }
@@ -3116,9 +3155,10 @@ function setMode(mode, shouldReload = true) {
                 wordsContainer.appendChild(buildWordNode(wordObj, idx === currentIndex));
             });
 
-            // Re-fit now that there is real geometry to measure; the row height depends
-            // on the font sizes and on whether readings/meanings are showing.
-            applyRowCount();
+            // Re-fit now that there is real geometry to measure; the row height and how
+            // many words reach across one both depend on the font sizes and on whether
+            // readings and meanings are showing.
+            applyWordsPerRow();
             updateDisplay();
         }
 
@@ -3144,7 +3184,7 @@ function setMode(mode, shouldReload = true) {
             ankiDeckCache.slice(0, DECK_PREVIEW_WORDS)
                 .forEach(wordObj => wordsContainer.appendChild(buildWordNode(wordObj, false)));
 
-            applyRowCount();
+            applyWordsPerRow();
         }
 
         function syncDeckPreview(wantPreview) {
@@ -3164,12 +3204,19 @@ function setMode(mode, shouldReload = true) {
             const romajiNode = currentWordNode.querySelector(".romaji-text");
             const charSpans = romajiNode.querySelectorAll(".char");
 
+            /* The caret only appears once the word is under way. Marking the first letter
+               before a key is pressed made a word look half-typed while it was still
+               untouched, and since a mistake empties typedInput the same rule clears it
+               again on the reset — the word goes back to looking untouched, which is what
+               it is. */
+            const started = typedInput.length > 0;
+
             charSpans.forEach((span, idx) => {
                 span.classList.remove("current", "neutral-typed");
 
                 if (idx < typedInput.length) {
                     span.classList.add("neutral-typed");
-                } else if (idx === typedInput.length) {
+                } else if (started && idx === typedInput.length) {
                     span.classList.add("current");
                 }
             });
@@ -3207,7 +3254,7 @@ function setMode(mode, shouldReload = true) {
 
             // Showing or hiding a line changes how tall a row is, so the window has to
             // be re-measured or it would clip mid-row
-            applyRowCount();
+            applyWordsPerRow();
             updateDisplay();
         }
 

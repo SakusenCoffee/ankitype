@@ -1239,11 +1239,14 @@ select:focus {
     transition: transform 0.2s ease-out;
 }
 
-/* A fixed number of words per row. Equal columns rather than natural wrapping, so the
-   count holds however long the individual words are. */
+/* A fixed number of words per row. The columns size to their own words and the group
+   is centred, so one word per row sits in the middle of the area rather than in the
+   middle of a fifth of it — equal fractions spread short words to the far corners with
+   a gulf between them. */
 .words-container.fixed-columns {
     display: grid;
-    grid-template-columns: repeat(var(--words-per-row, 6), minmax(0, 1fr));
+    grid-template-columns: repeat(var(--words-per-row, 6), auto);
+    justify-content: center;
     justify-items: center;
 }
 
