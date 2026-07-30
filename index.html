@@ -169,7 +169,7 @@
                     <input type="number" class="custom-inline-input hidden" id="custom-time-inline" min="1" inputmode="numeric" aria-label="Custom seconds" />
                 </div>
                 <!-- Which kana the pool is drawn from. Independent switches rather than a
-                     pick-one group, and both start on, so a kana test is the full set
+                     pick-one group, and all start on, so a kana test is the full set
                      unless you narrow it. Only meaningful for the kana sources, so they
                      appear and disappear with the character-count chips. -->
                 <div class="count-selector-group" id="kana-filter-group">
@@ -179,6 +179,8 @@
                     </button>
                     <button class="kana-filter-btn active" id="kana-sokuon-btn" aria-pressed="true"
                             title="The small tsu — っ. Turn off to keep double consonants out of the test.">sokuon</button>
+                    <button class="kana-filter-btn active" id="kana-youon-btn" aria-pressed="true"
+                            title="Contracted sounds written with a small ya/yu/yo — しょ, ちゃ, みょ. Turn off for single kana only.">youon</button>
                 </div>
                 <div class="count-selector-group" id="kana-count-group">
                     <button class="kana-count-btn active" data-kana-count="10">10c</button>
@@ -1297,7 +1299,7 @@
             'ット','ッカ','ッキ','ック','ッケ','ッコ','ッサ','ッス','ッセ','ッソ'
         ];
 
-        /* The pool a kana test draws from, narrowed by the two switches in the TYPE tab.
+        /* The pool a kana test draws from, narrowed by the three switches in the TYPE tab.
 
            Dakuten is found by decomposing rather than by listing the voiced kana: NFD
            splits が into か followed by U+3099, and ぱ into は followed by U+309A, so one
@@ -1307,16 +1309,25 @@
 
            The sokuon entries are the only source of a doubled consonant: each entry is a
            word of its own, so nothing doubles across the join between two of them, and
-           dropping the っ entries is enough to keep them out of the test entirely. */
+           dropping the っ entries is enough to keep them out of the test entirely.
+
+           Youon is what the small ya/yu/yo make: しょ, ちゃ, みょ. Matched on that small
+           kana rather than on the pair, so it catches all of them in both scripts, voiced
+           (ぎゃ) and not (きゃ) alike. Turning it off leaves single kana only.
+
+           The three overlap on purpose and each is asked independently — ぎゃ is both voiced
+           and a youon, so either switch alone is enough to drop it. */
         // Escaped rather than written literally: both are combining marks, so in source
         // they would attach themselves to the bracket in front of them
         const DAKUTEN_MARKS = /[\u3099\u309A]/;
-        const SOKUON_CHARS = /[っッ]/;   // っ and ッ
+        const SOKUON_CHARS = /[っッ]/;              // っ and ッ
+        const YOUON_CHARS = /[ゃゅょャュョ]/;      // the small ya, yu and yo
 
         function filterKanaSet(charSet) {
             return charSet.filter(entry =>
                 (kanaDakutenOn || !DAKUTEN_MARKS.test(entry.normalize("NFD")))
-                && (kanaSokuonOn || !SOKUON_CHARS.test(entry)));
+                && (kanaSokuonOn || !SOKUON_CHARS.test(entry))
+                && (kanaYouonOn || !YOUON_CHARS.test(entry)));
         }
 
         let masterDeckList = [];
@@ -1360,11 +1371,12 @@ let currentIndex = 0;
         let testTimeSetting = localStorage.getItem("anki_type_time_setting") || "15";
         let kanaCountSetting = localStorage.getItem("anki_type_kana_count") || "10";
 
-        /* Which kana the pool may draw from. Both default on — the full set is what a kana
+        /* Which kana the pool may draw from. All default on — the full set is what a kana
            test has always been — so the check is against "false" rather than for "true".
            A first visit, and any visit before these existed, gets the old behaviour. */
         let kanaDakutenOn = localStorage.getItem("anki_type_kana_dakuten") !== "false";
         let kanaSokuonOn = localStorage.getItem("anki_type_kana_sokuon") !== "false";
+        let kanaYouonOn = localStorage.getItem("anki_type_kana_youon") !== "false";
 
         let mainFontSize = localStorage.getItem("anki_type_main_font_size") || "2.2";
         let subFontSize = localStorage.getItem("anki_type_sub_font_size") || "1.0";
@@ -1459,6 +1471,7 @@ let currentIndex = 0;
         const kanaFilterGroup = document.getElementById("kana-filter-group");
         const kanaDakutenBtn = document.getElementById("kana-dakuten-btn");
         const kanaSokuonBtn = document.getElementById("kana-sokuon-btn");
+        const kanaYouonBtn = document.getElementById("kana-youon-btn");
         const tangoLevelGroup = document.getElementById("tango-level-group");
 
         /* Scoped to the group it belongs to. .count-btn is the shared chip look, worn by
@@ -2621,13 +2634,15 @@ function setMode(mode, shouldReload = true) {
             }
         }
 
-        /* Not paintChipGroup: these two are switches rather than one choice out of a group,
-           so each carries its own state and neither turning on clears the other. */
+        /* Not paintChipGroup: these are switches rather than one choice out of a group, so
+           each carries its own state and none of them turning on clears another. */
         function paintKanaFilters() {
-            kanaDakutenBtn.classList.toggle("active", kanaDakutenOn);
-            kanaDakutenBtn.setAttribute("aria-pressed", String(kanaDakutenOn));
-            kanaSokuonBtn.classList.toggle("active", kanaSokuonOn);
-            kanaSokuonBtn.setAttribute("aria-pressed", String(kanaSokuonOn));
+            [[kanaDakutenBtn, kanaDakutenOn],
+             [kanaSokuonBtn, kanaSokuonOn],
+             [kanaYouonBtn, kanaYouonOn]].forEach(([btn, on]) => {
+                btn.classList.toggle("active", on);
+                btn.setAttribute("aria-pressed", String(on));
+            });
         }
 
         function updateCountNavUI() {
@@ -4024,6 +4039,7 @@ function setMode(mode, shouldReload = true) {
                 kanaCount: kanaCountSetting,
                 kanaDakuten: kanaDakutenOn,
                 kanaSokuon: kanaSokuonOn,
+                kanaYouon: kanaYouonOn,
                 time: testTimeSetting,
                 zen: isZenMode,
                 guestsMayEdit: mpGuestsMayEdit,
@@ -4086,6 +4102,7 @@ function setMode(mode, shouldReload = true) {
                    read as "not sent" and quietly leave the guest's chip lit. */
                 if (cfg.kanaDakuten !== undefined) kanaDakutenOn = !!cfg.kanaDakuten;
                 if (cfg.kanaSokuon !== undefined) kanaSokuonOn = !!cfg.kanaSokuon;
+                if (cfg.kanaYouon !== undefined) kanaYouonOn = !!cfg.kanaYouon;
                 if (cfg.time) {
                     testTimeSetting = cfg.time;
                     localStorage.setItem("anki_type_time_setting", testTimeSetting);
@@ -4514,6 +4531,7 @@ function setMode(mode, shouldReload = true) {
         function applyKanaFilters() {
             localStorage.setItem("anki_type_kana_dakuten", String(kanaDakutenOn));
             localStorage.setItem("anki_type_kana_sokuon", String(kanaSokuonOn));
+            localStorage.setItem("anki_type_kana_youon", String(kanaYouonOn));
             paintKanaFilters();
             applyWordCountFilter(true);
             if (typeof mpBroadcastSettings === "function") mpBroadcastSettings();
@@ -4526,6 +4544,11 @@ function setMode(mode, shouldReload = true) {
 
         kanaSokuonBtn.addEventListener("click", () => {
             kanaSokuonOn = !kanaSokuonOn;
+            applyKanaFilters();
+        });
+
+        kanaYouonBtn.addEventListener("click", () => {
+            kanaYouonOn = !kanaYouonOn;
             applyKanaFilters();
         });
 
