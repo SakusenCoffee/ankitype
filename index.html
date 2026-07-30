@@ -60,15 +60,9 @@
                 </div>
             </div>
 
+            <!-- The four tabs that set up a test come first, then a divider, then the two
+                 that are about you rather than the run. -->
             <div class="nav-actions">
-                <button class="nav-btn" id="profile-tab-btn" title="Profile & Stats">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-                        <circle cx="12" cy="7" r="4"></circle>
-                    </svg>
-                    <span>PROFILE</span>
-                </button>
-
                 <button class="nav-btn active" id="test-options-tab-btn" title="Test Options">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <line x1="4" y1="21" x2="4" y2="14"></line>
@@ -81,7 +75,7 @@
                         <line x1="9" y1="8" x2="15" y2="8"></line>
                         <line x1="17" y1="16" x2="23" y2="16"></line>
                     </svg>
-                    <span>PLAY</span>
+                    <span>TYPE</span>
                 </button>
 
                 <button class="nav-btn" id="anki-tab-btn" title="Anki Deck Settings">
@@ -93,6 +87,11 @@
                     <span>ANKI</span>
                 </button>
 
+                <button class="nav-btn" id="seed-tab-btn" title="Seed Options">
+                    <span class="kanji-seed-icon">種</span>
+                    <span>SEED</span>
+                </button>
+
                 <button class="nav-btn" id="appearance-tab-btn" title="Customization Options">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"></path>
@@ -100,10 +99,7 @@
                     <span>CONFIG</span>
                 </button>
 
-                <button class="nav-btn" id="seed-tab-btn" title="Seed Options">
-                    <span class="kanji-seed-icon">種</span>
-                    <span>SEED</span>
-                </button>
+                <div class="nav-divider"></div>
 
                 <button class="nav-btn" id="multiplayer-tab-btn" title="Multiplayer Session">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -113,6 +109,14 @@
                         <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
                     </svg>
                     <span>MULTIPLAYER</span>
+                </button>
+
+                <button class="nav-btn" id="profile-tab-btn" title="Profile & Stats">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                        <circle cx="12" cy="7" r="4"></circle>
+                    </svg>
+                    <span>PROFILE</span>
                 </button>
             </div>
         </div>
@@ -163,6 +167,18 @@
                     <button class="time-btn" data-time="infinite" id="infinite-time-btn">infinite</button>
                     <button class="time-btn" data-time="custom" id="custom-time-btn">custom</button>
                     <input type="number" class="custom-inline-input hidden" id="custom-time-inline" min="1" inputmode="numeric" aria-label="Custom seconds" />
+                </div>
+                <!-- Which kana the pool is drawn from. Independent switches rather than a
+                     pick-one group, and both start on, so a kana test is the full set
+                     unless you narrow it. Only meaningful for the kana sources, so they
+                     appear and disappear with the character-count chips. -->
+                <div class="count-selector-group" id="kana-filter-group">
+                    <button class="kana-filter-btn active" id="kana-dakuten-btn" aria-pressed="true"
+                            title="Voiced and semi-voiced kana — が, ぱ. Turn off for the plain set only.">
+                        <span class="kana-filter-mark">゛゜</span>
+                    </button>
+                    <button class="kana-filter-btn active" id="kana-sokuon-btn" aria-pressed="true"
+                            title="The small tsu — っ. Turn off to keep double consonants out of the test.">sokuon</button>
                 </div>
                 <div class="count-selector-group" id="kana-count-group">
                     <button class="kana-count-btn active" data-kana-count="10">10c</button>
@@ -453,7 +469,7 @@
 
                     <div class="mp-members" id="mp-members"></div>
 
-                    <!-- The PLAY chips are moved in here for the duration of a session,
+                    <!-- The TYPE chips are moved in here for the duration of a session,
                          rather than duplicated, so there is only ever one set of controls
                          and one piece of state behind them. -->
                     <div class="mp-options-slot" id="mp-options-slot"></div>
@@ -1239,7 +1255,7 @@
         });
 
         /* On the wrapper as well as on the words themselves, so the gaps between them
-           and the empty space under the last row lead back to PLAY too — the block is
+           and the empty space under the last row lead back to TYPE too — the block is
            meant to read as one target. No-op once typing is live. */
         wordsWrapper.addEventListener("click", () => { enterPlayFromPreview(); });
         const KANJI_FIELDS = ["Expression", "Kanji", "Word", "Japanese", "Vocabulary-Kanji", "Front"];
@@ -1265,6 +1281,28 @@
             'リョ','ギャ','ギュ','ギョ','ジャ','ジュ','ジョ','ビャ','ビュ','ビョ','ピャ','ピュ','ピョ','ッテ',
             'ット','ッカ','ッキ','ック','ッケ','ッコ','ッサ','ッス','ッセ','ッソ'
         ];
+
+        /* The pool a kana test draws from, narrowed by the two switches in the TYPE tab.
+
+           Dakuten is found by decomposing rather than by listing the voiced kana: NFD
+           splits が into か followed by U+3099, and ぱ into は followed by U+309A, so one
+           test covers both marks, both scripts, and the digraphs (ぎゃ, ぴょ) that would
+           otherwise each need their own entry. Listing them by hand is how that list ends
+           up missing one.
+
+           The sokuon entries are the only source of a doubled consonant: each entry is a
+           word of its own, so nothing doubles across the join between two of them, and
+           dropping the っ entries is enough to keep them out of the test entirely. */
+        // Escaped rather than written literally: both are combining marks, so in source
+        // they would attach themselves to the bracket in front of them
+        const DAKUTEN_MARKS = /[\u3099\u309A]/;
+        const SOKUON_CHARS = /[っッ]/;   // っ and ッ
+
+        function filterKanaSet(charSet) {
+            return charSet.filter(entry =>
+                (kanaDakutenOn || !DAKUTEN_MARKS.test(entry.normalize("NFD")))
+                && (kanaSokuonOn || !SOKUON_CHARS.test(entry)));
+        }
 
         let masterDeckList = [];
 let ankiDeckCache = [];
@@ -1294,8 +1332,24 @@ let currentIndex = 0;
         if (activeSource === "anki") activeSource = "tango"; // legacy alias
         let activeTangoLevel = localStorage.getItem("anki_type_tango_level") || "anki";
         let wordCountSetting = localStorage.getItem("anki_type_word_count") || "max";
+        /* Until the chip selectors were scoped, every chip in the document carried the
+           word-count handler, so choosing an Anki ordering or a word spacing stored the
+           string "undefined" here. It is non-empty, so it survives the `||` above and a
+           reload with it — and the "custom" chip then wears it as its label. Anyone who
+           still has it gets the default back, written through so it goes for good rather
+           than being corrected again on every load. */
+        if (wordCountSetting === "undefined") {
+            wordCountSetting = "max";
+            localStorage.setItem("anki_type_word_count", wordCountSetting);
+        }
         let testTimeSetting = localStorage.getItem("anki_type_time_setting") || "15";
         let kanaCountSetting = localStorage.getItem("anki_type_kana_count") || "10";
+
+        /* Which kana the pool may draw from. Both default on — the full set is what a kana
+           test has always been — so the check is against "false" rather than for "true".
+           A first visit, and any visit before these existed, gets the old behaviour. */
+        let kanaDakutenOn = localStorage.getItem("anki_type_kana_dakuten") !== "false";
+        let kanaSokuonOn = localStorage.getItem("anki_type_kana_sokuon") !== "false";
 
         let mainFontSize = localStorage.getItem("anki_type_main_font_size") || "2.2";
         let subFontSize = localStorage.getItem("anki_type_sub_font_size") || "1.0";
@@ -1387,9 +1441,18 @@ let currentIndex = 0;
         const wordOptionsGroup = document.getElementById("word-options-group");
         const timeOptionsGroup = document.getElementById("time-options-group");
         const kanaCountGroup = document.getElementById("kana-count-group");
+        const kanaFilterGroup = document.getElementById("kana-filter-group");
+        const kanaDakutenBtn = document.getElementById("kana-dakuten-btn");
+        const kanaSokuonBtn = document.getElementById("kana-sokuon-btn");
         const tangoLevelGroup = document.getElementById("tango-level-group");
 
-        const countBtns = document.querySelectorAll(".count-btn");
+        /* Scoped to the group it belongs to. .count-btn is the shared chip look, worn by
+           the ANKI ordering chips and the CONFIG word-spacing pair as well as the word
+           counts, and this collected all of them: painting the word-count group stripped
+           the highlight off the other two — which is why word spacing came up with neither
+           option lit — and every chip in the document got a word-count click handler, so
+           choosing an Anki ordering or a spacing set the word count to undefined. */
+        const countBtns = document.querySelectorAll("#word-options-group .count-btn");
         const timeBtns = document.querySelectorAll(".time-btn");
         const kanaCountBtns = document.querySelectorAll(".kana-count-btn");
         const tangoLevelBtns = document.querySelectorAll(".tango-level-btn");
@@ -1695,14 +1758,14 @@ let currentIndex = 0;
            CONFIG shows it so appearance changes can be judged against real words, SEED
            shows what is about to be shared, ANKI shows what the selected deck and field
            mapping actually produce, and MULTIPLAYER shows the room what it is about to
-           race — but only PLAY takes keystrokes, so none of them can quietly run a test
+           race — but only TYPE takes keystrokes, so none of them can quietly run a test
            down while somebody is adjusting settings. */
         const TABS_SHOWING_TEST = ["test-options", "appearance", "seed", "anki", "multiplayer"];
 
         // Shown in place of the typing hints while the words are only a preview
         const TYPING_HINT_DEFAULT =
             "<span>[TAB] TOGGLE ROMAJI READINGS</span> • <span>[CLICK WORD] SHOW MEANING</span>";
-        const PREVIEW_HINT = "<span>[CLICK THE WORDS] GO TO PLAY AND START TYPING</span>";
+        const PREVIEW_HINT = "<span>[CLICK THE WORDS] GO TO TYPE AND START TYPING</span>";
         const LOBBY_HINT = "<span>THE ROOM RACES THIS — THE HOST STARTS IT</span>";
 
         function anyDrawerOpen() {
@@ -1711,7 +1774,7 @@ let currentIndex = 0;
                 .some(d => d && !d.classList.contains("hidden"));
         }
 
-        /* Which drawer is actually on screen. In a room PLAY opens the multiplayer panel
+        /* Which drawer is actually on screen. In a room TYPE opens the multiplayer panel
            instead of its own, so the tab that was clicked and the panel you are looking
            at are not always the same thing, and it is the panel that decides what the
            words below it are for. */
@@ -1786,7 +1849,7 @@ let currentIndex = 0;
         }
 
         /* A preview is one big button back to the test: clicking the words leaves the
-           settings tab and drops you into PLAY with whatever is currently selected,
+           settings tab and drops you into TYPE with whatever is currently selected,
            rather than making you find the tab yourself.
 
            From ANKI it also switches the word source over, since the whole point of
@@ -1823,7 +1886,7 @@ let currentIndex = 0;
                 "multiplayer": multiplayerDrawer
             };
 
-            // In a room PLAY never opens; multiplayer stands in for it
+            // In a room TYPE never opens; multiplayer stands in for it
             let target = tabName;
             if (typeof mpInSession === "function" && mpInSession() && tabName === "test-options") {
                 target = "multiplayer";
@@ -1831,6 +1894,19 @@ let currentIndex = 0;
 
             const next = drawers[target] || null;
             const open = Object.values(drawers).find(d => !d.classList.contains("hidden"));
+
+            /* Leaving the panel the workshop is driven from closes the workshop. It used to
+               stay open underneath whatever you opened next, which left the site in two
+               states at once — PROFILE on screen with the workshop's editor behind it, and
+               no way back to the test but to find the "workshop" chip and click it off.
+               Exiting restores the mode and source you had before, exactly as clicking
+               another mode chip does. The text is untouched: the editor is only hidden, so
+               it is still there when you come back.
+
+               Asked of the DOM rather than by naming the tab, because in a room the mode
+               chips are physically moved into the multiplayer panel — so the tab that owns
+               the workshop is whichever one currently holds the chip that opens it. */
+            if (isZenMode && !(next && next.contains(modeZenBtn))) toggleZenMode();
 
             // The highlight moves at once; only the panels are eased
             if (open && open !== next) {
@@ -2458,6 +2534,7 @@ function applyOptionGroupVisibility() {
         wordOptionsGroup.classList.add("hidden");
         timeOptionsGroup.classList.add("hidden");
         kanaCountGroup.classList.add("hidden");
+        kanaFilterGroup.classList.add("hidden");
         tangoLevelGroup.classList.add("hidden");
         return;
     }
@@ -2465,6 +2542,8 @@ function applyOptionGroupVisibility() {
     wordOptionsGroup.classList.toggle("hidden", activeMode !== "words");
     timeOptionsGroup.classList.toggle("hidden", activeMode !== "time");
     kanaCountGroup.classList.toggle("hidden", !isKanaSource);
+    // The kana switches narrow the kana pool, so they belong wherever its count does
+    kanaFilterGroup.classList.toggle("hidden", !isKanaSource);
     tangoLevelGroup.classList.toggle("hidden", isKanaSource);
 }
 
@@ -2522,11 +2601,21 @@ function setMode(mode, shouldReload = true) {
             }
         }
 
+        /* Not paintChipGroup: these two are switches rather than one choice out of a group,
+           so each carries its own state and neither turning on clears the other. */
+        function paintKanaFilters() {
+            kanaDakutenBtn.classList.toggle("active", kanaDakutenOn);
+            kanaDakutenBtn.setAttribute("aria-pressed", String(kanaDakutenOn));
+            kanaSokuonBtn.classList.toggle("active", kanaSokuonOn);
+            kanaSokuonBtn.setAttribute("aria-pressed", String(kanaSokuonOn));
+        }
+
         function updateCountNavUI() {
             closeCustomChipEditors();
 
             if (activeSource === "hiragana" || activeSource === "katakana") {
                 paintChipGroup(kanaCountBtns, customKanaBtn, "kanaCount", kanaCountSetting);
+                paintKanaFilters();
             }
 
             if (activeMode === "words") {
@@ -3275,7 +3364,8 @@ function setMode(mode, shouldReload = true) {
             if (activeSource === "hiragana" || activeSource === "katakana") {
                 const qty = parseInt(kanaCountSetting, 10) || 25;
                 if (reshuffle || currentSessionDeck.length === 0) {
-                    const charSet = (activeSource === "hiragana") ? HIRAGANA_CHARS : KATAKANA_CHARS;
+                    const charSet = filterKanaSet(
+                        (activeSource === "hiragana") ? HIRAGANA_CHARS : KATAKANA_CHARS);
                     // Generate a large pool of kana once per session so it can be resized safely
                     currentSessionDeck = generateKanaList(charSet, Math.max(qty, 500));
                 }
@@ -3360,7 +3450,7 @@ function setMode(mode, shouldReload = true) {
             wordNode.appendChild(meaningNode);
 
             wordNode.addEventListener("click", () => {
-                // Outside PLAY a click is the way back to typing, not a meaning toggle
+                // Outside TYPE a click is the way back to typing, not a meaning toggle
                 if (enterPlayFromPreview()) return;
                 showMeaning = !showMeaning;
                 updateVisibility();
@@ -3432,7 +3522,7 @@ function setMode(mode, shouldReload = true) {
             renderPreviewWords(
                 mine ? activeWordList : mpRoomPreview,
                 mpState.isHost
-                    ? "Pick a test in PLAY and the room will see it here."
+                    ? "Pick a test in TYPE and the room will see it here."
                     : "Waiting for the host to pick a test...");
         }
 
@@ -3515,7 +3605,7 @@ function setMode(mode, shouldReload = true) {
         window.addEventListener("keydown", (e) => {
             if (isZenMode) return;
             if (e.target.tagName === "INPUT" || e.target.tagName === "SELECT" || e.target.tagName === "TEXTAREA") return;
-            // Only PLAY takes typing; elsewhere the test isn't on screen to type into
+            // Only TYPE takes typing; elsewhere the test isn't on screen to type into
             if (!testAreaIsLive()) return;
 
             // While the results are up, Enter and Tab dismiss them. Handled before
@@ -3624,7 +3714,7 @@ function setMode(mode, shouldReload = true) {
 
         /* ---- Multiplayer -------------------------------------------------------------
            The server relays; it never decides what the words are. The host builds a seed
-           from whatever it has set up in PLAY and that seed is what travels, so everyone
+           from whatever it has set up in TYPE and that seed is what travels, so everyone
            races the identical list in the identical order — the same mechanism the SEED
            tab already uses, rather than a second way of describing a test. */
 
@@ -3775,7 +3865,7 @@ function setMode(mode, shouldReload = true) {
 
         /* ---- Host control ---------------------------------------------------------
            The room races whatever the host has set up, so in a session only the host may
-           touch the PLAY controls and the workshop text. Everyone else sees the host's
+           touch the TYPE controls and the workshop text. Everyone else sees the host's
            choices arrive live and their own controls locked. Enforcement is cosmetic on
            purpose: the seed the host sends is still the single source of truth for what
            is actually raced, so a guest fiddling with their own DOM changes nothing. */
@@ -3834,7 +3924,7 @@ function setMode(mode, shouldReload = true) {
         /* ---- Session chrome ---------------------------------------------------------
            While a room is open the app is "in multiplayer" regardless of which drawer is
            showing: the tab stays lit, the roster of round avatars stays on screen waiting
-           for the next race, and PLAY is folded away because its controls have physically
+           for the next race, and TYPE is folded away because its controls have physically
            moved into the multiplayer drawer. Moving them rather than copying them means
            there is still exactly one set of chips and one piece of state behind them. */
 
@@ -3912,6 +4002,8 @@ function setMode(mode, shouldReload = true) {
                 tangoLevel: activeTangoLevel,
                 wordCount: wordCountSetting,
                 kanaCount: kanaCountSetting,
+                kanaDakuten: kanaDakutenOn,
+                kanaSokuon: kanaSokuonOn,
                 time: testTimeSetting,
                 zen: isZenMode,
                 guestsMayEdit: mpGuestsMayEdit,
@@ -3969,6 +4061,11 @@ function setMode(mode, shouldReload = true) {
                     kanaCountSetting = cfg.kanaCount;
                     localStorage.setItem("anki_type_kana_count", kanaCountSetting);
                 }
+                /* Compared against undefined, not truthiness: these are booleans, and a
+                   host who has switched one off is sending false, which a plain if would
+                   read as "not sent" and quietly leave the guest's chip lit. */
+                if (cfg.kanaDakuten !== undefined) kanaDakutenOn = !!cfg.kanaDakuten;
+                if (cfg.kanaSokuon !== undefined) kanaSokuonOn = !!cfg.kanaSokuon;
                 if (cfg.time) {
                     testTimeSetting = cfg.time;
                     localStorage.setItem("anki_type_time_setting", testTimeSetting);
@@ -4389,6 +4486,27 @@ function setMode(mode, shouldReload = true) {
         kanaCountBtns.forEach(btn => {
             if (btn === customKanaBtn) return;
             btn.addEventListener("click", () => applyKanaCount(btn.dataset.kanaCount));
+        });
+
+        /* Narrowing the pool has to rebuild it, not just re-slice it — hence the reshuffle,
+           where changing the character count deliberately keeps the same pool. Anything
+           already on screen was drawn from the old set, so the test restarts. */
+        function applyKanaFilters() {
+            localStorage.setItem("anki_type_kana_dakuten", String(kanaDakutenOn));
+            localStorage.setItem("anki_type_kana_sokuon", String(kanaSokuonOn));
+            paintKanaFilters();
+            applyWordCountFilter(true);
+            if (typeof mpBroadcastSettings === "function") mpBroadcastSettings();
+        }
+
+        kanaDakutenBtn.addEventListener("click", () => {
+            kanaDakutenOn = !kanaDakutenOn;
+            applyKanaFilters();
+        });
+
+        kanaSokuonBtn.addEventListener("click", () => {
+            kanaSokuonOn = !kanaSokuonOn;
+            applyKanaFilters();
         });
 
         wireCustomChip(customCountBtn, customCountInline, ["10", "25", "50", "100", "max"],

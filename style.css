@@ -316,6 +316,17 @@ body {
 .nav-actions {
     display: flex;
     gap: 8px;
+    align-items: center;
+}
+
+/* Separates the tabs that set up a test from the two that don't. Same rule as the one
+   between the option chips, sized to the taller buttons up here. */
+.nav-divider {
+    width: 1px;
+    height: 20px;
+    margin: 0 2px;
+    background-color: var(--border-color);
+    flex-shrink: 0;
 }
 
 .nav-btn {
@@ -491,7 +502,7 @@ body {
    as selected at once — and because switching a source also rebuilds the word list, the
    delayed paint turned that overlap into a flash of the old choice. Only border-color
    eases now; the highlight itself is instant. */
-.mode-btn, .source-btn, .count-btn, .time-btn, .kana-count-btn, .tango-level-btn {
+.mode-btn, .source-btn, .count-btn, .time-btn, .kana-count-btn, .tango-level-btn, .kana-filter-btn {
     background: transparent;
     border: none;
     color: var(--text-muted);
@@ -503,13 +514,33 @@ body {
     transition: border-color 0.2s ease;
 }
 
-.mode-btn:hover, .source-btn:hover, .count-btn:hover, .time-btn:hover, .kana-count-btn:hover, .tango-level-btn:hover {
+.mode-btn:hover, .source-btn:hover, .count-btn:hover, .time-btn:hover, .kana-count-btn:hover, .tango-level-btn:hover, .kana-filter-btn:hover {
     color: var(--text-primary);
 }
 
-.mode-btn.active, .source-btn.active, .count-btn.active, .time-btn.active, .kana-count-btn.active, .tango-level-btn.active {
+.mode-btn.active, .source-btn.active, .count-btn.active, .time-btn.active, .kana-count-btn.active, .tango-level-btn.active, .kana-filter-btn.active {
     background-color: var(--accent-main);
     color: var(--bg-color);
+}
+
+/* The dakuten switch is labelled with the marks themselves rather than a word. Both glyphs
+   sit at the very top of their em box — they are designed to ride above a kana, not to
+   stand alone — so at chip size they land against the cap line and read as stray
+   punctuation. Enlarged, spaced apart, and pushed down into the middle of the chip so the
+   pair reads as one label level with "sokuon" next to it. */
+.kana-filter-mark {
+    font-size: 1.4rem;
+    line-height: 1;
+    letter-spacing: 2px;
+    display: inline-block;
+    transform: translateY(0.16em);
+}
+
+/* Same optical centring cost as the marks: without it the chip grows to fit a glyph that
+   is mostly empty space above the marks. */
+#kana-dakuten-btn {
+    padding-top: 2px;
+    padding-bottom: 2px;
 }
 
 .mode-btn:disabled,
