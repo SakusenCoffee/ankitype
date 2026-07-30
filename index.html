@@ -1351,6 +1351,11 @@ let currentSessionDeck = []; // Add this to store the unshuffled test session
 let activeWordList = [];
 let currentIndex = 0;
 
+/* Kana typed toward the syllable in progress but not yet spelling a whole one — き while
+   waiting to see whether ょ follows. Romaji progress only moves on a completed syllable, so
+   this is the part of the current unit that has no letters to show for it yet. */
+let kanaPartial = "";
+
         let totalScore = 0;
         let showRomaji = false;
         let showMeaning = false;
@@ -1443,6 +1448,70 @@ let currentIndex = 0;
         function isKanji(ch) { return /[\u4e00-\u9faf\u3400-\u4dbf]/.test(ch); }
         function isHiragana(ch) { return /[\u3040-\u309f]/.test(ch); }
         function isKatakana(ch) { return /[\u30a0-\u30ff]/.test(ch); }
+
+        /* ---- Typing with a kana keyboard ---------------------------------------------
+           The test expects romaji, but a kana layout or a Japanese IME sends the syllable
+           itself — ね, not n then e — so those keystrokes have to be accepted as spelling
+           the same word. Matching is done in kana rather than by translating each keypress
+           to letters, because the letters don't line up: き is "ki" and ょ is "yo", but
+           きょ is "kyo", so translating them one at a time would spell "kiyo" and fail.
+
+           The word is therefore split into typing units — a base kana with any small
+           ya/yu/yo that follows it, and a sokuon with the kana it doubles — each of which
+           is exactly one romaji syllable. A unit's keystrokes are counted off in kana, and
+           the romaji progress moves a whole syllable at a time as each unit completes. */
+        const SMALL_KANA = /[\u3083\u3085\u3087\u3041\u3043\u3045\u3047\u3049\u308e\u30e3\u30e5\u30e7\u30a1\u30a3\u30a5\u30a7\u30a9\u30ee]/;
+        const SOKUON_KANA = /[\u3063\u30c3]/;
+
+        // Katakana and hiragana run in the same order 0x60 apart, so one is the other
+        // shifted. Comparing in hiragana is what lets either script clear either word.
+        function toHiraganaKey(ch) {
+            return ch.replace(/[\u30a1-\u30f6]/g, c => String.fromCharCode(c.charCodeAt(0) - 0x60));
+        }
+
+        function isKanaKey(ch) { return ch.length === 1 && (isHiragana(ch) || isKatakana(ch)); }
+
+        /* Built once per word and kept on a WeakMap rather than on the word itself: the Anki
+           deck cache hands out the same word objects on every reorder, and they also travel
+           into seeds, so they are left exactly as they were.
+
+           Null means this word can't be typed in kana \u2014 the units didn't reproduce its
+           romaji, so something about it doesn't round-trip and romaji stays the only way in.
+           Better than guessing and rejecting correct keystrokes. */
+        const kanaUnitCache = new WeakMap();
+
+        function kanaUnitsFor(word) {
+            if (kanaUnitCache.has(word)) return kanaUnitCache.get(word);
+
+            let units = null;
+            try {
+                const glyphs = [...word.kanji];
+                // A kana test already shows the kana; anything else is read from the romaji
+                const kana = glyphs.length && glyphs.every(g => isHiragana(g) || isKatakana(g))
+                    ? word.kanji
+                    : wanakana.toKana(word.romaji);
+
+                const chars = [...toHiraganaKey(kana)];
+                const built = [];
+                let i = 0;
+                while (i < chars.length) {
+                    let unit = chars[i++];
+                    if (SOKUON_KANA.test(unit) && i < chars.length) unit += chars[i++];
+                    while (i < chars.length && SMALL_KANA.test(chars[i])) unit += chars[i++];
+                    built.push({ kana: unit, romaji: normalizeRomaji(wanakana.toRomaji(unit)) });
+                }
+
+                // Only usable if the pieces really do spell the word being typed
+                if (built.length && built.map(u => u.romaji).join("") === word.romaji) {
+                    units = built;
+                }
+            } catch (err) {
+                console.error("Could not derive kana units:", err);
+            }
+
+            kanaUnitCache.set(word, units);
+            return units;
+        }
 
         const statusEl = document.getElementById("status");
         const ankiWarningEl = document.getElementById("anki-warning");
@@ -1598,7 +1667,8 @@ let currentIndex = 0;
             "感動詞": "Interjection",
             "接頭詞": "Prefix",
             "フィラー": "Filler",
-            "その他": "Other"
+            "その他": "Other",
+            "記号": "Punctuation"
         };
 
         let meaningLookupPromise = null;
@@ -1686,8 +1756,41 @@ let currentIndex = 0;
             return (await res.json()).tokens || [];
         }
 
-        // Splits workshop text into typable words. Entries whose reading can't be resolved
-        // to plain romaji are dropped: an untypable word would stall the test outright.
+        /* Japanese punctuation has no reading to romanise, so it is typed as the ASCII key
+           that stands for it. Without this the choice was between dropping every comma and
+           full stop out of a pasted subtitle, or keeping a word nobody could type. */
+        const PUNCT_TO_KEY = {
+            "、": ",", "，": ",", "。": ".", "．": ".", "・": "/",
+            "！": "!", "？": "?", "：": ":", "；": ";",
+            "「": '"', "」": '"', "『": '"', "』": '"', "”": '"', "“": '"',
+            "’": "'", "‘": "'", "（": "(", "）": ")", "〈": "<", "〉": ">",
+            "《": "<", "》": ">", "【": "[", "】": "]", "〔": "[", "〕": "]",
+            "ー": "-", "―": "-", "–": "-", "—": "-", "〜": "~", "～": "~",
+            "…": "...", "‥": "..", "　": " ", "／": "/", "＼": "\\", "％": "%",
+            "＆": "&", "＃": "#", "＠": "@", "＊": "*", "＋": "+", "＝": "="
+        };
+
+        // Every key the matcher can actually see: it reads e.key, one printable character
+        // at a time, lowercased
+        const TYPABLE_ASCII = /^[ -~]+$/;
+
+        /* What has to be pressed to clear a token that is not a Japanese word. Full-width
+           forms fold to ASCII, letters are lowercased — the matcher lowercases every
+           keystroke, so an uppercase expectation could never be met — and punctuation goes
+           through the map above. */
+        function typableSurface(surface) {
+            let out = "";
+            for (const ch of surface) {
+                out += (PUNCT_TO_KEY[ch] !== undefined) ? PUNCT_TO_KEY[ch] : ch.normalize("NFKC");
+            }
+            return out.toLowerCase();
+        }
+
+        /* Splits workshop text into typable words. Nothing is thrown away for not being a
+           Japanese word: punctuation, digits and Latin text are all part of the text you
+           pasted, so they are kept and made typable rather than quietly deleted. Only a
+           token that still has no reachable key after that is dropped, which in practice
+           means an emoji or a character the ASCII keyboard cannot express at all. */
         async function tokenizeWorkshopText(text) {
             // Meanings are a nicety, so a failed lookup must not sink the whole seed
             const [tokens, lookup] = await Promise.all([
@@ -1702,11 +1805,14 @@ let currentIndex = 0;
             for (const token of tokens) {
                 const surface = (token.surface || "").trim();
                 if (!surface) continue;
-                if (token.pos === "記号") continue;   // punctuation and symbols
 
+                /* A reading that romanises to plain letters is a Japanese word and is typed
+                   that way. Anything else — a symbol, a number, an English word — is typed
+                   as itself. */
                 const romaji = normalizeRomaji(wanakana.toRomaji(token.reading || surface));
+                const typed = /^[a-z]+$/.test(romaji) ? romaji : typableSurface(surface);
 
-                if (!/^[a-z]+$/.test(romaji)) {
+                if (!TYPABLE_ASCII.test(typed)) {
                     skipped++;
                     continue;
                 }
@@ -1715,7 +1821,7 @@ let currentIndex = 0;
 
                 entries.push([
                     surface,
-                    romaji,
+                    typed,
                     meaning || POS_LABELS[token.pos] || "Workshop Custom Text"
                 ]);
             }
@@ -2050,6 +2156,7 @@ let currentIndex = 0;
         // 3. Reset test variables and render
         currentIndex = 0;
         typedInput = [];
+        kanaPartial = "";
         totalScore = 0;
         scoreEl.textContent = totalScore;
         totalTypedChars = 0;
@@ -2421,7 +2528,13 @@ let currentIndex = 0;
                spelling is the honest count, and since every glyph is the same script
                there is nothing to attribute. Mixed entries stay per-character — a kanji's
                reading isn't in the glyph, so its share of the keystrokes can't be told
-               apart from the okurigana around it. */
+               apart from the okurigana around it.
+
+               Only kana and kanji reach the counters. Workshop text carries whatever was in
+               the file — punctuation, a stray hyphen, a line of English — and those are
+               typed like everything else but they are not Japanese you have practised, so
+               crediting them would have inflated the profile with the parts of a subtitle
+               that were never the point. */
             const chars = [...wordObj.kanji];
             const keystrokes = wordObj.romaji.length;
 
@@ -2433,10 +2546,11 @@ let currentIndex = 0;
                 stats.totalChars += keystrokes;
             } else {
                 for (const char of chars) {
-                    stats.totalChars++;
                     if (isKanji(char)) stats.kanjiCount++;
                     else if (isHiragana(char)) stats.hiraganaCount++;
                     else if (isKatakana(char)) stats.katakanaCount++;
+                    else continue;
+                    stats.totalChars++;
                 }
             }
             localStorage.setItem("anki_type_stats", JSON.stringify(stats));
@@ -3450,6 +3564,7 @@ function setMode(mode, shouldReload = true) {
 
             currentIndex = 0;
             typedInput = [];
+            kanaPartial = "";
             totalScore = 0;
             scoreEl.textContent = totalScore;
             totalTypedChars = 0;
@@ -3687,7 +3802,11 @@ function setMode(mode, shouldReload = true) {
             const currentWord = activeWordList[currentIndex];
 
             if (e.key === "Backspace") {
-                if (typedInput.length > 0) {
+                // The half-finished syllable goes first: it is the most recent thing typed
+                if (kanaPartial) {
+                    kanaPartial = kanaPartial.slice(0, -1);
+                    updateDisplay();
+                } else if (typedInput.length > 0) {
                     typedInput.pop();
                     updateDisplay();
                 }
@@ -3698,11 +3817,9 @@ function setMode(mode, shouldReload = true) {
 
             onUserActiveTyping();
 
-            const keyTyped = e.key.toLowerCase();
-            const expectedChar = currentWord.romaji[typedInput.length];
-
-            if (keyTyped === expectedChar) {
-                typedInput.push(keyTyped);
+            // One accepted keypress, however many letters of the word it spelled
+            const acceptKeypress = (letters) => {
+                letters.forEach(ch => typedInput.push(ch));
                 correctKeystrokes++;
                 if (isMultiplayerRace) mpReportProgress();
 
@@ -3720,6 +3837,7 @@ function setMode(mode, shouldReload = true) {
 
                     currentIndex++;
                     typedInput = [];
+                    kanaPartial = "";
                     // forced past the throttle, so a completed word always lands
                     if (isMultiplayerRace) mpReportProgress(true);
 
@@ -3732,15 +3850,72 @@ function setMode(mode, shouldReload = true) {
                         finishTest();
                     }
                 }
-            } else {
+            };
+
+            const registerMistake = () => {
                 const activeCard = wordsContainer.children[currentIndex];
                 activeCard.classList.add("error-wipe");
                 setTimeout(() => activeCard.classList.remove("error-wipe"), 250);
                 typedInput = [];
+                kanaPartial = "";
                 mistakesSession++;
                 if (isTestActive) {
                     errorMarks.push({ t: (Date.now() - testStartTime) / 1000 });
                 }
+            };
+
+            /* A kana key spells a whole syllable at once, so it is counted off against the
+               word's kana rather than against its letters. Compared in hiragana, which is
+               what lets a katakana keyboard clear a hiragana word and the other way round. */
+            if (isKanaKey(e.key)) {
+                const units = kanaUnitsFor(currentWord);
+
+                /* The syllable the cursor is inside, not the one it starts on. Letters and
+                   kana can leave the cursor part-way through a syllable — type ね, backspace
+                   once, and two of the three positions in "ne" are gone — and demanding an
+                   exact boundary meant kana input quietly stopped working for the rest of
+                   that word. The syllable is found by span, and completing it snaps the
+                   cursor to its end, absorbing whatever letters of it were already there. */
+                let unit = null;
+                let unitStart = 0;
+                for (const u of (units || [])) {
+                    if (typedInput.length < unitStart + u.romaji.length) { unit = u; break; }
+                    unitStart += u.romaji.length;
+                }
+
+                // No kana spelling for this word at all, or the wrong kana for this position
+                if (!unit || toHiraganaKey(e.key) !== unit.kana[kanaPartial.length]) {
+                    registerMistake();
+                } else {
+                    kanaPartial += toHiraganaKey(e.key);
+                    if (kanaPartial.length === unit.kana.length) {
+                        kanaPartial = "";
+                        const upToUnitEnd = currentWord.romaji.slice(0, unitStart + unit.romaji.length);
+                        typedInput = [];
+                        acceptKeypress([...upToUnitEnd]);
+                    } else {
+                        // き with ょ still to come: correct, but no letters to show for it yet
+                        correctKeystrokes++;
+                        if (isMultiplayerRace) mpReportProgress();
+                    }
+                }
+
+                updateDisplay();
+                return;
+            }
+
+            const keyTyped = e.key.toLowerCase();
+            const expectedChar = currentWord.romaji[typedInput.length];
+
+            /* A letter arriving mid-syllable, after a kana that was waiting on its small
+               partner. The two spellings can't be interleaved inside one syllable, so this
+               is a miss — and it clears the pending kana rather than leaving it stranded. */
+            if (kanaPartial) {
+                registerMistake();
+            } else if (keyTyped === expectedChar) {
+                acceptKeypress([keyTyped]);
+            } else {
+                registerMistake();
             }
 
             updateDisplay();
