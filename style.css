@@ -2782,17 +2782,18 @@ gap: 12px;
     background: transparent;
     border: 1px solid var(--border-color);
     border-radius: 6px;
-    color: var(--text-muted);
-    font-size: 0.95rem;
+    color: var(--text-primary);
+    font-size: 1rem;
+    font-weight: 700;
     line-height: 1;
     cursor: pointer;
-    opacity: 0.75;
-    transition: opacity 0.15s ease, color 0.15s ease,
-                background-color 0.15s ease, border-color 0.15s ease;
+    transition: color 0.15s ease, background-color 0.15s ease, border-color 0.15s ease;
 }
 
+/* Reported as missing twice, at three-quarter opacity in muted grey, so it gives up on being
+   discreet: full contrast, its own outline, and a red wash the moment it is pointed at. */
 .mp-member:hover .mp-kick-btn {
-    opacity: 1;
+    border-color: var(--text-muted);
 }
 
 .mp-kick-btn:hover,
@@ -2807,6 +2808,26 @@ gap: 12px;
    where the result sat on its own before the button joined it */
 .mp-member-name {
     margin-right: auto;
+}
+
+/* A race that can't start yet. Left clickable on purpose — pressing it is how you find out
+   why — but plainly not the filled, ready button it is the rest of the time. */
+.auth-btn.is-blocked {
+    background-color: transparent;
+    border: 1px dashed var(--border-color);
+    color: var(--text-muted);
+    box-shadow: none;
+}
+
+.auth-btn.is-blocked:hover {
+    background-color: transparent;
+    border-color: var(--accent-red);
+    color: var(--accent-red);
+}
+
+/* The host's line doubles as the explanation when something is in the way */
+.mp-host-note.is-warning {
+    color: var(--accent-red);
 }
 
 .mp-confirm-overlay {

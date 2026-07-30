@@ -495,7 +495,7 @@
                     <div class="mp-options-slot" id="mp-options-slot"></div>
 
                     <div class="mp-host-bar hidden" id="mp-host-bar">
-                        <span class="mp-host-note">You are the host — what you set above is what the room races.</span>
+                        <span class="mp-host-note" id="mp-host-note">You are the host — what you set above is what the room races.</span>
                         <button class="auth-btn mp-start-btn" id="mp-start-btn">START RACE</button>
                     </div>
                     <span class="mp-guest-note hidden" id="mp-guest-note">Waiting for the host to start the race...</span>
@@ -4912,14 +4912,29 @@ function setMode(mode, shouldReload = true) {
             return null;
         }
 
-        // Greys the button out and says why, so the rule is visible before it is hit
+        const MP_HOST_NOTE = "You are the host — what you set above is what the room races.";
+
+        /* Says why a race can't start, where it can be read without doing anything.
+
+           The button used to be disabled outright, and that was worse than useless: nothing
+           in the stylesheet made a disabled button look any different, so it sat there
+           looking perfectly ready — and because browsers don't fire a click on a disabled
+           control, pressing it did nothing and explained nothing. It stays clickable, wears
+           a plainly unready look, and the host's own line carries the reason. */
         function mpUpdateStartButton() {
             const btn = document.getElementById("mp-start-btn");
+            const note = document.getElementById("mp-host-note");
             if (!btn) return;
 
             const reason = mpInSession() ? mpStartBlockedReason() : null;
-            btn.disabled = !!reason;
+
+            btn.classList.toggle("is-blocked", !!reason);
             btn.title = reason || "Start the race";
+
+            if (note) {
+                note.textContent = reason || MP_HOST_NOTE;
+                note.classList.toggle("is-warning", !!reason);
+            }
         }
 
         document.getElementById("mp-start-btn").onclick = async () => {
