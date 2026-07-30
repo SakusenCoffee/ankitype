@@ -180,7 +180,7 @@
                     <button class="time-btn" data-time="120">120s</button>
                     <button class="time-btn" data-time="infinite" id="infinite-time-btn">infinite</button>
                     <button class="time-btn" data-time="custom" id="custom-time-btn">custom</button>
-                    <input type="number" class="custom-inline-input hidden" id="custom-time-inline" min="1" inputmode="numeric" aria-label="Custom seconds" />
+                    <input type="number" class="custom-inline-input hidden" id="custom-time-inline" min="1" max="600" inputmode="numeric" aria-label="Custom seconds (up to 600)" title="Up to 600 seconds" />
                 </div>
                 <!-- Which kana the pool is drawn from. Independent switches rather than a
                      pick-one group, and all start on, so a kana test is the full set
@@ -1413,6 +1413,12 @@ let kanaPartial = "";
             localStorage.setItem("anki_type_word_count", wordCountSetting);
         }
         let testTimeSetting = localStorage.getItem("anki_type_time_setting") || "15";
+        /* A custom clock saved before there was a ceiling on it. Brought inside the limit on
+           load rather than left to sit there, since nothing else would ever revisit it. */
+        if (testTimeSetting !== "infinite" && parseInt(testTimeSetting, 10) > 600) {
+            testTimeSetting = "600";
+            localStorage.setItem("anki_type_time_setting", testTimeSetting);
+        }
         let kanaCountSetting = localStorage.getItem("anki_type_kana_count") || "10";
 
         /* Which kana the pool may draw from. All default on — the full set is what a kana
@@ -2943,6 +2949,8 @@ function setMode(mode, shouldReload = true) {
             // Every settings change lands here, so this is where the host's screen is
             // published to the room. Declared later, hence the guard.
             if (typeof mpBroadcastSettings === "function") mpBroadcastSettings();
+            // An infinite clock or a max-length list can't be raced, so the button follows
+            if (typeof mpUpdateStartButton === "function") mpUpdateStartButton();
         }
 
         /* Anki fields are HTML, so they get parsed rather than regex-stripped. Two things
@@ -4142,6 +4150,7 @@ function setMode(mode, shouldReload = true) {
         }
 
         function mpRender() {
+            mpUpdateStartButton();
             const inRoom = !!mpState.code;
             mpLobby.classList.toggle("hidden", inRoom);
             mpRoom.classList.toggle("hidden", !inRoom);
@@ -4173,41 +4182,102 @@ function setMode(mode, shouldReload = true) {
                 row.appendChild(bar);
                 row.appendChild(label);
                 row.appendChild(right);
+
+                /* The host can remove anyone but itself. Confirmed first, because the rows
+                   shuffle as people join and finish, and an accidental press would put someone
+                   out of the room with no way back in but the code. */
+                if (mpState.isHost && m.id !== mpState.youId) {
+                    const kick = document.createElement("button");
+                    kick.type = "button";
+                    kick.className = "mp-kick-btn";
+                    kick.textContent = "×";
+                    kick.title = `Remove ${m.name} from the room`;
+                    kick.setAttribute("aria-label", kick.title);
+                    kick.onclick = async (e) => {
+                        e.stopPropagation();
+                        const ok = await mpConfirm(`Remove ${m.name} from the room?`);
+                        if (!ok) return;
+                        mpSend({ type: "kick", to: m.id });
+                    };
+                    row.appendChild(kick);
+                }
+
                 mpMembers.appendChild(row);
             });
         }
 
-        // The lane is the full width minus one runner, so a runner at 100% sits against
-        // the finish line rather than half past it.
+        /* The lanes, kept between updates.
+
+           They used to be torn down and rebuilt on every progress message, and that is why the
+           runners looked choppy however long the transition was: a brand new element has no
+           previous position to ease from, so each update was a jump and the transition never
+           ran at all. The rows are built when the roster changes and only moved after that.
+
+           Moved with a transform rather than by setting left, too. A transform is handed to
+           the compositor and animates without laying the page out again on every frame, which
+           is the difference between gliding and stepping. */
+        let mpLaneNodes = new Map();
+        let mpLaneSignature = "";
+
         function mpRenderTrack() {
-            raceLanes.innerHTML = "";
+            const signature = mpState.members.map(m => `${m.id}:${m.name}:${m.avatar || ""}`).join("|");
 
+            if (signature !== mpLaneSignature) {
+                mpLaneSignature = signature;
+                mpLaneNodes = new Map();
+                raceLanes.innerHTML = "";
+
+                mpState.members.forEach(m => {
+                    const lane = document.createElement("div");
+                    lane.className = "race-lane" + (m.id === mpState.youId ? " is-you" : "");
+
+                    const runner = document.createElement("div");
+                    runner.className = "race-runner";
+
+                    const img = document.createElement("img");
+                    img.className = "race-avatar";
+                    img.src = m.avatar ? `${API_BASE}${m.avatar}` : `${API_BASE}/uploads/default.png`;
+                    img.onerror = () => { img.src = `${API_BASE}/uploads/default.png`; };
+
+                    const name = document.createElement("span");
+                    name.className = "race-name";
+                    name.textContent = m.name;
+
+                    runner.appendChild(img);
+                    runner.appendChild(name);
+                    lane.appendChild(runner);
+                    raceLanes.appendChild(lane);
+                    mpLaneNodes.set(m.id, { lane, runner });
+                });
+            }
+
+            mpUpdateRunners();
+        }
+
+        // Position only. Cheap enough to call on every progress message, which is what lets the
+        // transition on each runner do the work of making the movement continuous.
+        function mpUpdateRunners() {
             mpState.members.forEach(m => {
-                const lane = document.createElement("div");
-                lane.className = "race-lane" + (m.id === mpState.youId ? " is-you" : "");
+                const nodes = mpLaneNodes.get(m.id);
+                if (!nodes) return;
 
-                const runner = document.createElement("div");
-                runner.className = "race-runner" + (m.finished ? " is-finished" : "");
-                // Positioned against the same width the stylesheet gives the runner, so the
-                // two can't drift apart: at 100% it finishes flush with the line
-                runner.style.left =
-                    `calc((100% - var(--race-runner-width)) * ${Math.max(0, Math.min(100, m.progress || 0))} / 100)`;
+                const { lane, runner } = nodes;
+                const percent = Math.max(0, Math.min(100, m.progress || 0));
+                // The lane less one runner, so at 100% it finishes flush with the line
+                const travel = Math.max(0, lane.clientWidth - runner.offsetWidth);
 
-                const img = document.createElement("img");
-                img.className = "race-avatar";
-                img.src = m.avatar ? `${API_BASE}${m.avatar}` : `${API_BASE}/uploads/default.png`;
-                img.onerror = () => { img.src = `${API_BASE}/uploads/default.png`; };
-
-                const name = document.createElement("span");
-                name.className = "race-name";
-                name.textContent = m.name;
-
-                runner.appendChild(img);
-                runner.appendChild(name);
-                lane.appendChild(runner);
-                raceLanes.appendChild(lane);
+                runner.style.transform = `translateX(${(travel * percent) / 100}px)`;
+                // The finisher's ring belongs to a runner standing at the line, not to one that
+                // has been sent back to the start for the next race
+                runner.classList.toggle("is-finished", !!m.finished && percent > 0);
             });
         }
+
+        // A lane's width decides where every position along it falls, so a resize has to move
+        // the runners with it or they end up pointing at the wrong part of the track
+        window.addEventListener("resize", () => {
+            if (mpInSession()) mpUpdateRunners();
+        });
 
         /* Track and navbar are controlled separately. The navbar only steps aside while
            you are still typing; the moment you finish it comes back so the tabs are
@@ -4571,12 +4641,20 @@ function setMode(mode, shouldReload = true) {
                     if (!m) break;
                     m.progress = msg.progress;
                     mpRender();
-                    if (mpState.racing) mpRenderTrack();
+                    mpUpdateRunners();
                     break;
                 }
 
                 case "start":
                     mpBeginRace(msg);
+                    break;
+
+                /* Sent just before the seat is taken away, so this arrives while the room is
+                   still known and can say what happened. Without it the socket simply stops
+                   being in a room, which reads as the connection having failed. */
+                case "kicked":
+                    mpEndSession({ notify: false });
+                    mpSetStatus(mpStatus, "The host removed you from the room.", true);
                     break;
 
                 case "raceover":
@@ -4801,7 +4879,53 @@ function setMode(mode, shouldReload = true) {
         mpCodeEl.onclick = mpCopyCode;
         mpCodeEl.title = "Copy the room code";
 
+        /* What has to be true before a race can be started. Kept in one place because the
+           button is checked against it on press and greyed out by it between times, and the
+           two must not be able to disagree. */
+        function mpStartBlockedReason() {
+            if (!mpState.isHost) return "Only the host can start a race.";
+
+            // A result on screen means somebody is still reading their last race
+            if (resultModal && !resultModal.classList.contains("hidden")) {
+                return "Close the result first.";
+            }
+
+            /* Starting over the top of a race in progress would pull the words out from under
+               whoever is still typing and reset their run mid-word. */
+            const unfinished = mpState.members.filter(m => !m.finished);
+            if (mpState.racing && unfinished.length) {
+                const who = unfinished.length === 1
+                    ? `${unfinished[0].name} is`
+                    : `${unfinished.length} players are`;
+                return `${who} still racing.`;
+            }
+
+            /* A race has to be able to end. An infinite clock never runs out and a max-length
+               list is the whole deck, so either one leaves the room waiting on a run that only
+               stops when its owner decides to stop it. */
+            if (activeMode === "time" && testTimeSetting === "infinite") {
+                return "Pick a time limit — a race can't be infinite.";
+            }
+            if (activeMode === "words" && wordCountSetting === "max") {
+                return "Pick a word count — max is too long for a race.";
+            }
+            return null;
+        }
+
+        // Greys the button out and says why, so the rule is visible before it is hit
+        function mpUpdateStartButton() {
+            const btn = document.getElementById("mp-start-btn");
+            if (!btn) return;
+
+            const reason = mpInSession() ? mpStartBlockedReason() : null;
+            btn.disabled = !!reason;
+            btn.title = reason || "Start the race";
+        }
+
         document.getElementById("mp-start-btn").onclick = async () => {
+            const blocked = mpStartBlockedReason();
+            if (blocked) return mpSetStatus(mpRoomStatus, blocked, true);
+
             mpSetStatus(mpRoomStatus, "Building the test...");
             try {
                 const seed = await generateSeed();
@@ -4865,7 +4989,10 @@ function setMode(mode, shouldReload = true) {
             customChipEditors.forEach(({ close }) => close());
         }
 
-        function wireCustomChip(button, input, presets, currentValue, commit) {
+        /* `max` caps what a custom value may be. Clamped rather than refused: someone typing
+           900 into the seconds box means "as long as possible", and silently doing nothing
+           would read as the box being broken. */
+        function wireCustomChip(button, input, presets, currentValue, commit, max) {
             button.addEventListener("click", () => {
                 const existing = currentValue();
                 input.value = presets.includes(existing) ? "" : existing;
@@ -4885,7 +5012,8 @@ function setMode(mode, shouldReload = true) {
             const commitValue = () => {
                 const parsed = parseInt(input.value, 10);
                 close();
-                if (parsed && parsed > 0) commit(parsed.toString());
+                if (!parsed || parsed <= 0) return;
+                commit(String(max ? Math.min(parsed, max) : parsed));
             };
 
             input.addEventListener("keydown", e => {
@@ -4979,8 +5107,10 @@ function setMode(mode, shouldReload = true) {
             () => wordCountSetting, applyWordCount);
         wireCustomChip(customKanaBtn, customKanaInline, ["10", "25", "50", "100"],
             () => kanaCountSetting, applyKanaCount);
+        // Ten minutes is the ceiling on a single run's clock
+        const MAX_CUSTOM_SECONDS = 600;
         wireCustomChip(customTimeBtn, customTimeInline, ["15", "30", "60", "120", "infinite"],
-            () => testTimeSetting, applyTimeSetting);
+            () => testTimeSetting, applyTimeSetting, MAX_CUSTOM_SECONDS);
 
         copySeedBtn.addEventListener("click", async () => {
             const spanEl = copySeedBtn.querySelector("span");
@@ -5095,11 +5225,19 @@ function setMode(mode, shouldReload = true) {
             const liveInput = document.getElementById("live-input-container");
             const testParts = [wordsWrapper, typingControlsHint, liveInput];
 
+            /* A race can't be restarted over the top of a result somebody is still reading, so
+               the button is re-checked once the card has actually finished appearing or going.
+               Reading it any earlier gets the state from before the fade, which showed a
+               correct refusal for the wrong stated reason. */
+            const syncStart = () => {
+                if (typeof mpUpdateStartButton === "function") mpUpdateStartButton();
+            };
+
             if (show) {
                 document.body.classList.remove("typing-focus");
-                Promise.all(testParts.map(fadeOut)).then(() => fadeIn(resultModal));
+                Promise.all(testParts.map(fadeOut)).then(() => { fadeIn(resultModal); syncStart(); });
             } else {
-                fadeOut(resultModal).then(() => testParts.forEach(fadeIn));
+                fadeOut(resultModal).then(() => { testParts.forEach(fadeIn); syncStart(); });
             }
         }
 
@@ -5246,14 +5384,22 @@ function setMode(mode, shouldReload = true) {
            race in progress. Local only: each player's board resets when that player is done
            looking, and the next race overwrites the positions anyway. */
         function mpResetLanes() {
-            if (!mpInSession() || mpState.racing) return;
+            if (!mpInSession() || isMultiplayerRace) return;
 
+            /* Only the players who are done. Waiting for the whole room to finish meant that
+               anyone slow — or who had wandered off — left your own picture parked at the
+               finish line indefinitely, which is not what pressing NEXT TEST looks like it
+               should do. Anyone still going keeps their place, since snapping them back and
+               forward on their next report would read as a glitch on their own screen. */
+            /* Position only. The finished flag is the roster's truth — it decides whether the
+               room is still waiting on somebody, and clearing it locally made the start button
+               report two players racing when one of them was me, already done. The ring goes
+               with the position, so the picture reads as back at the line either way. */
             mpState.members.forEach(m => {
-                m.progress = 0;
-                m.finished = false;
+                if (m.finished) m.progress = 0;
             });
             mpProgressHighWater = 0;
-            mpRenderTrack();
+            mpUpdateRunners();
             mpRender();
         }
 

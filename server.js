@@ -824,6 +824,31 @@ wss.on('connection', (ws) => {
                 break;
             }
 
+            /* The host can remove somebody from the room. Told before being unseated, so the
+               client can say why it is back in the lobby rather than appearing to have dropped
+               its connection. The host can't kick itself — that is what LEAVE is for, and
+               allowing it would hand the room to someone else in a way nobody asked for. */
+            case 'kick': {
+                if (room.hostId !== ws.memberId) return;
+
+                const target = room.members.get(Number(msg.to));
+                if (!target) return send(ws, { type: 'error', message: 'That player has left.' });
+                if (target.id === ws.memberId) {
+                    return send(ws, { type: 'error', message: "You can't remove yourself — use LEAVE." });
+                }
+
+                send(target.ws, { type: 'kicked' });
+                leaveRoom(target.ws);
+
+                /* A race waiting on somebody who is no longer here would never end, since the
+                   all-finished check can only be met by the players still in the room. */
+                if (room.racing && [...room.members.values()].every(m => m.finished)) {
+                    room.racing = false;
+                    broadcast(room, { type: 'raceover' });
+                }
+                break;
+            }
+
             case 'progress':
                 me.progress = Math.max(0, Math.min(100, Number(msg.progress) || 0));
                 broadcast(room, { type: 'progress', id: me.id, progress: me.progress });
