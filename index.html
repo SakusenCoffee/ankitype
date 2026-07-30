@@ -491,8 +491,10 @@
          the words, so the room's board reads as part of the test area. Up for the whole
          session, not just a race: the avatars stay on screen while everyone waits. -->
     <div class="race-track hidden" id="race-track">
+        <!-- No room code here: the drawer already shows it under the brand, in the panel
+             you go to in order to share it, and repeating it on the board only made the
+             board look like a second place it might need reading from. -->
         <div class="race-head">
-            <span class="race-code" id="race-code"></span>
             <span class="race-status" id="race-status"></span>
         </div>
         <div class="race-lanes" id="race-lanes"></div>
@@ -577,6 +579,11 @@
 
     <!-- WORKSHOP LAYOUT (MOJIKAZU COUNTER) -->
     <div class="zen-layout hidden" id="zen-layout">
+        <!-- In a room the text filters are moved in here, so they sit under the board and
+             directly above the text they act on. Empty and inert the rest of the time,
+             when the filters stay in the drawer with the other TYPE controls. -->
+        <div class="mp-filter-slot" id="mp-filter-slot"></div>
+
         <div class="zen-container">
             <div id="app-wrapper">
                 <textarea id="jptext" class="loading-state" disabled placeholder="Loading Python Engine..."></textarea>
@@ -594,7 +601,14 @@
                 </div>
             </div>
 
-            <div class="workshop-import-status" id="workshop-import-status"></div>
+            <!-- The way out of the workshop and into a test. Everything else here prepares
+                 the text; this is what turns it into words you can type. -->
+            <div class="workshop-actions">
+                <button class="workshop-send-btn" id="workshop-send-btn">
+                    <span>SEND TO TEST AREA</span>
+                </button>
+                <span class="workshop-import-status" id="workshop-import-status"></span>
+            </div>
 
             <div class="counter-container">
                 <div id="total" class="counter-card">
@@ -3768,7 +3782,6 @@ function setMode(mode, shouldReload = true) {
         const mpLimitInput = document.getElementById("mp-limit-input");
         const raceTrack = document.getElementById("race-track");
         const raceLanes = document.getElementById("race-lanes");
-        const raceCodeEl = document.getElementById("race-code");
         const raceStatusEl = document.getElementById("race-status");
         const topNavbar = document.querySelector(".top-navbar");
 
@@ -3841,7 +3854,6 @@ function setMode(mode, shouldReload = true) {
         // The lane is the full width minus one runner, so a runner at 100% sits against
         // the finish line rather than half past it.
         function mpRenderTrack() {
-            raceCodeEl.textContent = mpState.code || "";
             raceLanes.innerHTML = "";
 
             mpState.members.forEach(m => {
@@ -3967,6 +3979,15 @@ function setMode(mode, shouldReload = true) {
         const playOptionsRow = document.querySelector("#test-options-drawer .word-count-nav");
         const playOptionsHome = playOptionsRow && playOptionsRow.parentElement;
 
+        /* The text filters travel too, but not to the same place. The chips belong with the
+           room's controls in the drawer; the filters act on the workshop text, so they
+           follow it out to the centre column and sit directly above the textarea. Left in
+           the drawer they were invisible in a session — the drawer they live in is the TYPE
+           drawer, and in a room that never opens. */
+        const mpFilterSlot = document.getElementById("mp-filter-slot");
+        const filterBarHome = filterBar && filterBar.parentElement;
+        const filterBarHomeNext = filterBar && filterBar.nextElementSibling;
+
         function mpUpdateChrome() {
             const inRoom = mpInSession();
 
@@ -3981,6 +4002,15 @@ function setMode(mode, shouldReload = true) {
                 } else if (!inRoom && playOptionsHome && playOptionsRow.parentElement !== playOptionsHome) {
                     playOptionsRow.classList.remove("mp-compact");
                     playOptionsHome.insertBefore(playOptionsRow, playOptionsHome.firstChild);
+                }
+            }
+
+            if (filterBar) {
+                if (inRoom && filterBar.parentElement !== mpFilterSlot) {
+                    mpFilterSlot.appendChild(filterBar);
+                } else if (!inRoom && filterBarHome && filterBar.parentElement !== filterBarHome) {
+                    // Back to the exact spot it came from, so the drawer's order is kept
+                    filterBarHome.insertBefore(filterBar, filterBarHomeNext);
                 }
             }
 
@@ -4592,6 +4622,46 @@ function setMode(mode, shouldReload = true) {
                 loadFromSeed(val);
                 pasteSeedInput.value = "";
             }
+        });
+
+        /* Straight from the workshop into a test of your own. It goes through the seed
+           machinery because that is already the one path that turns prepared text into a
+           word list — tokenise on the server, keep the readings, drop what has none — rather
+           than a second implementation of the same thing that could disagree with it.
+
+           In a room this loads the words locally and, for the host, publishes them to the
+           lobby as the preview, which is what everyone will race once START RACE is pressed.
+           It doesn't start the race: that is still a separate, deliberate press. */
+        const workshopSendBtn = document.getElementById("workshop-send-btn");
+
+        workshopSendBtn.addEventListener("click", async () => {
+            const textarea = document.getElementById("jptext");
+            if (!textarea.value.trim()) {
+                setFilterStatus("Nothing to send — paste or drop some Japanese in first.", true);
+                return;
+            }
+
+            const spanEl = workshopSendBtn.querySelector("span");
+            const originalText = spanEl.textContent;
+            workshopSendBtn.disabled = true;
+            spanEl.textContent = "Reading...";
+
+            let seed;
+            try {
+                // Says what it found, or why it found nothing, through the filter status line
+                seed = await generateSeed();
+            } finally {
+                workshopSendBtn.disabled = false;
+                spanEl.textContent = originalText;
+            }
+            if (!seed) return;
+
+            loadFromSeed(seed);
+
+            /* Seeded runs are kept out of your history because the words came from someone
+               else's test. These didn't — you pasted the text and you are typing it — so the
+               result counts. Set after the load, which flags every seed it reads. */
+            isSeededTest = false;
         });
 
         mainFontSlider.addEventListener("input", (e) => {

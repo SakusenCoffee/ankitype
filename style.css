@@ -1464,16 +1464,26 @@ select:focus {
     max-width: 950px;
     margin-top: 20px;
     display: flex;
-    /* left-aligned rather than centred: the text box sits on the left of the page and
+    /* A column so the filter slot above it stacks rather than sitting alongside. With the
+       slot collapsed — every time outside a session — this behaves as it always did. */
+    flex-direction: column;
+    gap: 16px;
+    /* top-aligned rather than centred: the text box sits at the top of the page and
        the counters sit beside it, leaving the navbar exactly where it was */
     justify-content: flex-start;
     flex-grow: 1;
 }
 
+/* Three rows, the last one empty and flexible. The counters are taller than the text column
+   and span the whole height, and a grid hands a spanning item's excess height to the rows it
+   covers — so with only the two content rows the surplus was padding out the editor's row and
+   leaving the button floating 90px below the textarea. The third row soaks it up instead and
+   collapses to nothing when there is none. */
 .zen-container {
     width: 100%;
     display: grid;
     grid-template-columns: minmax(0, 3fr) minmax(190px, 1fr);
+    grid-template-rows: auto auto 1fr;
     align-items: start;
     gap: 20px;
 }
@@ -1484,12 +1494,70 @@ select:focus {
     flex-direction: column;
     gap: 10px;
     grid-column: 2;
-    grid-row: 1 / span 2;
+    grid-row: 1 / span 3;
 }
 
 .zen-container #app-wrapper,
-.zen-container .workshop-import-status {
+.zen-container .workshop-actions {
     grid-column: 1;
+}
+
+/* The send button and whatever the last import or filter had to say, on one line under the
+   text. The status takes the slack so the button keeps its size as the message changes. */
+.workshop-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.workshop-send-btn {
+    background-color: var(--accent-main);
+    color: var(--bg-color);
+    border: none;
+    padding: 9px 16px;
+    border-radius: 10px;
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 700;
+    font-size: 0.78rem;
+    letter-spacing: 0.5px;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: background-color 0.2s ease, opacity 0.2s ease;
+}
+
+.workshop-send-btn:hover:not(:disabled) {
+    background-color: var(--accent-hover);
+}
+
+.workshop-send-btn:disabled {
+    opacity: 0.5;
+    cursor: progress;
+}
+
+/* On a line with the button now rather than centred under the text on its own, so it loses
+   the centring and the gap it needed when it stood alone. */
+.workshop-actions .workshop-import-status {
+    flex: 1 1 auto;
+    min-width: 0;
+    margin-top: 0;
+    text-align: left;
+}
+
+/* Empty and collapsed outside a session, when the filters stay in the drawer */
+.mp-filter-slot:empty {
+    display: none;
+}
+
+/* Out of the drawer the filter bar needs its own edges. It is built to sit at the bottom of
+   a panel — hence the rule across its top — which above the textarea would have read as a
+   divider hanging off the board above it rather than as a panel of its own. */
+.mp-filter-slot .workshop-filter-bar {
+    border-top: none;
+    padding: 14px 20px;
+    background-color: var(--nav-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 16px;
 }
 
 @media (max-width: 720px) {
@@ -2323,19 +2391,13 @@ gap: 12px;
     z-index: 10;
 }
 
+/* Only the status left in here, so it sits at the start rather than being pushed to the
+   far end by a space-between that no longer has two things to separate. */
 .race-head {
     display: flex;
-    justify-content: space-between;
+    justify-content: flex-start;
     align-items: baseline;
     margin-bottom: 10px;
-}
-
-.race-code {
-    font-family: 'Space Grotesk', sans-serif;
-    font-size: 0.85rem;
-    font-weight: 700;
-    letter-spacing: 4px;
-    color: var(--accent-main);
 }
 
 .race-status {
