@@ -122,6 +122,17 @@ function addColumnIfMissing(table, column, definition) {
     return true;
 }
 
+/* Tests recorded before this existed have no word list, which the client reads as "this one
+   can't be reopened or replayed" rather than as an error. Nothing is backfilled: the words
+   were never sent, so there is nothing to backfill them from. */
+addColumnIfMissing('test_history', 'words', 'TEXT');
+
+/* This one was only ever added to the CREATE above, which fresh installs get and existing
+   databases don't — so any database predating the column was answering /api/profile,
+   /api/users/:name and /api/profile/sync with a 500 from "no such column: total_mistakes".
+   Found on a dev database that was in exactly that state. */
+addColumnIfMissing('users', 'total_mistakes', 'INTEGER DEFAULT 0');
+
 if (addColumnIfMissing('users', 'created_at', 'INTEGER')) {
     // Accounts predating this column have no recorded join date. The earliest thing they
     // did that was recorded is the closest honest estimate; where there is nothing it
@@ -139,6 +150,50 @@ if (addColumnIfMissing('users', 'created_at', 'INTEGER')) {
 }
 
 const MAX_AVATAR_HISTORY = 5;
+
+/* The words a run was typed from, kept so a result can be reopened later and so somebody
+   else can be handed the same list to type. Two caps rather than one: a count, because a
+   max-length run can be several hundred words and nobody replays that far, and a byte
+   length, because a word's fields are free text and the count alone doesn't bound the row. */
+const MAX_STORED_TEST_WORDS = 200;
+const MAX_STORED_TEST_WORDS_BYTES = 20000;
+
+// A row's words as the client should see them: parsed, or null if there are none to show
+function readStoredWords(raw) {
+    if (!raw) return null;
+    try {
+        const parsed = JSON.parse(raw);
+        return Array.isArray(parsed) && parsed.length ? parsed : null;
+    } catch {
+        return null;
+    }
+}
+
+/* Trusted only for shape, never for content: these are three display strings per word and
+   they go back out to other people's browsers, so each is clamped to a sane length here and
+   inserted as text on the client rather than as markup. */
+function serialiseTestWords(words) {
+    if (!Array.isArray(words) || !words.length) return null;
+
+    const cleaned = words.slice(0, MAX_STORED_TEST_WORDS).map(w => {
+        const [kanji, romaji, meaning] = Array.isArray(w) ? w : [];
+        return [
+            String(kanji ?? "").slice(0, 60),
+            String(romaji ?? "").slice(0, 60),
+            String(meaning ?? "").slice(0, 120)
+        ];
+    }).filter(([kanji, romaji]) => kanji || romaji);
+
+    if (!cleaned.length) return null;
+
+    let json = JSON.stringify(cleaned);
+    // Still too big after the count cap: drop words off the end until it fits
+    while (json.length > MAX_STORED_TEST_WORDS_BYTES && cleaned.length > 1) {
+        cleaned.splice(Math.ceil(cleaned.length / 2));
+        json = JSON.stringify(cleaned);
+    }
+    return json.length > MAX_STORED_TEST_WORDS_BYTES ? null : json;
+}
 
 // Multer Storage Configuration for Profile Pictures
 const storage = multer.diskStorage({
@@ -441,19 +496,20 @@ const HISTORY_PAGE_SIZE = 10;
 
 // Record one completed test. The client withholds seeded and idled-out runs.
 app.post('/api/profile/history', authenticateToken, (req, res) => {
-    const { testType, durationSec, cpm, wpm, totalChars, correctChars, mistakes } = req.body;
+    const { testType, durationSec, cpm, wpm, totalChars, correctChars, mistakes, words } = req.body;
     const userId = req.user.id;
     const int = v => Math.max(0, Math.round(Number(v) || 0));
 
     db.prepare(`
         INSERT INTO test_history
-            (user_id, test_type, duration_sec, cpm, wpm, total_chars, correct_chars, mistakes)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            (user_id, test_type, duration_sec, cpm, wpm, total_chars, correct_chars, mistakes, words)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
         userId,
         String(testType || 'unknown').slice(0, 40),
         int(durationSec), int(cpm), int(wpm),
-        int(totalChars), int(correctChars), int(mistakes)
+        int(totalChars), int(correctChars), int(mistakes),
+        serialiseTestWords(words)
     );
 
     // Kept in full: it is the player's record, and the client pages through it
@@ -467,14 +523,61 @@ app.get('/api/profile/history', authenticateToken, (req, res) => {
     const { total } = db.prepare('SELECT COUNT(*) AS total FROM test_history WHERE user_id = ?')
         .get(req.user.id);
 
+    /* The words themselves are not in the list — a page of ten runs would carry a few
+       thousand of them for the sake of a button. Each row says whether it has any, and the
+       words are fetched by id if the run is actually opened. */
     const rows = db.prepare(`
-        SELECT created_at, test_type, duration_sec, cpm, wpm, total_chars, correct_chars, mistakes
+        SELECT id, created_at, test_type, duration_sec, cpm, wpm, total_chars, correct_chars,
+               mistakes, (words IS NOT NULL) AS has_words
         FROM test_history WHERE user_id = ?
         ORDER BY created_at DESC, id DESC
         LIMIT ? OFFSET ?
     `).all(req.user.id, limit, offset);
 
     res.json({ history: rows, total, limit, offset });
+});
+
+/* Everyone's runs, newest first. Public, like the profile pages it links to: the same
+   numbers are already on /user/<name>, this only puts them in one place. */
+app.get('/api/tests/recent', (req, res) => {
+    const limit = Math.max(1, Math.min(50, Math.round(Number(req.query.limit) || HISTORY_PAGE_SIZE)));
+    const offset = Math.max(0, Math.min(5000, Math.round(Number(req.query.offset) || 0)));
+
+    const { total } = db.prepare('SELECT COUNT(*) AS total FROM test_history').get();
+
+    const rows = db.prepare(`
+        SELECT t.id, t.created_at, t.test_type, t.duration_sec, t.cpm, t.wpm,
+               t.total_chars, t.correct_chars, t.mistakes,
+               (t.words IS NOT NULL) AS has_words,
+               u.username, u.avatar
+        FROM test_history t
+        JOIN users u ON u.id = t.user_id
+        ORDER BY t.created_at DESC, t.id DESC
+        LIMIT ? OFFSET ?
+    `).all(limit, offset);
+
+    res.json({ history: rows, total, limit, offset });
+});
+
+/* One run in full, words included, for reopening its result or replaying it. Public for the
+   same reason the feed is, and it carries the owner so the client knows whether the replay
+   button should say "again" or "type these words". */
+app.get('/api/tests/:id', (req, res) => {
+    const id = Math.round(Number(req.params.id));
+    if (!Number.isFinite(id) || id <= 0) return res.status(400).json({ error: 'Bad test id' });
+
+    const row = db.prepare(`
+        SELECT t.id, t.created_at, t.test_type, t.duration_sec, t.cpm, t.wpm,
+               t.total_chars, t.correct_chars, t.mistakes, t.words,
+               u.username, u.avatar
+        FROM test_history t
+        JOIN users u ON u.id = t.user_id
+        WHERE t.id = ?
+    `).get(id);
+
+    if (!row) return res.status(404).json({ error: 'No such test' });
+
+    res.json({ ...row, words: readStoredWords(row.words) });
 });
 
 // Sync Playtime & Stats Endpoint (also reachable via sendBeacon on tab-hide/close)

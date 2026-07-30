@@ -63,26 +63,35 @@
             <!-- The four tabs that set up a test come first, then a divider, then the two
                  that are about you rather than the run. -->
             <div class="nav-actions">
+                <!-- A keyboard: this is the tab you type from. The old sliders read as
+                     "settings", which is what every other tab here also is. -->
                 <button class="nav-btn active" id="test-options-tab-btn" title="Test Options">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <line x1="4" y1="21" x2="4" y2="14"></line>
-                        <line x1="4" y1="10" x2="4" y2="3"></line>
-                        <line x1="12" y1="21" x2="12" y2="12"></line>
-                        <line x1="12" y1="8" x2="12" y2="3"></line>
-                        <line x1="20" y1="21" x2="20" y2="16"></line>
-                        <line x1="20" y1="12" x2="20" y2="3"></line>
-                        <line x1="1" y1="14" x2="7" y2="14"></line>
-                        <line x1="9" y1="8" x2="15" y2="8"></line>
-                        <line x1="17" y1="16" x2="23" y2="16"></line>
+                        <rect x="1.5" y="5" width="21" height="14" rx="2.5"></rect>
+                        <line x1="5.5" y1="9" x2="5.5" y2="9"></line>
+                        <line x1="9" y1="9" x2="9" y2="9"></line>
+                        <line x1="12.5" y1="9" x2="12.5" y2="9"></line>
+                        <line x1="16" y1="9" x2="16" y2="9"></line>
+                        <line x1="19" y1="9" x2="19" y2="9"></line>
+                        <line x1="5.5" y1="12.5" x2="5.5" y2="12.5"></line>
+                        <line x1="9" y1="12.5" x2="9" y2="12.5"></line>
+                        <line x1="12.5" y1="12.5" x2="12.5" y2="12.5"></line>
+                        <line x1="16" y1="12.5" x2="16" y2="12.5"></line>
+                        <line x1="19" y1="12.5" x2="19" y2="12.5"></line>
+                        <line x1="7.5" y1="15.8" x2="16.5" y2="15.8"></line>
                     </svg>
                     <span>TYPE</span>
                 </button>
 
+                <!-- A pair of stacked cards, drawn here rather than Anki's own mark: Anki is
+                     a registered trademark of Ankitects and there is no published permission
+                     to reuse the logo, so this describes the thing (flashcards) instead. The
+                     name stays as plain text, which is ordinary descriptive use, and the
+                     drawer carries a link to their site. -->
                 <button class="nav-btn" id="anki-tab-btn" title="Anki Deck Settings">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
-                        <line x1="8" y1="21" x2="16" y2="21"></line>
-                        <line x1="12" y1="17" x2="12" y2="21"></line>
+                        <rect x="6.5" y="3" width="15" height="11" rx="2"></rect>
+                        <path d="M17.5 17.5a2 2 0 0 1-2 2h-9a4 4 0 0 1-4-4V8"></path>
                     </svg>
                     <span>ANKI</span>
                 </button>
@@ -94,7 +103,8 @@
 
                 <button class="nav-btn" id="appearance-tab-btn" title="Customization Options">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"></path>
+                        <circle cx="12" cy="12" r="3.2"></circle>
+                        <path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1.03 1.56V21a2 2 0 0 1-4 0v-.11a1.7 1.7 0 0 0-1.11-1.56 1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-1.56-1.03H3a2 2 0 0 1 0-4h.11A1.7 1.7 0 0 0 4.6 8.9a1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1.03-1.56V3a2 2 0 0 1 4 0v.11A1.7 1.7 0 0 0 15 4.6a1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.7 1.7 0 0 0 19.4 9v.11a1.7 1.7 0 0 0 1.56 1.03H21a2 2 0 0 1 0 4h-.11a1.7 1.7 0 0 0-1.49 1.03z"></path>
                     </svg>
                     <span>CONFIG</span>
                 </button>
@@ -111,11 +121,15 @@
                     <span>MULTIPLAYER</span>
                 </button>
 
+                <!-- Your own face when there is one to show, the generic figure when there
+                     isn't. The image is only added to the DOM once an avatar is known, so a
+                     signed-out visitor never sees a broken or placeholder square. -->
                 <button class="nav-btn" id="profile-tab-btn" title="Profile & Stats">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <svg class="profile-tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
                         <circle cx="12" cy="7" r="4"></circle>
                     </svg>
+                    <img class="profile-tab-avatar hidden" id="profile-tab-avatar" alt="" />
                     <span>PROFILE</span>
                 </button>
             </div>
@@ -309,6 +323,10 @@
                     <span class="anki-order-note" id="anki-order-note" aria-live="polite"></span>
                 </div>
                 <p class="anki-note">Words are pulled from <strong>Lapis</strong>-styled decks. Decks built on other note types may not expose a compatible expression field, so not every deck will load correctly.</p>
+                <!-- Attribution, in words rather than with their mark. Anki is a registered
+                     trademark of Ankitects Pty Ltd and publishes no permission to reuse its
+                     logo, so this names them and links to them and nothing more. -->
+                <p class="anki-note anki-attribution">Anki is a registered trademark of Ankitects Pty&nbsp;Ltd. Tango Type is an independent project and is not affiliated with or endorsed by them. Get Anki at <a href="https://apps.ankiweb.net" target="_blank" rel="noopener noreferrer">apps.ankiweb.net</a>.</p>
             </div>
         </div>
 
@@ -539,7 +557,9 @@
 
         <div class="modal-overlay hidden" id="result-modal">
             <div class="modal-card">
-                <h2 class="modal-title">TEST COMPLETE</h2>
+                <h2 class="modal-title" id="res-title">TEST COMPLETE</h2>
+                <!-- Only filled in when an old run is being looked at: who typed it and when -->
+                <div class="result-owner hidden" id="res-owner"></div>
                 <p class="abandoned-note hidden" id="res-abandoned-note">Idled out — your typing time and characters were saved, but this run wasn't counted towards your CPM.</p>
                 <div class="stats-grid">
                     <div class="stat-box">
@@ -569,10 +589,15 @@
                 </div>
                 <div class="result-graph-wrap" id="res-graph"></div>
                 <div class="typed-words-section">
-                    <span class="section-title">COMPLETED ITEMS</span>
+                    <span class="section-title" id="res-items-title">COMPLETED ITEMS</span>
                     <div class="typed-words-list" id="res-completed-list"></div>
                 </div>
-                <button class="close-modal-btn" id="close-result-modal">NEXT TEST</button>
+                <!-- Both buttons live in one row so the card ends the same way whether you
+                     have just finished a run or are looking at an old one. -->
+                <div class="result-actions">
+                    <button class="close-modal-btn replay-btn" id="res-replay-btn">TYPE THESE AGAIN</button>
+                    <button class="close-modal-btn" id="close-result-modal">NEXT TEST</button>
+                </div>
             </div>
         </div>
     </div>
@@ -2369,6 +2394,14 @@ let kanaPartial = "";
         function recordTestInHistory({ cpm, activeTimeSec }) {
             if (!currentUserToken || isSeededTest) return;
 
+            /* The words actually reached, so the run can be reopened later and handed to
+               somebody else to type. Only as far as you got: the rest of a max-length list
+               was never part of this run. Capped again on the server, which is where the
+               real limit lives. */
+            const typedWords = activeWordList
+                .slice(0, Math.max(currentIndex, 1))
+                .map(w => [w.kanji, w.romaji, w.meaning]);
+
             const payload = {
                 testType: describeTestType(),
                 durationSec: activeTimeSec,
@@ -2376,7 +2409,8 @@ let kanaPartial = "";
                 wpm: Math.round(cpm / 5),   // the usual five-character word
                 totalChars: correctKeystrokes + mistakesSession,
                 correctChars: correctKeystrokes,
-                mistakes: mistakesSession
+                mistakes: mistakesSession,
+                words: typedWords
             };
 
             fetch(`${API_BASE}/api/profile/history`, {
@@ -4885,7 +4919,130 @@ function setMode(mode, shouldReload = true) {
             }
         }
 
+        /* ---- Reopening an old run ----------------------------------------------------
+           The result card is reused rather than duplicated, so an old run is shown by
+           filling in the same boxes from stored numbers. Two things are unavailable: the
+           CPM graph, which is sampled live and was never recorded, and the "next test"
+           behaviour, because dismissing a run from last Tuesday shouldn't roll a fresh one
+           underneath. This holds the run being looked at, and is null during a live result. */
+        let storedResultView = null;
+
+        function renderStoredResult(record) {
+            storedResultView = record;
+
+            const ownName = currentUserToken ? decodeJwtPayload(currentUserToken)?.username : null;
+            const isMine = !!ownName && record.username === ownName;
+            const words = Array.isArray(record.words) ? record.words : [];
+
+            document.getElementById("res-title").textContent = "PAST RESULT";
+
+            const owner = document.getElementById("res-owner");
+            owner.innerHTML = "";
+            owner.classList.remove("hidden");
+
+            const img = document.createElement("img");
+            img.className = "history-avatar";
+            img.alt = "";
+            img.src = `${API_BASE}${record.avatar || "/uploads/default.png"}`;
+            img.onerror = () => { img.src = `${API_BASE}/uploads/default.png`; };
+
+            const who = document.createElement("span");
+            who.className = "result-owner-name";
+            who.textContent = isMine ? "you" : (record.username || "—");
+
+            const when = document.createElement("span");
+            when.className = "result-owner-when";
+            when.textContent = `${new Date(record.created_at * 1000).toLocaleString()} · ${record.test_type || "—"}`;
+
+            owner.append(img, who, when);
+
+            resAbandonedNote.classList.add("hidden");
+            resCpm.textContent = record.cpm;
+            document.getElementById("res-mistakes").textContent = record.mistakes;
+            document.getElementById("res-time").textContent = `${record.duration_sec}s`;
+            resActiveTime.textContent = "";
+            document.getElementById("res-typed").textContent = record.correct_chars;
+            resTypedLabel.textContent = "CHARS CORRECT";
+            document.getElementById("res-accuracy").textContent = record.total_chars
+                ? `${Math.round((record.correct_chars / record.total_chars) * 100)}%`
+                : "—";
+
+            // Never recorded, so it is said plainly rather than drawn as an empty chart
+            document.getElementById("res-graph").innerHTML =
+                '<p class="result-graph-empty">No graph for a past run — the curve is only sampled while you type.</p>';
+
+            document.getElementById("res-items-title").textContent =
+                words.length ? "WORDS IN THIS RUN" : "WORDS IN THIS RUN";
+            resCompletedList.innerHTML = "";
+            if (words.length) {
+                words.forEach(([kanji]) => {
+                    const tag = document.createElement("span");
+                    tag.className = "completed-word-tag";
+                    tag.textContent = kanji;
+                    resCompletedList.appendChild(tag);
+                });
+            } else {
+                const note = document.createElement("span");
+                note.className = "history-empty";
+                note.textContent = "This run was recorded before the words were kept, so it can't be replayed.";
+                resCompletedList.appendChild(note);
+            }
+
+            const replay = document.getElementById("res-replay-btn");
+            replay.classList.toggle("hidden", !words.length);
+            replay.textContent = isMine ? "TYPE THESE AGAIN" : `TYPE ${(record.username || "THEIR").toUpperCase()}'S WORDS`;
+
+            showResultPanel(true);
+        }
+
+        async function openStoredResult(id) {
+            try {
+                const res = await fetch(`${API_BASE}/api/tests/${id}`);
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                renderStoredResult(await res.json());
+            } catch (err) {
+                console.error("Could not open that result:", err);
+            }
+        }
+
+        /* Puts a stored run's words into the test area to be typed. The same path a seed
+           takes, because that is already how a fixed list of words becomes a test — and it
+           marks the run as seeded, which is right here: these are somebody's recorded words,
+           not a fresh draw from your own settings. */
+        function replayStoredResult() {
+            const record = storedResultView;
+            if (!record || !Array.isArray(record.words) || !record.words.length) return;
+
+            storedResultView = null;
+            resultModal.classList.add("hidden");
+
+            loadFromSeed(btoa(encodeURIComponent(JSON.stringify({
+                source: "tango",
+                mode: "words",
+                data: record.words
+            }))));
+        }
+
+        // Restores the card to the live-result wording it had before an old run borrowed it
+        function resetResultCardToLive() {
+            storedResultView = null;
+            document.getElementById("res-title").textContent = "TEST COMPLETE";
+            document.getElementById("res-owner").classList.add("hidden");
+            document.getElementById("res-items-title").textContent = "COMPLETED ITEMS";
+            resTypedLabel.textContent = "ITEMS TYPED";
+            document.getElementById("res-replay-btn").classList.remove("hidden");
+            document.getElementById("res-replay-btn").textContent = "TYPE THESE AGAIN";
+        }
+
         function closeResultModalAndContinue() {
+            /* Dismissing an old run just closes it. It isn't the end of a test, so there is
+               no next one to roll — doing so was what threw you out of the profile. */
+            if (storedResultView) {
+                showResultPanel(false);
+                resetResultCardToLive();
+                return;
+            }
+
             showResultPanel(false);
 
             // In a session the words belong to the room, so dismissing your result must
@@ -4906,6 +5063,24 @@ function setMode(mode, shouldReload = true) {
         // button needs no listener of its own — its click bubbles up to here. One
         // listener also means one fresh test, rather than two from a double handler.
         resultModal.addEventListener("click", closeResultsIfOpen);
+
+        /* Which is exactly why this one has to stop its click going any further: left to
+           bubble, replaying would also be a dismissal, and the dismissal would roll a fresh
+           test on top of the words just loaded. */
+        document.getElementById("res-replay-btn").addEventListener("click", (e) => {
+            e.stopPropagation();
+
+            if (storedResultView) {
+                replayStoredResult();
+                resetResultCardToLive();
+                return;
+            }
+
+            /* A live result: the same words again rather than a new draw. reshuffle is left
+               off so the list is the one just typed, in the order it was typed in. */
+            showResultPanel(false);
+            applyWordCountFilter(false);
+        });
 
         themeDropdown.addEventListener("change", (e) => {
             currentTheme = e.target.value;
@@ -4947,6 +5122,49 @@ function setMode(mode, shouldReload = true) {
         // Payload of the profile card currently on screen, so an unchanged reopen can
         // skip the rebuild that makes the avatar snap
         let lastProfileSignature = null;
+
+        /* The PROFILE tab wears your own picture once there is one. Passing nothing puts the
+           generic figure back, which is what a signed-out visitor should see — the tab still
+           says PROFILE and still opens the sign-in form. */
+        function setNavbarAvatar(avatarPath) {
+            const img = document.getElementById('profile-tab-avatar');
+            const icon = document.querySelector('.profile-tab-icon');
+            if (!img || !icon) return;
+
+            if (avatarPath) {
+                img.src = `${API_BASE}${avatarPath}`;
+                // Only swap once it has actually loaded, so a slow or missing file leaves
+                // the figure in place instead of a broken square
+                img.onload = () => {
+                    img.classList.remove('hidden');
+                    icon.classList.add('hidden');
+                };
+                img.onerror = () => {
+                    img.classList.add('hidden');
+                    icon.classList.remove('hidden');
+                };
+            } else {
+                img.removeAttribute('src');
+                img.classList.add('hidden');
+                icon.classList.remove('hidden');
+            }
+        }
+
+        /* Fetched on load rather than waiting for the tab to be opened: the picture is part
+           of the navbar from the first paint, and this is the only request it needs. */
+        async function primeNavbarAvatar() {
+            if (!currentUserToken) return setNavbarAvatar(null);
+            try {
+                const res = await fetch(`${API_BASE}/api/profile`, {
+                    headers: { 'Authorization': `Bearer ${currentUserToken}` }
+                });
+                if (!res.ok) return;
+                const data = await res.json();
+                setNavbarAvatar(data.avatar);
+            } catch (err) {
+                console.error('Could not load your avatar for the navbar:', err);
+            }
+        }
 
         function decodeJwtPayload(token) {
             try {
@@ -5193,35 +5411,123 @@ function setMode(mode, shouldReload = true) {
             });
         }
 
-        function renderTestHistory(container, rows) {
+        // A clock with an arrow curling back: the usual "history" glyph, and a symbol rather
+        // than a word because it sits in a table row where a word would be the widest cell
+        const HISTORY_ICON_SVG = `
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                 stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M3 3v5h5"></path>
+                <path d="M3.05 13A9 9 0 1 0 6 5.3L3 8"></path>
+                <path d="M12 7v5l4 2"></path>
+            </svg>`;
+
+        /* Rows are built as DOM rather than as an HTML string. The usernames and test types
+           in the "everyone" view are other people's text, and textContent can't be talked
+           into being markup. */
+        function renderTestHistory(container, rows, { showWho = false } = {}) {
+            container.innerHTML = "";
+
             if (!rows.length) {
-                container.innerHTML = '<span class="history-empty">No tests recorded yet. Seeded runs and tests you idle out of are not saved.</span>';
+                const empty = document.createElement("span");
+                empty.className = "history-empty";
+                empty.textContent = showWho
+                    ? "No tests recorded yet by anyone."
+                    : "No tests recorded yet. Seeded runs and tests you idle out of are not saved.";
+                container.appendChild(empty);
                 return;
             }
 
-            const cells = row => {
-                const when = new Date(row.created_at * 1000);
+            const table = document.createElement("table");
+            table.className = "history-table";
+
+            const head = ["DATE", "TYPE", "WPM / CPM", "CORRECT", "TYPOS", ""];
+            if (showWho) head.unshift("WHO");
+
+            const thead = document.createElement("thead");
+            const headRow = document.createElement("tr");
+            head.forEach(h => {
+                const th = document.createElement("th");
+                th.textContent = h;
+                headRow.appendChild(th);
+            });
+            thead.appendChild(headRow);
+            table.appendChild(thead);
+
+            const tbody = document.createElement("tbody");
+
+            rows.forEach(row => {
+                const tr = document.createElement("tr");
                 const accuracy = row.total_chars
                     ? Math.round((row.correct_chars / row.total_chars) * 100)
                     : 0;
-                return [
-                    when.toLocaleDateString(),
-                    row.test_type || "—",
-                    `${row.wpm} / ${row.cpm}`,
-                    `${row.correct_chars}/${row.total_chars} (${accuracy}%)`,
-                    String(row.mistakes)
-                ];
-            };
 
-            const head = ["DATE", "TYPE", "WPM / CPM", "CORRECT", "TYPOS"];
-            container.innerHTML = `
-                <table class="history-table">
-                    <thead><tr>${head.map(h => `<th>${h}</th>`).join("")}</tr></thead>
-                    <tbody>
-                        ${rows.map(r => `<tr>${cells(r).map(c => `<td>${c}</td>`).join("")}</tr>`).join("")}
-                    </tbody>
-                </table>
-            `;
+                if (showWho) {
+                    const td = document.createElement("td");
+                    const who = document.createElement("span");
+                    who.className = "history-who";
+
+                    // Same square, unframed picture as the navbar wears
+                    const img = document.createElement("img");
+                    img.className = "history-avatar";
+                    img.alt = "";
+                    img.src = `${API_BASE}${row.avatar || "/uploads/default.png"}`;
+                    img.onerror = () => { img.src = `${API_BASE}/uploads/default.png`; };
+
+                    const name = document.createElement("a");
+                    name.className = "history-username";
+                    name.href = `/user/${encodeURIComponent(row.username || "")}`;
+                    name.textContent = row.username || "—";
+
+                    who.appendChild(img);
+                    who.appendChild(name);
+                    td.appendChild(who);
+                    tr.appendChild(td);
+                }
+
+                /* Classed rather than left to be picked out by position: a WHO column at the
+                   front and an action column at the back both shift every index, and the
+                   rate and typo colours used to be hung off nth-child(3) and last-child. */
+                /* The accuracy percentage moves to the cell's tooltip rather than sitting in
+                   the text. With a WHO column and an action column added, spelling out
+                   "110/120 (92%)" was the difference between the table fitting the panel and
+                   the open button being pushed off the right-hand edge. */
+                [
+                    [new Date(row.created_at * 1000).toLocaleDateString(), "", ""],
+                    [row.test_type || "—", "history-type", row.test_type || ""],
+                    [`${row.wpm} / ${row.cpm}`, "history-rate", "words / characters per minute"],
+                    [`${row.correct_chars}/${row.total_chars}`, "", `${accuracy}% accuracy`],
+                    [String(row.mistakes), "history-typos", ""]
+                ].forEach(([text, cls, title]) => {
+                    const td = document.createElement("td");
+                    if (cls) td.className = cls;
+                    if (title) td.title = title;
+                    td.textContent = text;
+                    tr.appendChild(td);
+                });
+
+                // Reopens the run's result. Absent on runs recorded before the words were
+                // kept, since there would be nothing behind it.
+                const actionCell = document.createElement("td");
+                actionCell.className = "history-action-cell";
+                if (row.id) {
+                    const btn = document.createElement("button");
+                    btn.className = "history-open-btn";
+                    btn.type = "button";
+                    btn.innerHTML = HISTORY_ICON_SVG;
+                    btn.title = row.has_words
+                        ? "Open this result"
+                        : "Open this result (its words weren't recorded)";
+                    btn.setAttribute("aria-label", btn.title);
+                    btn.onclick = () => openStoredResult(row.id);
+                    actionCell.appendChild(btn);
+                }
+                tr.appendChild(actionCell);
+
+                tbody.appendChild(tr);
+            });
+
+            table.appendChild(tbody);
+            container.appendChild(table);
         }
 
         async function loadProfileUI() {
@@ -5300,6 +5606,7 @@ function setMode(mode, shouldReload = true) {
                     if (res.status === 401 || res.status === 403) {
                         localStorage.removeItem('anki_jwt');
                         currentUserToken = null;
+                        setNavbarAvatar(null);
                         loadProfileUI();
                         return;
                     }
@@ -5320,6 +5627,7 @@ function setMode(mode, shouldReload = true) {
                         return;
                     }
                     lastProfileSignature = signature;
+                    setNavbarAvatar(data.avatar);
 
                     container.innerHTML = `
                         <div class="profile-card">
@@ -5362,7 +5670,12 @@ function setMode(mode, shouldReload = true) {
                         </div>
                         <div class="history-panel" id="history-panel">
                             <div class="history-head">
-                                <span class="drawer-title">TEST HISTORY</span>
+                                <span class="drawer-title" id="history-title">TEST HISTORY</span>
+                                <!-- Two views of the same table: your own runs, or everyone's -->
+                                <div class="count-selector-group history-scope" id="history-scope">
+                                    <button class="count-btn active" data-history-scope="mine">mine</button>
+                                    <button class="count-btn" data-history-scope="everyone">everyone</button>
+                                </div>
                                 <div class="history-pager hidden" id="history-pager">
                                     <button class="history-page-btn" id="history-prev" aria-label="Newer">‹</button>
                                     <span class="history-page-label" id="history-page-label"></span>
@@ -5404,6 +5717,7 @@ function setMode(mode, shouldReload = true) {
                                 const selData = await selRes.json();
                                 if (selData.avatar) {
                                     document.getElementById('profile-avatar-img').src = `${API_BASE}${selData.avatar}`;
+                                    setNavbarAvatar(selData.avatar);
                                 }
                                 avatarPicker.classList.add('hidden');
                             };
@@ -5508,6 +5822,7 @@ function setMode(mode, shouldReload = true) {
                         const uploadData = await uploadRes.json();
                         if (uploadData.avatar) {
                             document.getElementById('profile-avatar-img').src = `${API_BASE}${uploadData.avatar}`;
+                            setNavbarAvatar(uploadData.avatar);
                         }
                         avatarPicker.classList.add('hidden');
                     };
@@ -5522,19 +5837,25 @@ function setMode(mode, shouldReload = true) {
                     // The record is kept in full, so it arrives a page at a time
                     const HISTORY_PER_PAGE = 10;
                     let historyPage = 0;
+                    let historyScope = 'mine';
 
                     async function loadHistoryPage(page) {
                         historyBody.innerHTML = '<span class="history-empty">Loading...</span>';
+                        const everyone = historyScope === 'everyone';
                         try {
                             const offset = page * HISTORY_PER_PAGE;
-                            const res = await fetch(
-                                `${API_BASE}/api/profile/history?limit=${HISTORY_PER_PAGE}&offset=${offset}`,
-                                { headers: { 'Authorization': `Bearer ${currentUserToken}` } });
+                            const url = everyone
+                                ? `${API_BASE}/api/tests/recent?limit=${HISTORY_PER_PAGE}&offset=${offset}`
+                                : `${API_BASE}/api/profile/history?limit=${HISTORY_PER_PAGE}&offset=${offset}`;
+                            // The public feed takes no token; your own history needs one
+                            const res = await fetch(url, everyone
+                                ? {}
+                                : { headers: { 'Authorization': `Bearer ${currentUserToken}` } });
                             if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
                             const { history: rows = [], total = 0 } = await res.json();
                             historyPage = page;
-                            renderTestHistory(historyBody, rows);
+                            renderTestHistory(historyBody, rows, { showWho: everyone });
 
                             const pages = Math.max(1, Math.ceil(total / HISTORY_PER_PAGE));
                             historyPager.classList.toggle('hidden', pages <= 1);
@@ -5543,7 +5864,9 @@ function setMode(mode, shouldReload = true) {
                             document.getElementById('history-next').disabled = page >= pages - 1;
                         } catch (err) {
                             console.error('Could not load test history:', err);
-                            historyBody.innerHTML = '<span class="history-empty is-error">Couldn\'t load your test history.</span>';
+                            historyBody.innerHTML = `<span class="history-empty is-error">${
+                                everyone ? "Couldn't load everyone's tests." : "Couldn't load your test history."
+                            }</span>`;
                             historyPager.classList.add('hidden');
                         }
                     }
@@ -5552,6 +5875,21 @@ function setMode(mode, shouldReload = true) {
                         if (historyPage > 0) loadHistoryPage(historyPage - 1);
                     };
                     document.getElementById('history-next').onclick = () => loadHistoryPage(historyPage + 1);
+
+                    // Switching scope starts again at the first page: page three of your own
+                    // runs has nothing to do with page three of everyone's
+                    document.querySelectorAll('#history-scope [data-history-scope]').forEach(btn => {
+                        btn.onclick = () => {
+                            const scope = btn.dataset.historyScope;
+                            if (scope === historyScope) return;
+                            historyScope = scope;
+                            document.querySelectorAll('#history-scope [data-history-scope]')
+                                .forEach(b => b.classList.toggle('active', b === btn));
+                            document.getElementById('history-title').textContent =
+                                scope === 'everyone' ? 'ALL TESTS' : 'TEST HISTORY';
+                            loadHistoryPage(0);
+                        };
+                    });
 
                     loadHistoryPage(0);
 
@@ -5605,6 +5943,7 @@ function setMode(mode, shouldReload = true) {
                     document.getElementById('logout-btn').onclick = () => {
                         localStorage.removeItem('anki_jwt');
                         currentUserToken = null;
+                        setNavbarAvatar(null);
                         // The next render belongs to whoever logs in next
                         lastProfileSignature = null;
                         history.pushState({}, '', '/');
@@ -5687,6 +6026,7 @@ function setMode(mode, shouldReload = true) {
 
         setSource(activeSource);
         populateDecks();
+        primeNavbarAvatar();
 
     </script>
 </body>

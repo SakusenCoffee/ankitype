@@ -351,6 +351,32 @@ body {
     height: 16px;
 }
 
+/* Square, unframed, and the same size as the icons it stands in for, so swapping one for the
+   other doesn't move the label beside it. Slightly rounded rather than a hard corner — at
+   18px a true square reads as a rendering artefact — and desaturated until the tab is yours,
+   which keeps a colourful avatar from being the loudest thing in the navbar. */
+.profile-tab-avatar {
+    width: 18px;
+    height: 18px;
+    border-radius: 3px;
+    object-fit: cover;
+    display: block;
+    flex-shrink: 0;
+    filter: saturate(0.85);
+    transition: filter 0.2s ease, box-shadow 0.2s ease;
+}
+
+.nav-btn:hover .profile-tab-avatar {
+    filter: saturate(1);
+}
+
+/* On the active tab the button is already filled with the accent, so the picture gets a ring
+   of that fill to sit in rather than butting straight against it. */
+.nav-btn.active .profile-tab-avatar {
+    filter: saturate(1);
+    box-shadow: 0 0 0 1.5px var(--bg-color);
+}
+
 .nav-btn:hover {
     color: var(--text-primary);
     background-color: rgba(255,255,255,0.05);
@@ -1048,7 +1074,7 @@ select:focus {
     top: 0;
     background: var(--nav-bg);
     text-align: left;
-    padding: 4px 8px;
+    padding: 4px 6px;
     color: var(--text-muted);
     font-size: 0.62rem;
     letter-spacing: 0.5px;
@@ -1056,7 +1082,7 @@ select:focus {
 }
 
 .history-table td {
-    padding: 5px 8px;
+    padding: 5px 6px;
     color: var(--text-primary);
     border-bottom: 1px solid var(--border-color);
 }
@@ -1065,13 +1091,152 @@ select:focus {
     border-bottom: none;
 }
 
-.history-table td:nth-child(3) {
+/* Named, not counted. These were nth-child(3) and last-child, which the WHO column at the
+   front and the open-result button at the back both moved out from under. */
+.history-table td.history-rate {
     color: var(--accent-main);
     font-weight: 700;
 }
 
-.history-table td:last-child {
+.history-table td.history-typos {
     color: var(--accent-red);
+}
+
+/* WHO: a square unframed picture and the name, linking to that person's profile */
+.history-who {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+}
+
+.history-avatar {
+    width: 20px;
+    height: 20px;
+    border-radius: 3px;
+    object-fit: cover;
+    flex-shrink: 0;
+    display: block;
+}
+
+/* Capped so one long username can't widen the column until the rest of the row is pushed
+   out of the panel. */
+.history-username {
+    color: var(--text-primary);
+    text-decoration: none;
+    font-weight: 700;
+    max-width: 64px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Same reasoning for a long test description */
+.history-table td.history-type {
+    max-width: 88px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.history-username:hover {
+    color: var(--accent-main);
+}
+
+/* The open-result button. Muted until hovered so a column of them doesn't read as a column
+   of alerts, and the cell is sized to the icon so it takes no width from the data. */
+/* Pinned to the right edge of the scroller. The row can only get wider — a long username, a
+   long test description, a narrow window — and the one thing that must never be the part that
+   scrolls out of reach is the button. */
+.history-action-cell {
+    width: 1%;
+    text-align: right;
+    position: sticky;
+    right: 0;
+    background: var(--card-bg);
+}
+
+.history-table thead th:last-child {
+    position: sticky;
+    right: 0;
+    background: var(--nav-bg);
+}
+
+.history-open-btn {
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    padding: 3px;
+    border-radius: 6px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    transition: color 0.15s ease, background-color 0.15s ease;
+}
+
+.history-open-btn svg {
+    width: 15px;
+    height: 15px;
+}
+
+.history-open-btn:hover {
+    color: var(--accent-main);
+    background-color: rgba(255, 255, 255, 0.06);
+}
+
+/* Scope switch, sized down to sit on the panel's header line beside the pager */
+.history-scope {
+    margin-left: auto;
+    margin-right: 10px;
+}
+
+.history-scope .count-btn {
+    padding: 4px 9px;
+    font-size: 0.7rem;
+}
+
+/* PAST RESULT header: whose run this was, and when */
+.result-owner {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 14px;
+    flex-wrap: wrap;
+}
+
+.result-owner-name {
+    font-weight: 700;
+    font-size: 0.85rem;
+    color: var(--text-primary);
+}
+
+.result-owner-when {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+}
+
+/* The two end buttons share a row. Replay is the quieter of the pair: NEXT TEST is what you
+   want nine times out of ten, so it keeps the filled treatment. */
+.result-actions {
+    display: flex;
+    gap: 10px;
+    align-items: stretch;
+    width: 100%;
+}
+
+.result-actions .close-modal-btn {
+    flex: 1 1 0;
+    margin: 0;
+}
+
+.replay-btn {
+    background-color: transparent;
+    border: 1px solid var(--border-color);
+    color: var(--text-muted);
+}
+
+.replay-btn:hover {
+    border-color: var(--accent-main);
+    color: var(--accent-main);
+    background-color: transparent;
 }
 
 .history-empty {
@@ -2113,6 +2278,22 @@ gap: 12px;
 
 .close-modal-btn:hover {
     background-color: var(--accent-hover);
+}
+
+/* Attribution for a name we don't own: quieter than the note above it, since it is a legal
+   courtesy rather than something the user needs to act on. */
+.anki-attribution {
+    opacity: 0.75;
+    font-size: 0.7rem;
+}
+
+.anki-attribution a {
+    color: var(--accent-main);
+    text-decoration: none;
+}
+
+.anki-attribution a:hover {
+    text-decoration: underline;
 }
 
 /* Footer Styles
