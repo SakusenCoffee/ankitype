@@ -1434,6 +1434,11 @@ let kanaPartial = "";
         // Set by the ending that exhausted the word list, so a completed run is never mistaken
         // for one that was walked away from. Cleared at the start of every run.
         let testEndedByCompletion = false;
+        /* When the running timed test is due to end, in wall-clock terms. Kept out here so the
+           deadline can be checked from outside the ticking timer — a hidden tab has both its
+           intervals and its timeouts throttled to as little as once a minute, so the tick that
+           should end the run may be a long way off. */
+        let testDeadline = 0;
         /* Time spent actually typing during this run, as opposed to the wall clock since
            it started. An infinite or max-length test is only over when you end it, so the
            clock had been counting every pause, every look-away and every interruption —
@@ -2346,7 +2351,15 @@ let kanaPartial = "";
         // page mid-test. sendBeacon is used here since a normal fetch can get cancelled
         // when the page unloads before it completes.
         document.addEventListener("visibilitychange", () => {
-            if (document.visibilityState === "hidden") flushProgress({ useBeacon: true });
+            if (document.visibilityState === "hidden") {
+                flushProgress({ useBeacon: true });
+                return;
+            }
+
+            /* Back on screen. If the run's time ran out while the tab was in the background,
+               end it now rather than waiting for a throttled tick to notice — otherwise you
+               return to a test that is still counting long after it was due to stop. */
+            if (isTestActive && testDeadline && Date.now() >= testDeadline) finishTest();
         });
         window.addEventListener("pagehide", () => flushProgress({ useBeacon: true }));
 
@@ -2428,42 +2441,65 @@ let kanaPartial = "";
                 if (testTimeSetting === "infinite") {
                     timeLeftVal.textContent = "∞";
                 } else {
-                    timeRemaining = parseInt(testTimeSetting, 10);
+                    /* Counted against a deadline rather than by subtracting one per tick.
+                       A browser throttles the timers of a tab that isn't in front — to once
+                       a second at first and far less after that — so a run that lost ticks
+                       ran long by however much the browser held them back: a fifteen second
+                       test taking thirty seconds of wall clock, with the CPM measured over
+                       the wrong span. Reading the clock each time means a late tick simply
+                       ends the run, which is the same reasoning the race countdown uses. */
+                    const totalSec = parseInt(testTimeSetting, 10);
+                    const deadline = Date.now() + totalSec * 1000;
+                    testDeadline = deadline;
+                    timeRemaining = totalSec;
                     timeLeftVal.textContent = `${timeRemaining}s`;
 
                     clearInterval(testTimerInterval);
                     testTimerInterval = setInterval(() => {
-                        timeRemaining--;
-                        timeLeftVal.textContent = `${timeRemaining}s`;
-                        if (timeRemaining <= 0) {
-                            finishTest();
+                        const remaining = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
+                        if (remaining !== timeRemaining) {
+                            timeRemaining = remaining;
+                            timeLeftVal.textContent = `${timeRemaining}s`;
                         }
-                    }, 1000);
+                        if (Date.now() >= deadline) finishTest();
+                    }, 200);
                 }
             }
         }
 
-        // What the test was, for the history list. Kana runs are counted in characters
-        // rather than words, so they are worth distinguishing from a tango word run.
+        /* What the test was, for the history list. Kana runs are counted in characters
+           rather than words, so they are worth distinguishing from a tango word run.
+
+           A race or a seeded run is prefixed, because the settings alone don't describe it:
+           the words came from a fixed list, so "words · max · anki" would be a description of
+           settings that had nothing to do with what was actually typed. Checked race-first,
+           since a race arrives as a seed and both flags are set. */
         function describeTestType() {
-            if (activeSource === "hiragana" || activeSource === "katakana") {
-                return `${activeSource} · ${testTimeSetting === "infinite" ? "infinite" : testTimeSetting + "s"}`;
-            }
-            const level = activeTangoLevel === "anki" ? "anki" : activeTangoLevel.toUpperCase();
-            return activeMode === "time"
-                ? `time · ${testTimeSetting === "infinite" ? "infinite" : testTimeSetting + "s"} · ${level}`
-                : `words · ${wordCountSetting} · ${level}`;
+            const base = (activeSource === "hiragana" || activeSource === "katakana")
+                ? `${activeSource} · ${testTimeSetting === "infinite" ? "infinite" : testTimeSetting + "s"}`
+                : (() => {
+                    const level = activeTangoLevel === "anki" ? "anki" : activeTangoLevel.toUpperCase();
+                    return activeMode === "time"
+                        ? `time · ${testTimeSetting === "infinite" ? "infinite" : testTimeSetting + "s"} · ${level}`
+                        : `words · ${wordCountSetting} · ${level}`;
+                })();
+
+            if (isMultiplayerRace) return `race · ${base}`;
+            if (isSeededTest) return `seed · ${base}`;
+            return base;
         }
 
-        // Seeded runs are excluded: the words came from someone else's test, so logging
-        // them as your own result would misrepresent the history. Idled-out runs are
-        // already filtered by the caller, alongside the profile stats.
+        /* Every finished run is kept, races and seeded runs included — they are still tests
+           you sat down and typed, and leaving them out meant a whole evening of racing left
+           no trace in your own history. What they were is recorded with them, so a race reads
+           as a race rather than as whatever your settings happened to say. Idled-out runs are
+           still filtered by the caller, alongside the profile stats. */
         /* The duration kept is the time actually spent typing, not the wall clock. An
            infinite or max-length run ends when you end it, so the clock counted every
            pause in between and the record read like a five-minute test that was two
            minutes of typing. */
         function recordTestInHistory({ cpm, activeTimeSec }) {
-            if (!currentUserToken || isSeededTest) return;
+            if (!currentUserToken) return;
 
             /* The words actually reached, so the run can be reopened later and handed to
                somebody else to type. Only as far as you got: the rest of a max-length list
@@ -2547,6 +2583,7 @@ let kanaPartial = "";
 
         function finishTest({ completedAll = false } = {}) {
             testEndedByCompletion = completedAll;
+            testDeadline = 0;
             clearInterval(testTimerInterval);
             // Whatever was typed since the last tick, before the sampler stops
             if (isTestActive && cpmLastSampleAt) takeCpmSample();
@@ -4151,7 +4188,10 @@ function setMode(mode, shouldReload = true) {
 
                 const runner = document.createElement("div");
                 runner.className = "race-runner" + (m.finished ? " is-finished" : "");
-                runner.style.left = `calc((100% - 52px) * ${Math.max(0, Math.min(100, m.progress || 0))} / 100)`;
+                // Positioned against the same width the stylesheet gives the runner, so the
+                // two can't drift apart: at 100% it finishes flush with the line
+                runner.style.left =
+                    `calc((100% - var(--race-runner-width)) * ${Math.max(0, Math.min(100, m.progress || 0))} / 100)`;
 
                 const img = document.createElement("img");
                 img.className = "race-avatar";
@@ -4584,6 +4624,13 @@ function setMode(mode, shouldReload = true) {
                 loadFromSeed(msg.seed);
                 isMultiplayerRace = true;
                 mpLastProgressSent = 0;
+                mpProgressHighWater = 0;
+
+                /* Everyone starts from the line. Normally the previous race's positions were
+                   already cleared when its result was dismissed, but a race nobody formally
+                   ended — someone closed the tab part-way, so the room never heard that all
+                   runners were in — would otherwise have left them standing there. */
+                mpState.members.forEach(m => { m.progress = 0; m.finished = false; });
                 closeAllDrawers();
                 raceStatusEl.textContent = "Go!";
                 mpSetTrack(true);
@@ -4606,25 +4653,43 @@ function setMode(mode, shouldReload = true) {
             mpSetTrack(true);
         }
 
-        /* Position along the word list, counted in characters rather than whole words so
-           the runners move continuously instead of jumping a word at a time. Throttled,
-           since a fast typist would otherwise send fifteen messages a second to relay to
-           everyone in the room; the final position of each word is always sent. */
-        const MP_PROGRESS_INTERVAL_MS = 80;
+        /* Position along the word list, counted in characters rather than whole words so the
+           runners move continuously instead of jumping a word at a time.
+
+           Sent about four times a second rather than twelve. The runner eases between the
+           positions it is given, so sending more often bought nothing but traffic: what looked
+           choppy was a 0.12s snap between closely spaced points, not a lack of points. Fewer,
+           further apart, each glided into over a longer ease reads as continuous motion. The
+           final position of each word is still sent immediately, so a completed word never
+           waits for the next window. */
+        const MP_PROGRESS_INTERVAL_MS = 250;
+
+        /* The furthest along you have been this race. A typo empties the typed buffer, so the
+           position it computes drops back to the start of the word — which sent the runner
+           sliding backwards, and on a bad word it did that over and over. The runner holds
+           where it got to and only moves again once you have typed past the point where you
+           went wrong. Reset when a race begins. */
+        let mpProgressHighWater = 0;
 
         function mpReportProgress(force = false) {
             if (!isMultiplayerRace || !activeWordList.length) return;
 
             const now = Date.now();
             if (!force && now - mpLastProgressSent < MP_PROGRESS_INTERVAL_MS) return;
-            mpLastProgressSent = now;
 
             const word = activeWordList[currentIndex];
             const partial = word && word.romaji.length
                 ? typedInput.length / word.romaji.length
                 : 0;
             const done = Math.min(activeWordList.length, currentIndex + partial);
-            mpSend({ type: "progress", progress: (done / activeWordList.length) * 100 });
+            const percent = (done / activeWordList.length) * 100;
+
+            // Nothing to say if you haven't got past your furthest point yet
+            if (percent <= mpProgressHighWater) return;
+
+            mpProgressHighWater = percent;
+            mpLastProgressSent = now;
+            mpSend({ type: "progress", progress: percent });
         }
 
         function closeAllDrawers() {
@@ -4721,8 +4786,20 @@ function setMode(mode, shouldReload = true) {
                 .then(() => mpSetStatus(mpRoomStatus, "Invite link copied."))
                 .catch(() => mpSetStatus(mpRoomStatus, `Invite: ${invite}`));
         }
+
+        /* The code on its own. Pressing the code used to copy the whole invite link, which is
+           the wrong thing when what you want is the five characters to read out or paste into
+           a chat — COPY INVITE beside it is still there for the link. */
+        function mpCopyCode() {
+            if (!mpState.code) return;
+            navigator.clipboard.writeText(mpState.code)
+                .then(() => mpSetStatus(mpRoomStatus, `Room code ${mpState.code} copied.`))
+                .catch(() => mpSetStatus(mpRoomStatus, `Room code: ${mpState.code}`));
+        }
+
         document.getElementById("mp-copy-invite").onclick = mpCopyInvite;
-        mpCodeEl.onclick = mpCopyInvite;
+        mpCodeEl.onclick = mpCopyCode;
+        mpCodeEl.title = "Copy the room code";
 
         document.getElementById("mp-start-btn").onclick = async () => {
             mpSetStatus(mpRoomStatus, "Building the test...");
@@ -5155,9 +5232,29 @@ function setMode(mode, shouldReload = true) {
             // In a session the words belong to the room, so dismissing your result must
             // not roll a fresh solo test underneath everyone — that was what threw you
             // back out to the play area. The board stays and the room waits for the host.
-            if (typeof mpState !== "undefined" && mpState.code) return;
+            if (typeof mpState !== "undefined" && mpState.code) {
+                mpResetLanes();
+                return;
+            }
 
             applyWordCountFilter();
+        }
+
+        /* Everyone back to the starting line. The runners hold their finishing places for as
+           long as the result is up, which is when you want to see where everyone came in — but
+           once you have looked away, a board still showing last race's positions reads as a
+           race in progress. Local only: each player's board resets when that player is done
+           looking, and the next race overwrites the positions anyway. */
+        function mpResetLanes() {
+            if (!mpInSession() || mpState.racing) return;
+
+            mpState.members.forEach(m => {
+                m.progress = 0;
+                m.finished = false;
+            });
+            mpProgressHighWater = 0;
+            mpRenderTrack();
+            mpRender();
         }
 
         /* Taking the results away because the test area itself is going. Hidden directly
@@ -5172,6 +5269,9 @@ function setMode(mode, shouldReload = true) {
 
             if (!wasStored && !(typeof mpState !== "undefined" && mpState.code)) {
                 applyWordCountFilter();
+            } else if (!wasStored) {
+                // Leaving the tab is also being done looking at the result
+                mpResetLanes();
             }
         }
 

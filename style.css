@@ -21,6 +21,12 @@
        with the settings panel. Capped against the viewport since body hides horizontal
        overflow and anything past it would be lost. */
     --test-area-width: min(1320px, 94vw);
+
+    /* The runner's footprint on the track. Declared here because the lane position is worked
+       out in JS as "the lane less one runner", so the two had to agree and previously did so
+       by both hard-coding 52. */
+    --race-runner-width: 68px;
+    --race-avatar-size: 46px;
 }
 
 [data-theme="carbon"] {
@@ -2604,7 +2610,7 @@ gap: 12px;
 /* The dashed edge is the finish line */
 .race-lane {
     position: relative;
-    height: 54px;
+    height: 74px;
     border-bottom: 1px dashed var(--border-color);
 }
 
@@ -2618,20 +2624,24 @@ gap: 12px;
 
 /* left is set inline as a share of the lane less one runner's width, so a runner at
    100% finishes flush with the line rather than overshooting it */
+/* Eased over half a second rather than snapped over an eighth of one. Positions arrive about
+   four times a second, so each new one is glided into while the next is still on its way and
+   the runner reads as travelling rather than stepping. Overshooting slightly and settling — the
+   curve's tail — is what stops a series of small moves looking like a series of small jumps. */
 .race-runner {
     position: absolute;
     top: 2px;
-    width: 52px;
+    width: var(--race-runner-width);
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 2px;
-    transition: left 0.12s linear;
+    gap: 3px;
+    transition: left 0.5s cubic-bezier(0.22, 0.61, 0.36, 1);
 }
 
 .race-avatar {
-    width: 30px;
-    height: 30px;
+    width: var(--race-avatar-size);
+    height: var(--race-avatar-size);
     border-radius: 50%;
     object-fit: cover;
     border: 2px solid var(--border-color);
@@ -2643,10 +2653,10 @@ gap: 12px;
 }
 
 .race-name {
-    font-size: 0.58rem;
+    font-size: 0.62rem;
     font-weight: 700;
     color: var(--text-muted);
-    max-width: 52px;
+    max-width: var(--race-runner-width);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
