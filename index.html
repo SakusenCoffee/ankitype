@@ -688,25 +688,37 @@
 
         function toggleZenMode() {
             isZenMode = !isZenMode;
+            const inRoom = typeof mpInSession === "function" && mpInSession();
 
             if (isZenMode) {
-                typingAppLayout.classList.add("hidden");
                 zenLayout.classList.remove("hidden");
                 modeZenBtn.classList.add("active");
                 modeWordsBtn.classList.remove("active");
                 modeTimeBtn.classList.remove("active");
 
-                profileDrawer.classList.add("hidden");
-                ankiDrawer.classList.add("hidden");
-                appearanceDrawer.classList.add("hidden");
-                seedDrawer.classList.add("hidden");
-                multiplayerDrawer.classList.add("hidden");
+                /* Solo, the workshop is the page: the test area goes away and so does
+                   whatever tab was open, because the editor wants the room.
 
-                profileTabBtn.classList.remove("active");
-                ankiTabBtn.classList.remove("active");
-                appearanceTabBtn.classList.remove("active");
-                seedTabBtn.classList.remove("active");
-                multiplayerTabBtn.classList.remove("active");
+                   In a session it is one panel among several. The room's board, the words it
+                   is about to race and the drawer all stay — and the drawer especially,
+                   because in a session the mode chips have physically moved into it, so
+                   closing it took the workshop chip with it and left no way to switch back
+                   off short of leaving the room. */
+                if (!inRoom) {
+                    typingAppLayout.classList.add("hidden");
+
+                    profileDrawer.classList.add("hidden");
+                    ankiDrawer.classList.add("hidden");
+                    appearanceDrawer.classList.add("hidden");
+                    seedDrawer.classList.add("hidden");
+                    multiplayerDrawer.classList.add("hidden");
+
+                    profileTabBtn.classList.remove("active");
+                    ankiTabBtn.classList.remove("active");
+                    appearanceTabBtn.classList.remove("active");
+                    seedTabBtn.classList.remove("active");
+                    multiplayerTabBtn.classList.remove("active");
+                }
             } else {
                 zenLayout.classList.add("hidden");
                 typingAppLayout.classList.remove("hidden");
@@ -720,6 +732,9 @@
 
             applyOptionGroupVisibility();
             updateEndlessHint();
+            // The test area is no longer switched off wholesale in a session, so whether the
+            // words belong on screen is now a question worth re-asking on every toggle
+            updateTestVisibility();
             if (typeof mpBroadcastSettings === "function") mpBroadcastSettings();
         }
 
@@ -1784,7 +1799,12 @@ let currentIndex = 0;
         }
 
         function testAreaIsVisible() {
-            if (typeof isZenMode !== "undefined" && isZenMode) return false;
+            /* Solo the workshop replaces the test area, being a full-page editor. In a room
+               it doesn't: the words are what everyone is about to race, and the point of
+               preparing text is watching the words it produces, so they stay on screen
+               beside it. */
+            const inRoom = typeof mpInSession === "function" && mpInSession();
+            if (typeof isZenMode !== "undefined" && isZenMode && !inRoom) return false;
             // Mid-race every drawer is closed, and the test is the whole point
             return !anyDrawerOpen() || TABS_SHOWING_TEST.includes(openDrawerName());
         }

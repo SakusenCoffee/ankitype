@@ -1504,16 +1504,19 @@ select:focus {
     }
 }
 
+/* Tall enough to hold a real passage without being dragged open first. The workshop is
+   where a whole subtitle file lands, and at 200px that arrived as a four-line slot you had
+   to resize before you could read what you had pasted. Still resizable. */
 #app-wrapper {
 position: relative;
 width: 100%;
-min-height: 200px;
+min-height: 360px;
 background-color: transparent;
 }
 
 #jptext {
 width: 100%;
-min-height: 200px;
+min-height: 360px;
 padding: 16px;
 font-size: 1.1rem;
 line-height: 1.6;
@@ -2597,48 +2600,41 @@ gap: 12px;
     margin-top: 16px;
 }
 
-/* In a session the workshop moves out of the centre column and into the empty space on
-   the left, so the board and drawers keep the middle. */
+/* In a session the workshop is one panel among several rather than the whole page, so it
+   takes the same centre measure as everything else.
+
+   It used to be parked in the left margin, on the reasoning that the board and drawers
+   should keep the middle. On a wide screen that put it several hundred pixels from the only
+   two things it relates to — the room's board above it and the words it is preparing — with
+   nothing in between. */
 .mp-session .zen-layout {
-    position: fixed;
-    left: 16px;
-    top: 96px;
-    width: min(340px, 26vw);
-    max-width: 340px;
-    margin-top: 0;
-    z-index: 5;
+    width: var(--test-area-width);
+    max-width: var(--test-area-width);
+    margin-top: 10px;
 }
 
-.mp-session .zen-container {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 10px;
+/* body is the flex column all of these sit in, and the workshop is last in the markup.
+   The navbar and the room's board keep the default order and so stay on top; these three
+   are pulled into place after them, which puts the text above the words it produces. */
+body.mp-session .zen-layout { order: 3; }
+body.mp-session .app-layout { order: 4; }
+body.mp-session .app-footer { order: 5; }
+
+/* Shorter than the solo editor: in a session the board is above it and the words are below,
+   and all three have to fit on screen together. */
+.mp-session #jptext,
+.mp-session #app-wrapper {
+    min-height: 200px;
 }
 
+/* Two by two rather than a single stack. Four cards down the side came out taller than the
+   editor beside them, which made the counters — not the text — decide how far down the page
+   the words started. */
 .mp-session .zen-container .counter-container {
-    grid-column: 1;
-    grid-row: auto;
     display: grid;
     grid-template-columns: repeat(2, 1fr);
+    align-content: start;
     gap: 8px;
-}
-
-.mp-session #jptext {
-    min-height: 220px;
-    font-size: 0.9rem;
-    padding: 12px;
-}
-
-.mp-session .counter-card {
-    padding: 8px;
-}
-
-@media (max-width: 1400px) {
-    .mp-session .zen-layout {
-        position: static;
-        width: 100%;
-        max-width: 950px;
-        margin-top: 20px;
-    }
 }
 
 /* RESULT GRAPH */
