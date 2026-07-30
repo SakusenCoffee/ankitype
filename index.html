@@ -1431,6 +1431,9 @@ let kanaPartial = "";
         let testTimerInterval = null;
         let isTestActive = false;
         let testStartTime = 0;
+        // Set by the ending that exhausted the word list, so a completed run is never mistaken
+        // for one that was walked away from. Cleared at the start of every run.
+        let testEndedByCompletion = false;
         /* Time spent actually typing during this run, as opposed to the wall clock since
            it started. An infinite or max-length test is only over when you end it, so the
            clock had been counting every pause, every look-away and every interruption —
@@ -1993,6 +1996,11 @@ let kanaPartial = "";
             const liveInput = document.getElementById("live-input-container");
 
             if (!visible) {
+                /* The result belongs to the test, so it goes where the test goes. It used to
+                   stay up over whatever you opened next — a finished run's numbers sitting on
+                   top of your profile, dismissable only by clicking through them. */
+                if (resultsUp) dismissResultsWithTestArea();
+
                 [wordsWrapper, typingControlsHint, liveInput]
                     .forEach(el => el && el.classList.add("hidden"));
                 wordsWrapper.classList.remove("is-preview");
@@ -2235,8 +2243,29 @@ let kanaPartial = "";
 
         // True when the test ran out while the user was already idle, i.e. they walked
         // away rather than finishing it. lastTypingTimestamp of 0 means never typed.
+        /* Whether the run should be disqualified from your CPM.
+
+           This used to ask how long ago the last keystroke was at the moment the result
+           appeared, which is the wrong question for a run that ends on a clock. A timed test
+           finishes when the timer says so, so pausing for the last three seconds was enough
+           to void it — fifty characters typed, and the result came back saying nobody had
+           been there. In words mode the last keystroke is the thing that ends the run, so the
+           check never fired, which is why this only ever went wrong on timed tests.
+
+           What actually marks a run as walked-away-from is that there is almost nothing in
+           it. A list typed to the end is always a real attempt. Otherwise the run has to
+           contain some real typing, measured from the first keystroke to the last: the active
+           clock can't be used for this, because it keeps crediting time for the whole idle
+           grace period after you stop, which is exactly the case being judged. */
+        const MIN_REAL_TYPING_MS = 1000;
+        const MIN_REAL_TYPED_CHARS = 10;
+
         function testWasAbandoned() {
-            return lastTypingTimestamp === 0 || (Date.now() - lastTypingTimestamp) > IDLE_TIMEOUT_MS;
+            if (lastTypingTimestamp === 0) return true;      // never pressed a key
+            if (testEndedByCompletion) return false;         // typed the list to the end
+
+            const typingSpanMs = lastTypingTimestamp - testStartTime;
+            return typingSpanMs < MIN_REAL_TYPING_MS && totalTypedChars < MIN_REAL_TYPED_CHARS;
         }
 
         function resetSyncedCounters() {
@@ -2337,6 +2366,41 @@ let kanaPartial = "";
             document.body.classList.remove("typing-focus");
         });
 
+        /* One reading of the rate over the stretch since the last one. Kept out here rather
+           than closed over inside the timer so the run's end can take a final reading: the
+           timer is cleared the moment a test finishes, and whatever was typed since the last
+           tick — up to a whole second of it, and on a short run that can be most of the run —
+           never reached the graph at all. */
+        let cpmLastSampleAt = 0;
+        let cpmLastSampleChars = 0;
+
+        /* No point is drawn for a window too short to say anything about. The ticking sampler
+           never produces one, but the closing reading can land a fraction of a second after
+           the last tick, and dividing a word's characters by forty milliseconds gives a rate
+           in the hundreds of thousands — which would set the top of the axis and flatten the
+           real curve underneath it, the exact fault this graph was changed to fix. Anything
+           typed inside that last fraction is left off, which is worth a quarter of a second
+           at most. */
+        const MIN_CPM_SAMPLE_MS = 250;
+
+        function takeCpmSample() {
+            const now = Date.now();
+            const seconds = (now - testStartTime) / 1000;
+            if (seconds <= 0) return;
+
+            const windowMs = now - cpmLastSampleAt;
+            if (windowMs < MIN_CPM_SAMPLE_MS) return;
+
+            const deltaChars = totalTypedChars - cpmLastSampleChars;
+            cpmLastSampleAt = now;
+            cpmLastSampleChars = totalTypedChars;
+
+            cpmSamples.push({
+                t: seconds,
+                cpm: Math.max(0, Math.round((deltaChars / (windowMs / 1000)) * 60))
+            });
+        }
+
         function startTestTimer() {
             isTestActive = true;
             testStartTime = Date.now();
@@ -2347,11 +2411,18 @@ let kanaPartial = "";
             cpmSamples = [];
             errorMarks = [];
             clearInterval(cpmSampleTimer);
-            cpmSampleTimer = setInterval(() => {
-                const seconds = (Date.now() - testStartTime) / 1000;
-                if (seconds <= 0) return;
-                cpmSamples.push({ t: seconds, cpm: Math.round((totalTypedChars / seconds) * 60) });
-            }, 1000);
+
+            /* Each point is the rate over the second just gone, not the average since the
+               start. The running average made the first sample meaningless — a second in, a
+               handful of characters over a fraction of a second reads as thousands of CPM —
+               and because that point set the top of the axis, the entire rest of the run was
+               squashed flat along the bottom. It also decayed towards the final average for
+               as long as you weren't typing, so a pause drew itself as a collapse instead of
+               as the pause it was. Per-second rate says what actually happened: you typed
+               this fast, then you stopped. */
+            cpmLastSampleAt = testStartTime;
+            cpmLastSampleChars = 0;
+            cpmSampleTimer = setInterval(takeCpmSample, 1000);
 
             if (activeMode === "time") {
                 if (testTimeSetting === "infinite") {
@@ -2474,8 +2545,11 @@ let kanaPartial = "";
                 </div>`;
         }
 
-        function finishTest() {
+        function finishTest({ completedAll = false } = {}) {
+            testEndedByCompletion = completedAll;
             clearInterval(testTimerInterval);
+            // Whatever was typed since the last tick, before the sampler stops
+            if (isTestActive && cpmLastSampleAt) takeCpmSample();
             clearInterval(cpmSampleTimer);
             isTestActive = false;
             typingControlsHint.classList.remove("hint-hidden");
@@ -2537,6 +2611,12 @@ let kanaPartial = "";
                 // Your race is over even if theirs isn't: the tabs come back now, and the
                 // board stays so you can watch everyone else come in.
                 mpSetNavbar(true);
+
+                /* And the room's panel comes back with them. The race closed every drawer to
+                   get them out of the way, and nothing reopened one afterwards — so the tabs
+                   returned but the room did not, and you had to click MULTIPLAYER yourself to
+                   see the roster or start another race. */
+                openTab("multiplayer");
 
                 const keystrokes = correctKeystrokes + mistakesSession;
                 mpSend({
@@ -3881,7 +3961,7 @@ function setMode(mode, shouldReload = true) {
                         // Running out of words ends the test in either mode. Time mode
                         // used to quietly load a fresh set instead, so a short custom run
                         // (say two kana) could never finish and was never recorded.
-                        finishTest();
+                        finishTest({ completedAll: true });
                     }
                 }
             };
@@ -4251,15 +4331,25 @@ function setMode(mode, shouldReload = true) {
         // Grey out everything a guest may not touch
         function mpApplyHostControlLock() {
             const locked = mpIsSpectator();
+            /* Every chip class, including .kana-filter-btn — the dakuten, sokuon and youon
+               switches were added later and missed off this list, which left a guest able to
+               click them. Cosmetic either way, since the host's seed decides what is raced,
+               but a control that moves and changes nothing is worse than one that is plainly
+               locked. */
             const controls = [
-                ...document.querySelectorAll(".mode-btn, .source-btn, .count-btn, .time-btn, .kana-count-btn, .tango-level-btn"),
+                ...document.querySelectorAll(".mode-btn, .source-btn, .count-btn, .time-btn, .kana-count-btn, .tango-level-btn, .kana-filter-btn"),
                 ...document.querySelectorAll(".custom-inline-input")
             ];
             controls.forEach(el => {
                 if (el.id === "tango-level-anki-btn") return;   // has its own connection rule
                 el.disabled = locked;
             });
+            /* On the row that holds the chips, not on the drawer they started in: in a
+               session the row is moved into the multiplayer panel, so hanging the styling off
+               the TYPE drawer left a guest looking at chips that were disabled but still drawn
+               as though they were live. */
             document.getElementById("test-options-drawer").classList.toggle("mp-locked", locked);
+            if (playOptionsRow) playOptionsRow.classList.toggle("mp-locked", locked);
 
             const textarea = document.getElementById("jptext");
             if (textarea && textarea.classList.contains("ready")) {
@@ -4315,8 +4405,15 @@ function setMode(mode, shouldReload = true) {
 
                 if (!!cfg.zen !== isZenMode) toggleZenMode();
 
-                // Follow the host around the site so everyone sees what they are showing
-                if (cfg.tab && cfg.tab !== mpCurrentTab) openTab(cfg.tab);
+                /* Follow the host around the site so everyone sees what they are showing —
+                   but not once the race is under way. The host's own openTab as it loads the
+                   seed broadcasts the tab it landed on, and following that mid-race reopened
+                   the room panel on top of every guest's test. An open drawer is what makes
+                   the test area stop taking keystrokes, so the guests simply could not type:
+                   they watched their words sit there while the host raced. During a race
+                   everyone is looking at the same thing anyway. */
+                const racing = mpState.racing || isMultiplayerRace;
+                if (!racing && cfg.tab && cfg.tab !== mpCurrentTab) openTab(cfg.tab);
 
                 if (cfg.source && cfg.source !== activeSource) {
                     setSource(cfg.source, false);
@@ -4473,6 +4570,16 @@ function setMode(mode, shouldReload = true) {
                 if (begun) return;
                 begun = true;
                 clearInterval(mpCountdownTimer);
+
+                /* Whatever field still has focus loses it. The typing handler ignores
+                   keystrokes aimed at an input, and a guest arrives at the race with the
+                   cursor still in the room-code box they just typed the code into — so every
+                   key of the race went into that box and the test never saw one of them. The
+                   host clicks a button to start, so the host never hit this. */
+                if (document.activeElement && document.activeElement !== document.body) {
+                    document.activeElement.blur();
+                }
+
                 mpSetStatus(mpRoomStatus, "Go!");
                 loadFromSeed(msg.seed);
                 isMultiplayerRace = true;
@@ -5051,6 +5158,21 @@ function setMode(mode, shouldReload = true) {
             if (typeof mpState !== "undefined" && mpState.code) return;
 
             applyWordCountFilter();
+        }
+
+        /* Taking the results away because the test area itself is going. Hidden directly
+           rather than through showResultPanel, which would fade the words and the input back
+           in — and they are on their way out. A finished live run leaves a spent test behind
+           it, so the next one is queued now and is ready whenever the test area returns; in a
+           room the words belong to the room and are left alone. */
+        function dismissResultsWithTestArea() {
+            const wasStored = !!storedResultView;
+            resultModal.classList.add("hidden");
+            resetResultCardToLive();
+
+            if (!wasStored && !(typeof mpState !== "undefined" && mpState.code)) {
+                applyWordCountFilter();
+            }
         }
 
         function closeResultsIfOpen() {
