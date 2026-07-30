@@ -2763,37 +2763,50 @@ gap: 12px;
     cursor: not-allowed;
 }
 
-/* The host's remove control on a roster row. Sits at the right-hand end, quiet until the row
-   is hovered so a list of players isn't also a row of dismiss buttons. */
+/* The host's remove control on a roster row, at the right-hand end.
+
+   Visible from the outset. It was hidden until the row was hovered, on the reasoning that a
+   list of players shouldn't also be a row of dismiss buttons — but a control nobody can see
+   is a control nobody knows exists, which is exactly how it was reported. It sits quietly
+   instead: muted and outlined, brightening to red under the pointer. */
 .mp-kick-btn {
     position: relative;
     z-index: 1;
-    margin-left: 8px;
-    width: 20px;
-    height: 20px;
+    margin-left: 4px;
+    width: 22px;
+    height: 22px;
     flex-shrink: 0;
     display: flex;
     align-items: center;
     justify-content: center;
     background: transparent;
-    border: none;
-    border-radius: 5px;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
     color: var(--text-muted);
-    font-size: 1rem;
+    font-size: 0.95rem;
     line-height: 1;
     cursor: pointer;
-    opacity: 0;
-    transition: opacity 0.15s ease, color 0.15s ease, background-color 0.15s ease;
+    opacity: 0.75;
+    transition: opacity 0.15s ease, color 0.15s ease,
+                background-color 0.15s ease, border-color 0.15s ease;
 }
 
-.mp-member:hover .mp-kick-btn,
-.mp-kick-btn:focus-visible {
+.mp-member:hover .mp-kick-btn {
     opacity: 1;
 }
 
-.mp-kick-btn:hover {
+.mp-kick-btn:hover,
+.mp-kick-btn:focus-visible {
+    opacity: 1;
     color: var(--accent-red);
-    background-color: rgba(255, 255, 255, 0.08);
+    border-color: var(--accent-red);
+    background-color: rgba(229, 83, 75, 0.12);
+}
+
+/* The name takes the slack so the result and the remove button stay together on the right,
+   where the result sat on its own before the button joined it */
+.mp-member-name {
+    margin-right: auto;
 }
 
 .mp-confirm-overlay {
