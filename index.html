@@ -548,9 +548,12 @@
                     <span class="value" id="time-left-val">30s</span>
                 </div>
 
-                <div class="score-panel-inline" id="play-time-panel">
-                    <span class="label">PLAY TIME</span>
-                    <span class="value" id="play-time-val">0s</span>
+                <!-- How much is on the table for this run. Replaces a PLAY TIME readout that
+                     no code ever wrote to, so it showed a hardcoded 0s in every test the site
+                     has ever run. -->
+                <div class="score-panel-inline" id="loaded-count-panel">
+                    <span class="label">LOADED</span>
+                    <span class="value" id="loaded-count-val">0w</span>
                 </div>
             </div>
         </div>
@@ -3782,7 +3785,23 @@ function setMode(mode, shouldReload = true) {
             return wordNode;
         }
 
+        /* What is loaded for this run, in the units the chips above are labelled with: 10w
+           when 10w is picked, 100c for a hundred characters, and for max the size of the whole
+           deck — which is the number worth knowing, since "max" on its own says nothing about
+           whether that is eighty words or fifteen hundred. Read off the list actually built, so
+           it can't drift from what is on screen. */
+        function updateLoadedCount() {
+            const el = document.getElementById("loaded-count-val");
+            if (!el) return;
+            const countsCharacters = activeSource === "hiragana" || activeSource === "katakana";
+            el.textContent = `${activeWordList.length}${countsCharacters ? "c" : "w"}`;
+        }
+
         function renderWordBlock() {
+            // Every route that changes the word list ends up drawing it, so this is the one
+            // place the count has to be kept in step
+            updateLoadedCount();
+
             /* The room races the host's words, so it is shown them as they change. Sent
                before the early return below, not after: the host watching its own lobby
                preview is exactly when the list is changing and the room most needs to
