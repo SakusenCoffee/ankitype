@@ -2040,16 +2040,21 @@ let romajiAlt = "";
         const touchInputQuery = window.matchMedia("(hover: none) and (pointer: coarse)");
         const usingTouchInput = () => touchInputQuery.matches;
 
-        /* The same two lines for a phone. The hints above are keyboard instructions — Tab
-           toggles the readings, a click shows a meaning — so on touch they become the
-           controls they were describing, including the one that raises the keyboard.
+        /* The same line for a phone. The hints above are keyboard instructions — Tab
+           toggles the readings, a click shows a meaning — so on touch all three become
+           the controls they were describing, the keyboard's own included.
 
-           No bullets between them: the two controls carry their own edges, and a separator
-           floating between a button and a border only reads as debris. */
+           The meaning gets a button here rather than staying on the words themselves: a
+           tap on a word can't be told apart from the tap that brings the keyboard back,
+           and with the keyboard already up the word underneath a finger is as likely to
+           be the one being typed as the one being asked about.
+
+           No bullets between them: they carry their own edges, and a separator floating
+           between two borders only reads as debris. */
         const TYPING_HINT_TOUCH =
             "<button type=\"button\" class=\"hint-action\" data-hint-action=\"keyboard\">TAP TO TYPE</button>"
-            + "<button type=\"button\" class=\"hint-action\" data-hint-action=\"readings\">TOGGLE READINGS</button>"
-            + "<span>[TAP WORD] SHOW MEANING</span>";
+            + "<button type=\"button\" class=\"hint-action\" data-hint-action=\"readings\">READINGS</button>"
+            + "<button type=\"button\" class=\"hint-action\" data-hint-action=\"meanings\">MEANINGS</button>";
         const PREVIEW_HINT_TOUCH = "<span>[TAP THE WORDS] GO TO TYPE AND START TYPING</span>";
 
         const typingHintFor = (live, preview) => {
@@ -3882,6 +3887,12 @@ function setMode(mode, shouldReload = true) {
                 // Outside TYPE a click is the way back to typing, not a meaning toggle
                 if (enterPlayFromPreview()) return;
                 if (tapRaisedTheKeyboard()) return;
+                /* On touch the meaning is a button in the hints instead. Leaving it on the
+                   words as well meant a tap on a word had to be two things at once, and
+                   with the keyboard up it was reliably the wrong one: the tap dismisses
+                   the keyboard on its way in, so the next tap went to bringing it back
+                   rather than to the meaning it was aimed at. */
+                if (usingTouchInput()) return;
                 showMeaning = !showMeaning;
                 updateVisibility();
             });
@@ -4421,6 +4432,9 @@ function setMode(mode, shouldReload = true) {
                 focusMobileTypingInput();
             } else if (action === "readings") {
                 showRomaji = !showRomaji;
+                updateVisibility();
+            } else if (action === "meanings") {
+                showMeaning = !showMeaning;
                 updateVisibility();
             }
         });
