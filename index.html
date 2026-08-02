@@ -306,6 +306,19 @@
                         </label>
                     </div>
 
+                    <!-- Which of the deck's cards to take at all, before any of it is
+                         ordered. Asked of Anki rather than worked out here: these are its
+                         own search terms, so the answer is the scheduler's. -->
+                    <div class="anki-order">
+                        <span class="anki-order-label">CARDS</span>
+                        <div class="count-selector-group" id="anki-queue-group">
+                            <button class="count-btn active" data-anki-queue="all">whole deck</button>
+                            <button class="count-btn" data-anki-queue="today">due today</button>
+                            <button class="count-btn" data-anki-queue="tomorrow">due tomorrow</button>
+                        </div>
+                    </div>
+                    <span class="anki-order-note" id="anki-queue-note" aria-live="polite"></span>
+
                     <!-- The note below the row explains whichever chip is under the
                          pointer, and falls back to describing the active one. Two of
                          these read almost alike from the label alone: "hardest first" is
@@ -3290,7 +3303,10 @@ function setMode(mode, shouldReload = true) {
 
            One deck at a time, deliberately: switching away and back is the way to pick up
            cards edited in Anki since, which a per-deck cache would have swallowed. */
-        let ankiRawDeck = null;     // the deck ankiRawNotes holds, if any
+        /* The deck ankiRawNotes holds, if any — and which of its cards, since asking for
+           only tomorrow's is a different question with a different answer, and holding it
+           under the deck's name alone would have served yesterday's answer to it. */
+        let ankiRawDeck = null;
         let ankiRawNotes = [];      // notesInfo output, exactly as Anki gave it
         let ankiEntries = [];       // words built from those notes, with their sort keys
         let ankiEntriesKey = "";    // deck + field mapping ankiEntries was built from
@@ -3302,6 +3318,69 @@ function setMode(mode, shouldReload = true) {
 
         function frequencyLabel() {
             return ankiFreqDir === "low-high" ? "frequency low→high" : "frequency high→low";
+        }
+
+        /* ---- Which cards to take from the deck ---------------------------------------
+           Anki's scheduler decides this, so it is asked rather than reimplemented: these
+           are search terms handed to findNotes alongside the deck name, and what comes
+           back is what Anki itself would put in front of you.
+
+           due today  — is:due is everything waiting now: reviews dated today or earlier,
+                        and cards part-way through their learning steps. Suspended cards
+                        are never shown, and buried ones are already put off until
+                        tomorrow, so neither belongs in today's queue.
+
+           due tomorrow — prop:due=1 is dated exactly one day out. Buried cards are left
+                        in on purpose: being buried is what makes a card tomorrow's
+                        problem. Suspended cards stay out, since a suspension outlives
+                        the day.
+
+           Neither includes new cards. Anki has no date on an unseen card — how many of
+           them you meet tomorrow is your daily limit's business and not something a
+           search can answer — and the same limits mean a long "due today" is a list of
+           what is owed rather than a promise of what you will be shown. */
+        const ANKI_QUEUE_TERMS = {
+            all: "",
+            today: "is:due -is:suspended -is:buried",
+            tomorrow: "prop:due=1 -is:suspended"
+        };
+
+        let ankiQueue = localStorage.getItem("anki_type_queue") || "all";
+        if (!ANKI_QUEUE_TERMS[ankiQueue]) ankiQueue = "all";
+
+        function ankiDeckQuery(deckName) {
+            const terms = ANKI_QUEUE_TERMS[ankiQueue] || "";
+            return terms ? `deck:"${deckName}" (${terms})` : `deck:"${deckName}"`;
+        }
+
+        /* What the notes held in memory are the answer to. A deck name alone was enough
+           while the whole deck was always the question; it no longer is. Newline, because
+           no deck name can hold one. */
+        function ankiRawKey(deckName) {
+            return `${deckName}\n${ankiQueue}`;
+        }
+
+        function describeAnkiQueue(queue) {
+            if (queue === "today") {
+                return "Only what Anki is waiting to show you now — reviews that have come due, and cards mid-way through learning. New cards aren't included.";
+            }
+            if (queue === "tomorrow") {
+                return "Only the cards Anki has dated for tomorrow, buried ones included. New cards aren't: how many of those you see depends on your daily limit, which no search can read.";
+            }
+            return "Every card in the deck, whatever Anki has scheduled.";
+        }
+
+        // Said in the deck's own words when the filter finds nothing, since an empty
+        // queue is a normal answer rather than a failure
+        function emptyQueueMessage(deckName) {
+            if (ankiQueue === "today") return `Nothing is due today in "${deckName}".`;
+            if (ankiQueue === "tomorrow") return `Nothing is due tomorrow in "${deckName}".`;
+            return `No cards found in deck "${deckName}".`;
+        }
+
+        function setAnkiQueueNote(queue) {
+            const note = document.getElementById("anki-queue-note");
+            if (note) note.textContent = describeAnkiQueue(queue || ankiQueue);
         }
 
         /* Said in full under the row, because the labels alone don't separate the two
@@ -3502,17 +3581,21 @@ function setMode(mode, shouldReload = true) {
            pays for a full render of the deck.
 
            Cached per deck and per number, so switching between the two orderings, or back
-           and forth between them, asks Anki once each. */
+           and forth between them, asks Anki once each. Under the same key as the notes,
+           since "we have every ease factor for this deck" is only true of the cards that
+           were actually asked about — a run of tomorrow's cards knows nothing about the
+           rest of the deck. */
         let ankiCardMetaDeck = null;
         let ankiCardMetaKeys = new Set();
 
         async function ensureAnkiCardMeta(deckName, notes, order) {
             const want = order === "difficulty" ? "factor" : "lapses";
+            const key = ankiRawKey(deckName);
 
-            if (ankiCardMetaDeck !== deckName) {
+            if (ankiCardMetaDeck !== key) {
                 ankiCardMeta = new Map();
                 ankiCardMetaKeys = new Set();
-                ankiCardMetaDeck = deckName;
+                ankiCardMetaDeck = key;
             }
             if (ankiCardMetaKeys.has(want)) return;
 
@@ -3645,22 +3728,22 @@ function setMode(mode, shouldReload = true) {
                 /* Reordering the deck you are already on, or remapping its fields, asks
                    nothing of Anki: the notes are here and they haven't changed. No status
                    flicker either — there is no queue to load. */
-                if (ankiRawDeck === targetDeckName && ankiRawNotes.length > 0) {
+                if (ankiRawDeck === ankiRawKey(targetDeckName) && ankiRawNotes.length > 0) {
                     await buildAnkiDeck(targetDeckName, ankiRawNotes, { setStatus, usingAnkiDeck, fail });
                     return;
                 }
 
                 setStatus("LOADING QUEUE", "status-loading");
 
-                const findResult = await fetchFromAnki("findNotes", { query: `deck:"${targetDeckName}"` });
+                const findResult = await fetchFromAnki("findNotes", { query: ankiDeckQuery(targetDeckName) });
                 if (!findResult || !findResult.result) {
                     setStatus("OFFLINE - START ANKI", "status-offline");
                     fail("Anki didn't answer. Check that it is open with AnkiConnect installed.");
                     return;
                 }
                 if (findResult.result.length === 0) {
-                    setStatus("DECK EMPTY", "status-offline");
-                    fail(`No cards found in deck "${targetDeckName}".`);
+                    setStatus(ankiQueue === "all" ? "DECK EMPTY" : "QUEUE EMPTY", "status-offline");
+                    fail(emptyQueueMessage(targetDeckName));
                     return;
                 }
 
@@ -3679,7 +3762,7 @@ function setMode(mode, shouldReload = true) {
 
                 // Kept for every later ordering. Set only once the notes are actually in
                 // hand, so a failed fetch leaves whatever was already cached alone.
-                ankiRawDeck = targetDeckName;
+                ankiRawDeck = ankiRawKey(targetDeckName);
                 ankiRawNotes = notes;
                 ankiEntriesKey = "";
 
@@ -6739,6 +6822,33 @@ function setMode(mode, shouldReload = true) {
            hand when Anki won't tell us what the deck has. The frequency chip starts
            locked for the same reason and populateDecks() unlocks it if the deck has one. */
         refreshFieldSelects();
+
+        document.querySelectorAll("#anki-queue-group [data-anki-queue]").forEach(btn => {
+            const queue = btn.dataset.ankiQueue;
+            btn.classList.toggle("active", queue === ankiQueue);
+            btn.title = describeAnkiQueue(queue);
+
+            btn.addEventListener("mouseenter", () => setAnkiQueueNote(queue));
+            btn.addEventListener("focus", () => setAnkiQueueNote(queue));
+            btn.addEventListener("mouseleave", () => setAnkiQueueNote());
+            btn.addEventListener("blur", () => setAnkiQueueNote());
+
+            btn.addEventListener("click", () => {
+                if (queue === ankiQueue) return;
+
+                ankiQueue = queue;
+                localStorage.setItem("anki_type_queue", ankiQueue);
+                document.querySelectorAll("#anki-queue-group [data-anki-queue]")
+                    .forEach(b => b.classList.toggle("active", b === btn));
+
+                setAnkiQueueNote(queue);
+
+                // A different set of cards, so this one does have to go back to Anki
+                if (deckDropdown.value) loadAnkiDeck(deckDropdown.value);
+            });
+        });
+
+        setAnkiQueueNote();
 
         document.querySelectorAll("#anki-order-group [data-anki-order]").forEach(btn => {
             const order = btn.dataset.ankiOrder;
