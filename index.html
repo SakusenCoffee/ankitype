@@ -2185,7 +2185,25 @@ let romajiAlt = "";
                 setTangoLevel("anki", false);
                 setMode("words", false);
                 applyWordCount("max");
-                loadTangoSource("anki");
+
+                /* The words on screen are the deck in the order the drawer arranged it,
+                   shuffles included, and clicking them is a request to type those. Going
+                   through loadTangoSource would have handed the deck to the usual start-a-
+                   test path, which draws a fresh order for a shuffled deck — so what you
+                   clicked was never what you got.
+
+                   The order is taken as previewed instead. Later tests shuffle again as
+                   they always have: it is this run, the one the preview launched, that has
+                   a particular list to honour. */
+                // A seed named in the URL is still waiting to be opened and outranks the
+                // deck; loadTangoSource is where that is handled
+                if (ankiDeckCache.length > 0 && !initialSeedParam) {
+                    masterDeckList = ankiDeckCache;
+                    currentSessionDeck = [...ankiDeckCache];
+                    applyWordCountFilter(false);
+                } else {
+                    loadTangoSource("anki");
+                }
             }
             return true;
         }
