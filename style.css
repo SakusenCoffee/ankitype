@@ -3284,3 +3284,428 @@ body.tight-spacing .word-item {
 .history-body {
     max-height: 420px;
 }
+
+/* ==========================================================================
+   NARROW SCREENS
+
+   Everything above this line is the desktop layout and is left exactly as it
+   was: the whole of the mobile work lives in the queries below, so a wide
+   window never reaches any of it.
+
+   Three separate questions are asked, because they are three different things:
+
+   - max-width, twice, for how much room there is. 860px is where the two-column
+     panels give up their second column; 700px is where the navbar's labels stop
+     fitting beside its icons.
+   - hover/pointer, for what is doing the pointing. A finger has no hover, so
+     anything that only appears on hover has to be shown outright, and a tap
+     target has to be a target rather than a line of text.
+
+   A narrow desktop window gets the first two and not the third, which is the
+   point of asking them separately. */
+
+/* Safari inflates text on a rotated phone unless told not to. The site sets its
+   own sizes and the CONFIG sliders set the rest, so the browser's opinion is
+   never wanted. Unscoped: it has no effect on a desktop to begin with. */
+html {
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+}
+
+@media (max-width: 860px) {
+    /* The measure the panels use is a percentage, so it already narrows —
+       what it can't do on its own is stop the padding eating the content */
+    .top-navbar,
+    .zen-layout {
+        width: 94%;
+    }
+
+    /* Two columns of settings at 400px each are two columns of nothing */
+    .drawer-inner.grid-2 {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    /* The sliders ask to span both columns, and a span of two in a grid with one
+       explicit column conjures the second one back — the collapse above has to
+       take the spans with it or it collapses nothing. */
+    .selector-container.full-width {
+        grid-column: span 1;
+    }
+
+    /* Picture beside stats becomes picture above stats. The fixed 165px column
+       was a third of the screen for a photograph nobody came to look at. */
+    .profile-card {
+        flex-direction: column;
+        align-items: center;
+    }
+
+    .profile-avatar-col {
+        width: 180px;
+    }
+
+    .avatar-wrapper {
+        min-height: 200px;
+    }
+
+    /* Five tiles across won't go. auto-fit rather than a fixed count so the row
+       breaks where it has to and stays full at every width in between. */
+    #result-modal .stats-grid,
+    .stats-grid {
+        grid-template-columns: repeat(auto-fit, minmax(112px, 1fr));
+    }
+}
+
+@media (max-width: 700px) {
+    body {
+        /* The address bar counts against 100vh but not against 100dvh, which is
+           the difference between the footer sitting at the bottom of the screen
+           and sitting just under it. Declared after the vh version so a browser
+           without dvh keeps the old value rather than losing the rule. */
+        min-height: 100vh;
+        min-height: 100dvh;
+    }
+
+    /* NAVBAR — brand and tabs on one line while that fits, and on two when it
+       doesn't. Wrapping rather than a hamburger: six tabs is a row, not a menu,
+       and hiding them behind a control costs a tap on every single visit. */
+    .top-navbar {
+        margin-top: 12px;
+    }
+
+    .nav-content {
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 6px 10px;
+        padding: 10px 12px;
+    }
+
+    /* The brand was breaking one glyph per line: it is a flex item under
+       pressure from the tabs beside it, and 単語タイプ has a break opportunity
+       between every character. It keeps its line or it gives up its space. */
+    .nav-brand {
+        flex-shrink: 0;
+        white-space: nowrap;
+    }
+
+    .logo-text {
+        font-size: 1.45rem;
+    }
+
+    .nav-actions {
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 4px;
+    }
+
+    /* Icons only. Every tab has one — a drawn mark, 種 for seeds, or your own
+       avatar on PROFILE — and the labels are what made the row 630px wide.
+       The button becomes a square big enough to hit with a thumb; the title
+       attribute each one already carries is what names it now.
+
+       Scoped to the tab row rather than to .nav-btn, which the seed drawer's
+       Create Seed button also wears — it is a button with a label and nothing
+       else, so hiding its span would leave an empty pill. */
+    .nav-actions .nav-btn > span:not(.kanji-seed-icon) {
+        display: none;
+    }
+
+    .nav-actions .nav-btn {
+        justify-content: center;
+        min-width: 44px;
+        padding: 10px;
+    }
+
+    .nav-actions .nav-btn svg {
+        width: 18px;
+        height: 18px;
+    }
+
+    .kanji-seed-icon {
+        font-size: 1.15rem;
+    }
+
+    /* Rules between things that are no longer in a row together */
+    .nav-divider,
+    .selector-divider {
+        display: none;
+    }
+
+    /* DRAWERS */
+    .nav-drawer {
+        padding: 12px;
+    }
+
+    /* A group of chips is a row that couldn't break, so the last chips in the
+       longer groups (custom, N1) were simply off the side of the screen */
+    .count-selector-group {
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+
+    .word-count-nav {
+        gap: 8px;
+    }
+
+    /* TEST AREA */
+    .toggles-row {
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 10px 18px;
+    }
+
+    /* Two lines of hint above the words is two lines the words don't get */
+    .typing-controls-hint {
+        font-size: 0.68rem;
+        text-align: center;
+        line-height: 1.4;
+    }
+
+    /* RESULTS */
+    #result-modal .stats-grid,
+    .stats-grid {
+        grid-template-columns: repeat(auto-fit, minmax(96px, 1fr));
+        gap: 8px;
+    }
+
+    .modal-card {
+        padding: 16px;
+    }
+
+    .result-actions {
+        flex-direction: column;
+    }
+
+    /* MULTIPLAYER — the lobby's three controls stack, each full width, rather
+       than wrapping into an uneven two-and-one */
+    .mp-lobby-row {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .mp-limit-field input,
+    .mp-join-group,
+    .mp-join-group input,
+    .mp-create-btn {
+        width: 100%;
+    }
+
+    .mp-room-head,
+    .mp-host-bar,
+    .mp-session-bar {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .mp-room-actions {
+        display: flex;
+        gap: 8px;
+    }
+
+    .mp-room-actions .mp-small-btn {
+        flex: 1;
+    }
+
+    /* The race board keeps its shape, at the size a phone can hold: shorter
+       lanes and smaller runners. The runner's travel is measured off the lane
+       at run time, so both follow from the variables without any arithmetic
+       here needing to agree with the arithmetic in the page. */
+    :root {
+        --race-runner-width: 46px;
+        --race-avatar-size: 32px;
+    }
+
+    .race-track {
+        padding: 10px 12px 4px;
+    }
+
+    .race-lane {
+        height: 54px;
+    }
+
+    /* WORKSHOP */
+    #jptext,
+    #app-wrapper {
+        min-height: 240px;
+    }
+
+    .workshop-actions {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 8px;
+    }
+
+    .workshop-send-btn {
+        width: 100%;
+    }
+
+    /* The counters were a row of four across a screen that fits two */
+    .zen-container .counter-container {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .filter-editor-grid {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    /* PROFILE */
+    .history-head {
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    .avatar-picker-grid {
+        grid-template-columns: repeat(4, 1fr);
+    }
+
+    /* Wider than the screen by design — it scrolls inside its own panel — but
+       the panel has to be told not to hand that width to the page */
+    .history-panel,
+    .history-body {
+        max-width: 100%;
+    }
+
+    /* SEED */
+    .seed-controls-group {
+        width: 100%;
+    }
+
+    .seed-load-wrapper {
+        flex: 1;
+    }
+
+    .seed-load-wrapper input {
+        width: 100%;
+        min-width: 0;
+    }
+
+    .seed-hint {
+        max-width: 100%;
+        text-align: center;
+    }
+
+    /* FOOTER */
+    .app-footer {
+        padding: 12px;
+    }
+
+    .footer-content {
+        justify-content: center;
+        text-align: center;
+        gap: 8px;
+    }
+
+    .footer-left {
+        justify-content: center;
+    }
+}
+
+/* The field a phone's keyboard types into. Out of the document entirely unless
+   the pointer is a finger — on a desktop it must not exist to be clicked into,
+   because the key handler ignores anything typed while an input holds the focus
+   and typing would appear to stop working for no visible reason. */
+.mobile-typing-input {
+    display: none;
+}
+
+/* Touch devices, at any width. These are about the pointer rather than the
+   room: a finger can't hover, and it can't hit a 14px line of text. */
+@media (hover: none) and (pointer: coarse) {
+    .live-input-box-wrapper {
+        position: relative;
+    }
+
+    /* Laid over the box that says "Type active word...", so tapping the invitation
+       is what raises the keyboard — no scripted focus, which is the part iOS is
+       particular about. Invisible rather than absent: the box underneath goes on
+       showing what has been typed, and this only has to catch the tap and hold
+       the caret. */
+    .mobile-typing-input {
+        display: block;
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        padding: 0;
+        margin: 0;
+        border: none;
+        border-radius: 12px;
+        background: transparent;
+        color: transparent;
+        caret-color: transparent;
+        outline: none;
+        opacity: 0;
+        font-family: inherit;
+    }
+
+    /* With the box turned off in CONFIG there is nothing to lie over: the wrapper
+       collapses and the field would be a dead 46px sitting on top of whatever is
+       underneath it. It keeps a size, because iOS will not raise a keyboard for a
+       field with none, and stops taking taps, because the only thing left to tap
+       there belongs to the row below. TAP TO TYPE focuses it directly. */
+    .live-input-box.hidden + .mobile-typing-input {
+        min-height: 46px;
+        pointer-events: none;
+    }
+
+    /* The hints become controls here, so they have to look like something to press
+       and be big enough to press. Still quiet — they sit under the words and the
+       words are what you are meant to be looking at. */
+    .hint-action {
+        font: inherit;
+        font-weight: 700;
+        letter-spacing: inherit;
+        color: var(--accent-main);
+        background: transparent;
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        padding: 7px 12px;
+        cursor: pointer;
+        touch-action: manipulation;
+    }
+
+    .typing-controls-hint {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+    }
+
+    /* iOS zooms the page in whenever a focused field's text is under 16px, and
+       never zooms back out. Every field the site asks you to type into gets the
+       floor; the chips and readings keep their own sizes. */
+    input,
+    select,
+    textarea {
+        font-size: 16px;
+    }
+
+    /* No hover to reveal them, so they are simply there. Both sit on top of a
+       picture and are dark on light, which is why they can be shown at rest
+       without reading as a second control competing with the image. */
+    .avatar-overlay {
+        opacity: 1;
+        background: rgba(0, 0, 0, 0.35);
+    }
+
+    .avatar-delete-btn {
+        opacity: 1;
+        pointer-events: auto;
+    }
+
+    /* A tap that lands slightly twice is a double-tap, and a double-tap is a
+       zoom. The words take taps to reveal a meaning and the chips take taps to
+       change a setting; neither wants to be a zoom gesture. */
+    .word-item,
+    .nav-btn,
+    .mode-btn,
+    .source-btn,
+    .count-btn,
+    .time-btn,
+    .kana-count-btn,
+    .kana-filter-btn,
+    .tango-level-btn {
+        touch-action: manipulation;
+    }
+}

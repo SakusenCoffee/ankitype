@@ -534,6 +534,25 @@
                     <span class="placeholder-text" id="input-placeholder">Type active word...</span>
                     <span id="live-input-text"></span>
                 </div>
+
+                <!-- What a phone types into. A touch keyboard only appears for a focused
+                     field, and it reports what it inserted rather than which keys were
+                     pressed, so there has to be a real input somewhere for it to edit —
+                     the characters it puts in here are read off and fed to the same test
+                     a physical keyboard drives.
+
+                     Laid over the box above rather than parked off-screen: tapping the
+                     thing that says "type here" is then the browser's own way of focusing
+                     it, which is the one thing iOS reliably accepts. It is invisible and
+                     the box underneath goes on showing what has been typed.
+
+                     Display is off entirely unless the pointer is a finger, so on a
+                     desktop it is not in the page at all and cannot take the focus that
+                     the keyboard handler expects to be nowhere. -->
+                <input class="mobile-typing-input" id="mobile-typing-input" type="text"
+                       autocomplete="off" autocorrect="off" autocapitalize="none"
+                       spellcheck="false" enterkeyhint="done" tabindex="-1"
+                       aria-label="Type the word shown" />
             </div>
 
             <div class="toggles-row">
@@ -2011,6 +2030,31 @@ let romajiAlt = "";
         const PREVIEW_HINT = "<span>[CLICK THE WORDS] GO TO TYPE AND START TYPING</span>";
         const LOBBY_HINT = "<span>THE ROOM RACES THIS — THE HOST STARTS IT</span>";
 
+        /* Is the thing pointing at the page a finger? Everything that follows from the
+           answer is about what the visitor can physically do — a finger cannot hover, and
+           there is no Tab key under it — rather than about how much room there is, which
+           is why it isn't a width. */
+        const touchInputQuery = window.matchMedia("(hover: none) and (pointer: coarse)");
+        const usingTouchInput = () => touchInputQuery.matches;
+
+        /* The same two lines for a phone. The hints above are keyboard instructions — Tab
+           toggles the readings, a click shows a meaning — so on touch they become the
+           controls they were describing, including the one that raises the keyboard.
+
+           No bullets between them: the two controls carry their own edges, and a separator
+           floating between a button and a border only reads as debris. */
+        const TYPING_HINT_TOUCH =
+            "<button type=\"button\" class=\"hint-action\" data-hint-action=\"keyboard\">TAP TO TYPE</button>"
+            + "<button type=\"button\" class=\"hint-action\" data-hint-action=\"readings\">TOGGLE READINGS</button>"
+            + "<span>[TAP WORD] SHOW MEANING</span>";
+        const PREVIEW_HINT_TOUCH = "<span>[TAP THE WORDS] GO TO TYPE AND START TYPING</span>";
+
+        const typingHintFor = (live, preview) => {
+            if (live) return usingTouchInput() ? TYPING_HINT_TOUCH : TYPING_HINT_DEFAULT;
+            if (preview === "room") return LOBBY_HINT;
+            return usingTouchInput() ? PREVIEW_HINT_TOUCH : PREVIEW_HINT;
+        };
+
         function anyDrawerOpen() {
             return [profileDrawer, testOptionsDrawer, ankiDrawer,
                     appearanceDrawer, seedDrawer, multiplayerDrawer]
@@ -2093,9 +2137,7 @@ let romajiAlt = "";
 
             if (typingControlsHint) {
                 typingControlsHint.classList.remove("hidden");
-                typingControlsHint.innerHTML = live
-                    ? TYPING_HINT_DEFAULT
-                    : (preview === "room" ? LOBBY_HINT : PREVIEW_HINT);
+                typingControlsHint.innerHTML = typingHintFor(live, preview);
             }
 
             syncTestAreaPreview(preview);
@@ -2653,6 +2695,9 @@ let romajiAlt = "";
             clearInterval(cpmSampleTimer);
             isTestActive = false;
             typingControlsHint.classList.remove("hint-hidden");
+            /* The phone keyboard goes away with the test it was typing into — it covers
+               half the screen, and the half it covers is where the results appear. */
+            if (mobileTypingInput) mobileTypingInput.blur();
             const elapsedTimeSec = Math.max(1, Math.round((Date.now() - testStartTime) / 1000));
             /* Never longer than the run itself, and never zero once a key was actually
                pressed — the active clock is sampled, so a run that starts and ends
@@ -3999,6 +4044,15 @@ function setMode(mode, shouldReload = true) {
             updateDisplay();
         }
 
+        /* Whether the test is on screen and ready to take a character, whichever kind of
+           keyboard it came from. The results standing in for the test count as not ready:
+           they take Enter and Tab to dismiss and nothing else. */
+        function typingIsAccepting() {
+            return !isZenMode
+                && testAreaIsLive()
+                && resultModal.classList.contains("hidden");
+        }
+
         window.addEventListener("keydown", (e) => {
             if (isZenMode) return;
             if (e.target.tagName === "INPUT" || e.target.tagName === "SELECT" || e.target.tagName === "TEXTAREA") return;
@@ -4031,10 +4085,24 @@ function setMode(mode, shouldReload = true) {
                 return;
             }
 
+            if (e.key === "Backspace") {
+                handleTypedKey("Backspace");
+                return;
+            }
+
+            if (e.key.length > 1 || e.ctrlKey || e.metaKey || e.altKey) return;
+            handleTypedKey(e.key);
+        });
+
+        /* One character against the word in progress — a letter, a kana, or "Backspace".
+           Split out of the keydown handler above because a phone's keyboard doesn't
+           report keys: it reports edits to a field, and those arrive here as the
+           characters they inserted. Everything either way in is the same test. */
+        function handleTypedKey(key) {
             if (activeWordList.length === 0) return;
             const currentWord = activeWordList[currentIndex];
 
-            if (e.key === "Backspace") {
+            if (key === "Backspace") {
                 // The half-finished syllable goes first: it is the most recent thing typed
                 if (kanaPartial) {
                     kanaPartial = kanaPartial.slice(0, -1);
@@ -4049,7 +4117,7 @@ function setMode(mode, shouldReload = true) {
                 return;
             }
 
-            if (e.key.length > 1 || e.ctrlKey || e.metaKey || e.altKey) return;
+            if (key.length !== 1) return;
 
             onUserActiveTyping();
 
@@ -4105,7 +4173,7 @@ function setMode(mode, shouldReload = true) {
             /* A kana key spells a whole syllable at once, so it is counted off against the
                word's kana rather than against its letters. Compared in hiragana, which is
                what lets a katakana keyboard clear a hiragana word and the other way round. */
-            if (isKanaKey(e.key)) {
+            if (isKanaKey(key)) {
                 /* The mirror of the letter case below: a kana landing on a syllable someone
                    had started spelling out in letters. The two spellings can't be
                    interleaved inside one syllable either way round. */
@@ -4131,10 +4199,10 @@ function setMode(mode, shouldReload = true) {
                 }
 
                 // No kana spelling for this word at all, or the wrong kana for this position
-                if (!unit || toHiraganaKey(e.key) !== unit.kana[kanaPartial.length]) {
+                if (!unit || toHiraganaKey(key) !== unit.kana[kanaPartial.length]) {
                     registerMistake();
                 } else {
-                    kanaPartial += toHiraganaKey(e.key);
+                    kanaPartial += toHiraganaKey(key);
                     if (kanaPartial.length === unit.kana.length) {
                         kanaPartial = "";
                         const upToUnitEnd = currentWord.romaji.slice(0, unitStart + unit.romaji.length);
@@ -4151,7 +4219,7 @@ function setMode(mode, shouldReload = true) {
                 return;
             }
 
-            const keyTyped = e.key.toLowerCase();
+            const keyTyped = key.toLowerCase();
             const expectedChar = currentWord.romaji[typedInput.length];
 
             /* A letter arriving mid-syllable, after a kana that was waiting on its small
@@ -4189,7 +4257,118 @@ function setMode(mode, shouldReload = true) {
             }
 
             updateDisplay();
+        }
+
+        /* TOUCH TYPING
+           A phone has no keydown to listen to worth the name: the soft keyboard edits a
+           focused field and the page is told what the field now says. So the field's value
+           is diffed against what it said last time — letters that appeared are keystrokes,
+           letters that vanished are backspaces — and each one goes to handleTypedKey, which
+           is the same door the physical keyboard comes through.
+
+           The field is never read as text and never cleared per keystroke: clearing it is
+           what makes backspace undetectable, since a soft keyboard reports a deletion only
+           when there was something there to delete. */
+        const mobileTypingInput = document.getElementById("mobile-typing-input");
+
+        // What the field said when it was last read, so the next reading has something to
+        // be a difference from
+        let mobileInputLast = "";
+
+        function resetMobileTypingInput() {
+            if (!mobileTypingInput) return;
+            mobileInputLast = "";
+            mobileTypingInput.value = "";
+        }
+
+        function focusMobileTypingInput() {
+            if (!mobileTypingInput || !usingTouchInput()) return;
+            if (!typingIsAccepting()) return;
+            /* The browser's own scroll is left to happen: a keyboard takes the bottom of
+               the screen, and getting the focused field back above it is the one piece of
+               this each mobile browser already knows how to do for itself. The field is
+               the box under the words, so what that scroll brings into view is the test. */
+            mobileTypingInput.focus();
+        }
+
+        function readMobileTypingInput() {
+            if (!mobileTypingInput) return;
+
+            const now = mobileTypingInput.value;
+            const before = mobileInputLast;
+            mobileInputLast = now;
+
+            // Not a moment that takes typing — the results are up, or the tab has moved on.
+            // The reading still stands so the next edit is measured from here.
+            if (!typingIsAccepting()) return;
+
+            let shared = 0;
+            while (shared < now.length && shared < before.length && now[shared] === before[shared]) shared++;
+
+            for (let i = before.length - shared; i > 0; i--) handleTypedKey("Backspace");
+            for (const ch of now.slice(shared)) handleTypedKey(ch);
+
+            /* Left to itself the field would grow for the length of the test. Emptied well
+               past the length of any one word, so a backspace always has room to work and
+               only ever loses the ability to undo keystrokes from several words ago —
+               which the test doesn't let you go back to anyway. */
+            if (now.length > 80) resetMobileTypingInput();
+        }
+
+        if (mobileTypingInput) {
+            /* Mid-composition the field holds a guess — a Japanese IME's candidate — that
+               the next keystroke may replace wholesale. Reading those would spell the
+               guesses and then delete them again, so it waits for the composition to be
+               settled and reads the result. */
+            mobileTypingInput.addEventListener("input", (e) => {
+                if (e.isComposing) return;
+                readMobileTypingInput();
+            });
+            mobileTypingInput.addEventListener("compositionend", () => readMobileTypingInput());
+
+            mobileTypingInput.addEventListener("keydown", (e) => {
+                // The keyboard's own Enter has nothing to submit and no line to break
+                if (e.key === "Enter") e.preventDefault();
+
+                /* A real keyboard attached to a tablet. Deleting from an empty field is
+                   not an edit, so nothing is reported and the keystroke would be lost —
+                   it is the one key the diff above can't see. */
+                if (e.key === "Backspace" && !mobileTypingInput.value && typingIsAccepting()) {
+                    handleTypedKey("Backspace");
+                }
+            });
+
+            // Focus survives a tab change or the end of a run, and a keyboard covering half
+            // the screen for a test that isn't there is worse than no keyboard at all
+            mobileTypingInput.addEventListener("blur", resetMobileTypingInput);
+        }
+
+        typingControlsHint.addEventListener("click", (e) => {
+            const action = e.target.closest("[data-hint-action]")?.dataset.hintAction;
+            if (action === "keyboard") {
+                focusMobileTypingInput();
+            } else if (action === "readings") {
+                showRomaji = !showRomaji;
+                updateVisibility();
+            }
         });
+
+        if (usingTouchInput()) {
+            /* The hint the page was built with is the keyboard one. Nothing has redrawn it
+               yet on a first load, so the touch version is put up here rather than waiting
+               for the first tab switch to do it. */
+            typingControlsHint.innerHTML = TYPING_HINT_TOUCH;
+
+            /* Ctrl+Enter's counterpart. The line already says how to end an endless test,
+               so on touch it says something you can do and does it. */
+            if (endlessHint) {
+                endlessHint.textContent = "TAP TO END TEST";
+                endlessHint.classList.add("hint-action");
+                endlessHint.addEventListener("click", () => {
+                    if (isTestActive && isEndlessTest()) finishTest();
+                });
+            }
+        }
 
         profileTabBtn.addEventListener("click", () => {
             const routeUsername = getProfileRouteUsername();
