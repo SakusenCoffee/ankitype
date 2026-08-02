@@ -3460,6 +3460,23 @@ html {
         line-height: 1.4;
     }
 
+    /* The box comes up to meet the words. What the screen has to hold while the
+       keyboard is up is the whole run of words plus this, and every gap between
+       them is height that comes off the top row. */
+    .app-layout {
+        gap: 10px;
+        margin-top: 4px;
+    }
+
+    .words-wrapper {
+        margin-top: 4px;
+    }
+
+    .live-input-container {
+        gap: 8px;
+        margin-bottom: 12px;
+    }
+
     /* RESULTS */
     #result-modal .stats-grid,
     .stats-grid {

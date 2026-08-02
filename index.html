@@ -1335,7 +1335,10 @@
         /* On the wrapper as well as on the words themselves, so the gaps between them
            and the empty space under the last row lead back to TYPE too — the block is
            meant to read as one target. No-op once typing is live. */
-        wordsWrapper.addEventListener("click", () => { enterPlayFromPreview(); });
+        wordsWrapper.addEventListener("click", () => {
+            if (enterPlayFromPreview()) return;
+            tapRaisedTheKeyboard();
+        });
         const KANJI_FIELDS = ["Expression", "Kanji", "Word", "Japanese", "Vocabulary-Kanji", "Front"];
         const READING_FIELDS = ["ExpressionReading", "Reading", "Furigana", "Kana", "Pronunciation", "Romaji", "Vocabulary-Kana"];
         const MEANING_FIELDS = ["MainDefinition", "Meaning", "Definition", "English", "Glossary", "Vocabulary-English", "Back"];
@@ -3878,6 +3881,7 @@ function setMode(mode, shouldReload = true) {
             wordNode.addEventListener("click", () => {
                 // Outside TYPE a click is the way back to typing, not a meaning toggle
                 if (enterPlayFromPreview()) return;
+                if (tapRaisedTheKeyboard()) return;
                 showMeaning = !showMeaning;
                 updateVisibility();
             });
@@ -4281,14 +4285,56 @@ function setMode(mode, shouldReload = true) {
             mobileTypingInput.value = "";
         }
 
+        // Is the phone keyboard up? Nothing reports that directly, but it is up exactly
+        // when the field it types into holds the focus
+        function mobileKeyboardIsUp() {
+            return !!mobileTypingInput && document.activeElement === mobileTypingInput;
+        }
+
+        /* Once the keyboard is up, the page is whatever is left above it. The browser's
+           instinct is to put the field it just focused in the middle of that strip, which
+           pushes the words up and takes the top row off the top of the screen — the row
+           being typed, every time.
+
+           So the scroll is done here instead, and the words rather than the field are what
+           it aims at: their first row goes to the top of what can be seen, which is the
+           only position that fits all of them and the box underneath them. */
+        function scrollWordsIntoTypingView() {
+            if (!usingTouchInput() || !typingIsAccepting()) return;
+
+            const view = window.visualViewport;
+            /* offsetTop is how far the visible strip has itself been pushed down the page
+               — iOS moves it rather than resizing the page — and has to come off the
+               target, or the words are scrolled to the top of a viewport that isn't the
+               one being looked at. */
+            const target = window.scrollY
+                + wordsWrapper.getBoundingClientRect().top
+                - (view ? view.offsetTop : 0)
+                - 8;
+
+            window.scrollTo({ top: Math.max(0, target), behavior: "smooth" });
+        }
+
         function focusMobileTypingInput() {
             if (!mobileTypingInput || !usingTouchInput()) return;
             if (!typingIsAccepting()) return;
-            /* The browser's own scroll is left to happen: a keyboard takes the bottom of
-               the screen, and getting the focused field back above it is the one piece of
-               this each mobile browser already knows how to do for itself. The field is
-               the box under the words, so what that scroll brings into view is the test. */
-            mobileTypingInput.focus();
+            // The scroll that follows is the one above, not the browser's
+            mobileTypingInput.focus({ preventScroll: true });
+        }
+
+        /* Turning the live input box off in CONFIG takes away the thing you tap to get the
+           keyboard, so with it off the words take that job on — but only while the keyboard
+           is down. Once it is up there is nothing to summon, and a tap on a word is what it
+           has always been: the way to see what the word means.
+
+           Says whether it spent the tap, so the caller knows whether the meaning toggle
+           still has one to act on. */
+        function tapRaisedTheKeyboard() {
+            if (!usingTouchInput() || !isInputBoxHidden) return false;
+            if (mobileKeyboardIsUp()) return false;
+
+            focusMobileTypingInput();
+            return mobileKeyboardIsUp();
         }
 
         function readMobileTypingInput() {
@@ -4348,6 +4394,25 @@ function setMode(mode, shouldReload = true) {
             // Focus survives a tab change or the end of a run, and a keyboard covering half
             // the screen for a test that isn't there is worse than no keyboard at all
             mobileTypingInput.addEventListener("blur", resetMobileTypingInput);
+
+            /* Twice, because the keyboard is not up yet when the focus lands: once now, for
+               a keyboard that was already open, and once after it has had time to slide up
+               and take the bottom of the screen with it. Tapping the box focuses the field
+               without going through focusMobileTypingInput, so this hangs off the event
+               rather than off that function and catches both ways in. */
+            mobileTypingInput.addEventListener("focus", () => {
+                scrollWordsIntoTypingView();
+                setTimeout(scrollWordsIntoTypingView, 350);
+            });
+
+            /* The keyboard arriving, leaving, or changing height — switching to emoji, a
+               suggestion strip appearing — all show up here as the visible strip changing
+               size. Whatever is left of the screen, the words go to the top of it. */
+            if (window.visualViewport) {
+                window.visualViewport.addEventListener("resize", () => {
+                    if (mobileKeyboardIsUp()) scrollWordsIntoTypingView();
+                });
+            }
         }
 
         typingControlsHint.addEventListener("click", (e) => {
