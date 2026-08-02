@@ -4316,14 +4316,21 @@ function setMode(mode, shouldReload = true) {
         }
 
         if (mobileTypingInput) {
-            /* Mid-composition the field holds a guess — a Japanese IME's candidate — that
-               the next keystroke may replace wholesale. Reading those would spell the
-               guesses and then delete them again, so it waits for the composition to be
-               settled and reads the result. */
-            mobileTypingInput.addEventListener("input", (e) => {
-                if (e.isComposing) return;
-                readMobileTypingInput();
-            });
+            /* Read while the composition is still going, not once it has settled.
+
+               A phone with predictive text on — which is every phone, by default — composes
+               everything: each letter of an ordinary English word is part of a composition
+               that isn't finished until you press space or Enter. Waiting for the end of it
+               meant a whole word arrived at once, on Enter, which is not typing.
+
+               A composition that revises itself instead of extending — an IME's kana
+               replacing the romaji that summoned it, a suggestion rewriting a word — comes
+               through the diff as deletions followed by insertions, so it corrects itself
+               rather than being missed. Re-reading the same text costs a backspace and a
+               retype of a letter that was already right, which changes nothing. */
+            mobileTypingInput.addEventListener("input", () => readMobileTypingInput());
+
+            // Committing can move the text one last time without an edit to report
             mobileTypingInput.addEventListener("compositionend", () => readMobileTypingInput());
 
             mobileTypingInput.addEventListener("keydown", (e) => {
