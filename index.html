@@ -1384,6 +1384,11 @@ let currentIndex = 0;
    this is the part of the current unit that has no letters to show for it yet. */
 let kanaPartial = "";
 
+/* The same thing for letters: an alternate spelling part-way typed — the "t" of tu with
+   つ's canonical "tsu" still on screen. The word is only ever filled in with its canonical
+   letters, so until the alternate finishes there are none to show for it either. */
+let romajiAlt = "";
+
         let totalScore = 0;
         let showRomaji = false;
         let showMeaning = false;
@@ -1553,6 +1558,54 @@ let kanaPartial = "";
 
             kanaUnitCache.set(word, units);
             return units;
+        }
+
+        /* Syllables that answer to more than one spelling. Keyed by the romaji the word is
+           already written in, so one entry catches the syllable wherever it falls — つ on
+           its own, いつ, みつ — and in either script, since ツ is spelled "tsu" too.
+
+           The canonical spelling stays the one the word displays and the one that lands in
+           the typed line; an alternate is only another road to the same syllable. */
+        const ROMAJI_ALTERNATES = {
+            tsu: ["tu"]
+        };
+
+        const LONGEST_ALTERNATE_KEY = Math.max(
+            ...Object.keys(ROMAJI_ALTERNATES).map(key => key.length));
+
+        /* The syllable an alternate spelling would be finishing, given the letters typed
+           toward it.
+
+           `pending` is the raw letters of an alternate already under way, or null when the
+           spellings are parting company on this very key. In that case the letters typed
+           toward this syllable are the canonical ones sitting in front of the cursor —
+           a letter is only ever accepted while it matches — but how many of them belong
+           to the syllable isn't known, so every length is tried, shortest first.
+
+           Returns where the syllable starts in the word, its canonical spelling, and
+           whether the attempt finishes an alternate or is still on the way to one. */
+        function findRomajiAlternate(romaji, cursor, pending, keyTyped) {
+            const tries = pending !== null
+                ? [{ start: cursor, attempt: pending + keyTyped }]
+                : Array.from({ length: LONGEST_ALTERNATE_KEY }, (_, back) => ({
+                      start: cursor - back,
+                      attempt: romaji.slice(cursor - back, cursor) + keyTyped
+                  })).filter(t => t.start >= 0);
+
+            let partial = null;
+            for (const { start, attempt } of tries) {
+                for (const [canonical, alternates] of Object.entries(ROMAJI_ALTERNATES)) {
+                    if (!romaji.startsWith(canonical, start)) continue;
+                    for (const alternate of alternates) {
+                        if (alternate === attempt) return { start, canonical, attempt, complete: true };
+                        // A finished alternate elsewhere in the table beats a half-typed one
+                        if (!partial && alternate.startsWith(attempt)) {
+                            partial = { start, canonical, attempt, complete: false };
+                        }
+                    }
+                }
+            }
+            return partial;
         }
 
         const statusEl = document.getElementById("status");
@@ -2204,6 +2257,7 @@ let kanaPartial = "";
         currentIndex = 0;
         typedInput = [];
         kanaPartial = "";
+        romajiAlt = "";
         totalScore = 0;
         scoreEl.textContent = totalScore;
         totalTypedChars = 0;
@@ -3727,6 +3781,7 @@ function setMode(mode, shouldReload = true) {
             currentIndex = 0;
             typedInput = [];
             kanaPartial = "";
+            romajiAlt = "";
             totalScore = 0;
             scoreEl.textContent = totalScore;
             totalTypedChars = 0;
@@ -3984,6 +4039,9 @@ function setMode(mode, shouldReload = true) {
                 if (kanaPartial) {
                     kanaPartial = kanaPartial.slice(0, -1);
                     updateDisplay();
+                } else if (romajiAlt) {
+                    romajiAlt = romajiAlt.slice(0, -1);
+                    updateDisplay();
                 } else if (typedInput.length > 0) {
                     typedInput.pop();
                     updateDisplay();
@@ -4016,6 +4074,7 @@ function setMode(mode, shouldReload = true) {
                     currentIndex++;
                     typedInput = [];
                     kanaPartial = "";
+                    romajiAlt = "";
                     // forced past the throttle, so a completed word always lands
                     if (isMultiplayerRace) mpReportProgress(true);
 
@@ -4036,6 +4095,7 @@ function setMode(mode, shouldReload = true) {
                 setTimeout(() => activeCard.classList.remove("error-wipe"), 250);
                 typedInput = [];
                 kanaPartial = "";
+                romajiAlt = "";
                 mistakesSession++;
                 if (isTestActive) {
                     errorMarks.push({ t: (Date.now() - testStartTime) / 1000 });
@@ -4046,6 +4106,15 @@ function setMode(mode, shouldReload = true) {
                word's kana rather than against its letters. Compared in hiragana, which is
                what lets a katakana keyboard clear a hiragana word and the other way round. */
             if (isKanaKey(e.key)) {
+                /* The mirror of the letter case below: a kana landing on a syllable someone
+                   had started spelling out in letters. The two spellings can't be
+                   interleaved inside one syllable either way round. */
+                if (romajiAlt) {
+                    registerMistake();
+                    updateDisplay();
+                    return;
+                }
+
                 const units = kanaUnitsFor(currentWord);
 
                 /* The syllable the cursor is inside, not the one it starts on. Letters and
@@ -4090,10 +4159,33 @@ function setMode(mode, shouldReload = true) {
                is a miss — and it clears the pending kana rather than leaving it stranded. */
             if (kanaPartial) {
                 registerMistake();
-            } else if (keyTyped === expectedChar) {
+            } else if (!romajiAlt && keyTyped === expectedChar) {
                 acceptKeypress([keyTyped]);
             } else {
-                registerMistake();
+                /* Not how the word is written — but it may be an accepted alternate for the
+                   syllable the cursor is inside: the "u" of tu against つ's tsu, where the
+                   "t" before it was taken for the canonical spelling's own "t". */
+                const alt = findRomajiAlternate(
+                    currentWord.romaji, typedInput.length, romajiAlt || null, keyTyped);
+
+                if (!alt) {
+                    registerMistake();
+                } else if (alt.complete) {
+                    /* Filled in as the word is written, however it was reached — the letters
+                       already standing in for this syllable are replaced wholesale, since an
+                       alternate can be shorter or longer than the spelling on screen. */
+                    romajiAlt = "";
+                    typedInput = [...currentWord.romaji.slice(0, alt.start)];
+                    acceptKeypress([...currentWord.romaji.slice(
+                        alt.start, alt.start + alt.canonical.length)]);
+                } else {
+                    /* Part-way in. Which canonical letters this will land on isn't settled
+                       yet, so the syllable goes back to looking untyped until it is. */
+                    romajiAlt = alt.attempt;
+                    typedInput = [...currentWord.romaji.slice(0, alt.start)];
+                    correctKeystrokes++;
+                    if (isMultiplayerRace) mpReportProgress();
+                }
             }
 
             updateDisplay();
