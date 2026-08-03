@@ -172,8 +172,8 @@
                 <!-- What the word looks like, not what is typed: both of these change the
                      writing on screen and leave the letters underneath it alone. -->
                 <div class="count-selector-group hidden" id="kanji-display-group">
-                    <button class="count-btn" data-kanji-display="okurigana"
-                            title="Hide the kana that follow a kanji — you have to remember how the word ends">okurigana</button>
+                    <button class="count-btn active" data-kanji-display="okurigana"
+                            title="Lit while the kana after a kanji are shown. Turn it off and 続く becomes 続 — you have to remember how the word ends">okurigana</button>
                     <button class="count-btn" data-kanji-display="kana"
                             title="Show every word in kana instead of its kanji">kana only</button>
                 </div>
@@ -377,6 +377,9 @@
                      trademark of Ankitects Pty Ltd and publishes no permission to reuse its
                      logo, so this names them and links to them and nothing more. -->
                 <p class="anki-note anki-attribution">Anki is a registered trademark of Ankitects Pty&nbsp;Ltd. Tango Type is an independent project and is not affiliated with or endorsed by them. Get Anki at <a href="https://apps.ankiweb.net" target="_blank" rel="noopener noreferrer">apps.ankiweb.net</a>.</p>
+                <!-- The meanings on the frequency lists are JMdict's, and JMdict asks to be
+                     named wherever its material is used. -->
+                <p class="anki-note anki-attribution">The word meanings on the frequency lists include material from the <a href="https://www.edrdg.org/jmdict/j_jmdict.html" target="_blank" rel="noopener noreferrer">JMdict</a> dictionary files, used in accordance with the licence of the <a href="https://www.edrdg.org/" target="_blank" rel="noopener noreferrer">Electronic Dictionary Research and Development Group</a>. Word frequencies are from <a href="https://jpdb.io" target="_blank" rel="noopener noreferrer">jpdb.io</a>.</p>
             </div>
         </div>
 
@@ -5900,19 +5903,34 @@ function setMode(mode, shouldReload = true) {
             btn.addEventListener("click", () => setTangoLevel(btn.dataset.tangoLevel, true));
         });
 
-        /* Each is a switch rather than a choice between two: pressing the lit one puts the
-           word back the way it is written. Pressing the other swaps to it, since having
-           both on would mean showing kana with their okurigana taken off, which is a word
-           with a hole in it rather than a word. */
+        /* The okurigana switch is lit when the okurigana are there, which is how the words
+           start — turning a thing off is what a lit switch is for, and its being dark is
+           what says something has been taken away. So it reads the opposite way round to
+           the mode it sets: lit means "normal", dark means "okurigana hidden".
+
+           Kana only is an ordinary switch, and the two are exclusive: kana with their
+           okurigana taken off would be a word with a hole in it rather than a word. */
+        const kanjiDisplayLit = mode =>
+            mode === "okurigana" ? kanjiDisplay === "normal" : kanjiDisplay === mode;
+
+        function syncKanjiDisplayChips() {
+            document.querySelectorAll("#kanji-display-group [data-kanji-display]")
+                .forEach(b => b.classList.toggle("active", kanjiDisplayLit(b.dataset.kanjiDisplay)));
+        }
+
         document.querySelectorAll("#kanji-display-group [data-kanji-display]").forEach(btn => {
             const mode = btn.dataset.kanjiDisplay;
-            btn.classList.toggle("active", mode === kanjiDisplay);
 
             btn.addEventListener("click", () => {
-                kanjiDisplay = (kanjiDisplay === mode) ? "normal" : mode;
+                if (mode === "okurigana") {
+                    // Lit and pressed means take them away; dark and pressed means give
+                    // them back, whichever way they went
+                    kanjiDisplay = kanjiDisplay === "normal" ? "okurigana" : "normal";
+                } else {
+                    kanjiDisplay = kanjiDisplay === mode ? "normal" : mode;
+                }
                 localStorage.setItem("anki_type_kanji_display", kanjiDisplay);
-                document.querySelectorAll("#kanji-display-group [data-kanji-display]")
-                    .forEach(b => b.classList.toggle("active", b.dataset.kanjiDisplay === kanjiDisplay));
+                syncKanjiDisplayChips();
 
                 /* Only the writing changes, so the run carries on: the words are redrawn
                    and the cursor put back where it was, rather than the test restarting. */
@@ -5921,6 +5939,8 @@ function setMode(mode, shouldReload = true) {
                 updateDisplay();
             });
         });
+
+        syncKanjiDisplayChips();
 
         // The "custom" chip doubles as its own input: clicking it swaps the chip for a
         // same-sized box in place, and committing a value turns the chip back into a

@@ -4,7 +4,8 @@ ankitype.db
 .env
 .claude
 
-# Frequency dictionaries are the author's local copies, not the site's to ship.
-# build-freq.py reads them from here and commits only what it distils. The brackets
-# are escaped because git reads [Freq] as "one of F, r, e or q" otherwise.
-\[Freq\]*/
+# The dictionaries — [Freq] JPDB, [Bilingual] JMdict, [Kanji] JPDB — are the author's
+# local copies and hundreds of megabytes besides. build-freq.py reads them from here and
+# commits only what it distils. The brackets are escaped because git otherwise reads
+# [Freq] as "one of F, r, e or q".
+\[*\]*/
