@@ -3695,7 +3695,10 @@ html {
         flex-wrap: wrap;
         justify-content: center;
         gap: 6px 10px;
-        padding: 10px 12px;
+        /* Tight, because seven 44px tabs and their gaps come to 320 of the 332 a
+           390px phone leaves inside the navbar. A tab is a thumb's width first and
+           the padding around them second. */
+        padding: 10px 8px;
     }
 
     /* The brand was breaking one glyph per line: it is a flex item under
@@ -3713,7 +3716,7 @@ html {
     .nav-actions {
         flex-wrap: wrap;
         justify-content: center;
-        gap: 4px;
+        gap: 2px;
     }
 
     /* Icons only. Every tab has one — a drawn mark, 種 for seeds, or your own

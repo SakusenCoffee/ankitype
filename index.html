@@ -187,6 +187,20 @@
                     <button class="tango-level-btn" data-tango-level="n1">N1</button>
                 </div>
                 <div class="selector-divider"></div>
+
+                <!-- The commonest words there are, in the order they are common in. A
+                     separate group from the JLPT levels because it is a different question:
+                     those sort by what a syllabus teaches when, this by what Japanese
+                     actually says most. -->
+                <div class="count-selector-group hidden" id="freq-group">
+                    <button class="tango-level-btn" data-tango-level="freq100"
+                            title="The 100 commonest words in Japanese, commonest first">top 100</button>
+                    <button class="tango-level-btn" data-tango-level="freq200"
+                            title="The 200 commonest words in Japanese, commonest first">top 200</button>
+                    <button class="tango-level-btn" data-tango-level="freq500"
+                            title="The 500 commonest words in Japanese, commonest first">top 500</button>
+                </div>
+                <div class="selector-divider"></div>
                 <div class="count-selector-group hidden" id="word-options-group">
                     <button class="count-btn" data-count="10">10w</button>
                     <button class="count-btn" data-count="25">25w</button>
@@ -1890,6 +1904,7 @@ let romajiAlt = "";
         const kanaSokuonBtn = document.getElementById("kana-sokuon-btn");
         const kanaYouonBtn = document.getElementById("kana-youon-btn");
         const tangoLevelGroup = document.getElementById("tango-level-group");
+        const freqGroup = document.getElementById("freq-group");
         const kanjiDisplayGroup = document.getElementById("kanji-display-group");
 
         /* Scoped to the group it belongs to. .count-btn is the shared chip look, worn by
@@ -3299,14 +3314,23 @@ function loadTangoSource(level) {
     fetchTangoJson(level);
 }
 
+/* How many of the frequency list each chip takes. The order is the point of that list,
+   so these are cuts of it rather than sets of their own. */
+const FREQ_LEVELS = { freq100: 100, freq200: 200, freq500: 500 };
+
 async function fetchTangoJson(level) {
     statusEl.className = "status-badge status-loading";
     statusEl.textContent = "LOADING QUEUE";
 
     try {
-        const response = await fetch(`/${level}.json`);
+        /* The frequency levels are all cut from the same list: one file of the commonest
+           words in order, and "top 100" is the first hundred of it. Fetching it once and
+           slicing beats shipping the same words three times over. */
+        const freqCut = FREQ_LEVELS[level];
+        const response = await fetch(`/${freqCut ? "freq" : level}.json`);
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        const data = await response.json();
+        const raw = await response.json();
+        const data = freqCut ? raw.slice(0, freqCut) : raw;
 
         const parsed = data.map(item => ({
             kanji: item.kanji || item.expression || "N/A",
@@ -3375,7 +3399,9 @@ function applyOptionGroupVisibility() {
     // The kana switches narrow the kana pool, so they belong wherever its count does
     kanaFilterGroup.classList.toggle("hidden", !isKanaSource);
     // The JLPT levels belong to the tango decks; a saved text has a list of its own
-    tangoLevelGroup.classList.toggle("hidden", isKanaSource || activeSource === "saved");
+    const wordLists = !isKanaSource && activeSource !== "saved";
+    tangoLevelGroup.classList.toggle("hidden", !wordLists);
+    freqGroup.classList.toggle("hidden", !wordLists);
     /* Nothing to hide or convert in a kana test — the words there are single kana, with no
        kanji to take the okurigana off and nothing to turn into kana that isn't already. */
     kanjiDisplayGroup.classList.toggle("hidden", isKanaSource);
