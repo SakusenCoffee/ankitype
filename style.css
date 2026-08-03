@@ -3285,6 +3285,188 @@ body.tight-spacing .word-item {
     max-height: 420px;
 }
 
+/* SAVED WORKSHOP TEXTS
+   A panel under the editor rather than beside it: the list is a list, and the
+   text it belongs to is the whole width of the page above it. */
+.workshop-library {
+    width: 100%;
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 16px;
+    padding: 14px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.library-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.library-save-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 1 1 280px;
+    justify-content: flex-end;
+}
+
+.library-save-row input {
+    flex: 1 1 auto;
+    min-width: 0;
+    max-width: 320px;
+    background-color: var(--nav-bg);
+    border: 1px solid var(--border-color);
+    color: var(--text-primary);
+    padding: 8px 12px;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    font-family: inherit;
+    outline: none;
+}
+
+.library-save-row input:focus {
+    border-color: var(--accent-main);
+}
+
+.library-save-row input:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.library-save-btn {
+    flex-shrink: 0;
+    background-color: var(--accent-main);
+    color: var(--bg-color);
+    border: none;
+    padding: 9px 18px;
+    border-radius: 8px;
+    font-family: inherit;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+.library-save-btn:hover:not(:disabled) {
+    background-color: var(--accent-hover);
+}
+
+.library-save-btn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+.library-status {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    min-height: 16px;
+}
+
+.library-status.is-error {
+    color: var(--accent-red);
+}
+
+/* Scrolls once there are more than a few, so the panel can't push the editor
+   off the top of the page as the collection grows */
+.library-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    max-height: 240px;
+    overflow-y: auto;
+}
+
+.library-empty {
+    font-size: 0.78rem;
+    line-height: 1.5;
+    color: var(--text-muted);
+    padding: 6px 2px;
+}
+
+.library-row {
+    display: flex;
+    align-items: stretch;
+    gap: 6px;
+}
+
+/* The row is the button: the whole width of it opens the text, so there is no
+   small target to find */
+.library-open {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    background-color: var(--nav-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 9px 12px;
+    color: var(--text-primary);
+    font-family: inherit;
+    text-align: left;
+    cursor: pointer;
+    transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.library-open:hover {
+    border-color: var(--accent-main);
+}
+
+.library-name {
+    font-size: 0.85rem;
+    font-weight: 700;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.library-meta {
+    flex-shrink: 0;
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: var(--text-muted);
+}
+
+/* Quiet until it is hovered or armed — a column of red crosses would be the
+   loudest thing in the panel, and deleting is not what the panel is for */
+.library-delete {
+    flex-shrink: 0;
+    min-width: 34px;
+    padding: 0 8px;
+    background: transparent;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    color: var(--text-muted);
+    font-family: inherit;
+    font-size: 0.95rem;
+    font-weight: 700;
+    line-height: 1;
+    cursor: pointer;
+    transition: color 0.15s ease, border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.library-delete:hover {
+    color: var(--accent-red);
+    border-color: var(--accent-red);
+}
+
+/* Armed: it says what the next press does, so the confirmation is the button
+   itself rather than a dialog over the page */
+.library-delete.is-armed {
+    font-size: 0.65rem;
+    letter-spacing: 0.5px;
+    color: var(--bg-color);
+    background-color: var(--accent-red);
+    border-color: var(--accent-red);
+}
+
 /* KEYSTROKE SOUND — a switch and a list, on one line, because they are one
    setting: whether, and which. The list takes the slack so the two of them
    line up with the plain dropdowns above. */

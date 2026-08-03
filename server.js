@@ -111,6 +111,28 @@ CREATE TABLE IF NOT EXISTS avatar_history (
     FOREIGN KEY (user_id) REFERENCES users(id)
 );
 
+/* Texts kept from the workshop. They belong to the account rather than the machine —
+   the point of them is to paste a chapter in on one computer and type it on another —
+   so they live here and not in localStorage.
+
+   A name is unique per person, which is what lets saving over a text be the same act as
+   saving it: the same name means the same text. Nobody else's names are affected. */
+CREATE TABLE IF NOT EXISTS saved_texts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    title TEXT NOT NULL,
+    body TEXT NOT NULL,
+    created_at INTEGER DEFAULT (strftime('%s','now')),
+    updated_at INTEGER DEFAULT (strftime('%s','now')),
+    FOREIGN KEY (user_id) REFERENCES users(id)
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_saved_texts_owner_title
+    ON saved_texts (user_id, title);
+
+CREATE INDEX IF NOT EXISTS idx_saved_texts_user
+    ON saved_texts (user_id, updated_at DESC);
+
 `);
 
 // Databases created before a column existed need it added; CREATE TABLE IF NOT EXISTS
@@ -607,7 +629,98 @@ app.post('/api/profile/sync', authenticateToken, (req, res) => {
     res.json({ success: true });
 });
 
+/* ---- Saved workshop texts ----------------------------------------------------------
+   A chapter pasted in on one machine, typed on another. Held against the account for
+   that reason, and never handed to anyone but its owner: every query below is filtered
+   by user_id as well as by id, so knowing a number is not the same as being able to
+   read what it holds.
 
+   Two limits. The body, because a subtitle file is the sort of thing that lands in the
+   workshop and the express json parser will take a megabyte of it; and the number of
+   them, so an account can't quietly become the site's disk. Both are enforced here,
+   whatever the page happens to allow. */
+const MAX_SAVED_TEXTS = 40;
+const MAX_SAVED_TEXT_CHARS = 100000;
+const MAX_SAVED_TITLE_CHARS = 80;
+
+// What a row looks like in a list: everything except the text itself, which is fetched
+// only when one is actually opened
+const SAVED_TEXT_SUMMARY = `
+    id, title, length(body) AS chars, created_at, updated_at
+`;
+
+function readTitle(raw) {
+    return String(raw ?? "").replace(/\s+/g, " ").trim().slice(0, MAX_SAVED_TITLE_CHARS);
+}
+
+app.get('/api/texts', authenticateToken, (req, res) => {
+    const rows = db.prepare(`
+        SELECT ${SAVED_TEXT_SUMMARY} FROM saved_texts
+        WHERE user_id = ?
+        ORDER BY updated_at DESC, id DESC
+    `).all(req.user.id);
+
+    res.json({ texts: rows, limit: MAX_SAVED_TEXTS });
+});
+
+app.get('/api/texts/:id', authenticateToken, (req, res) => {
+    const row = db.prepare(
+        'SELECT id, title, body, created_at, updated_at FROM saved_texts WHERE id = ? AND user_id = ?'
+    ).get(req.params.id, req.user.id);
+
+    if (!row) return res.status(404).json({ error: 'No such text' });
+    res.json(row);
+});
+
+/* Save, or save over. A name already in use is the same text being written again rather
+   than a second one — which is what makes editing a saved text possible at all without a
+   second control for it. */
+app.post('/api/texts', authenticateToken, (req, res) => {
+    const title = readTitle(req.body?.title);
+    const body = String(req.body?.body ?? "");
+
+    if (!title) return res.status(400).json({ error: 'Give the text a name.' });
+    if (!body.trim()) return res.status(400).json({ error: 'There is nothing to save.' });
+    if (body.length > MAX_SAVED_TEXT_CHARS) {
+        return res.status(413).json({
+            error: `Too long to save — ${body.length.toLocaleString()} characters, and the limit is ${MAX_SAVED_TEXT_CHARS.toLocaleString()}.`
+        });
+    }
+
+    const existing = db.prepare('SELECT id FROM saved_texts WHERE user_id = ? AND title = ?')
+        .get(req.user.id, title);
+
+    if (!existing) {
+        const { count } = db.prepare('SELECT COUNT(*) AS count FROM saved_texts WHERE user_id = ?')
+            .get(req.user.id);
+        if (count >= MAX_SAVED_TEXTS) {
+            return res.status(409).json({
+                error: `That is ${MAX_SAVED_TEXTS} saved texts, which is the limit. Delete one to save another.`
+            });
+        }
+    }
+
+    if (existing) {
+        db.prepare("UPDATE saved_texts SET body = ?, updated_at = strftime('%s','now') WHERE id = ?")
+            .run(body, existing.id);
+    } else {
+        db.prepare('INSERT INTO saved_texts (user_id, title, body) VALUES (?, ?, ?)')
+            .run(req.user.id, title, body);
+    }
+
+    const row = db.prepare(`SELECT ${SAVED_TEXT_SUMMARY} FROM saved_texts WHERE user_id = ? AND title = ?`)
+        .get(req.user.id, title);
+
+    res.json({ text: row, replaced: !!existing });
+});
+
+app.delete('/api/texts/:id', authenticateToken, (req, res) => {
+    const result = db.prepare('DELETE FROM saved_texts WHERE id = ? AND user_id = ?')
+        .run(req.params.id, req.user.id);
+
+    if (result.changes === 0) return res.status(404).json({ error: 'No such text' });
+    res.json({ success: true });
+});
 
 /* ---- Multiplayer rooms -------------------------------------------------------------
    Rooms live in memory only. They are ephemeral by nature — everyone is connected at

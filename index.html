@@ -747,6 +747,23 @@
                 </div>
             </div>
         </div>
+
+        <!-- Texts kept against the account rather than the machine: the point of the
+             workshop is that a chapter pasted in on one computer can be typed on
+             another. Saving under a name already in the list writes over that one, so
+             the name is the text's identity and there is no second "update" control. -->
+        <div class="workshop-library" id="workshop-library">
+            <div class="library-head">
+                <span class="drawer-title">SAVED TEXTS</span>
+                <div class="library-save-row" id="library-save-row">
+                    <input type="text" id="library-title" maxlength="80" spellcheck="false"
+                           placeholder="Name this text..." aria-label="Name for the saved text" />
+                    <button type="button" class="library-save-btn" id="library-save-btn">SAVE</button>
+                </div>
+            </div>
+            <div class="library-status" id="library-status" aria-live="polite"></div>
+            <div class="library-list" id="library-list"></div>
+        </div>
     </div>
 
     <!-- RESULT MODAL SCREEN -->
@@ -815,6 +832,9 @@
             if (isZenMode) {
                 zenLayout.classList.remove("hidden");
                 modeZenBtn.classList.add("active");
+                // The list is only on screen in here, so it is read when the workshop opens
+                // rather than kept in step with the account at all times
+                refreshLibrary();
                 modeWordsBtn.classList.remove("active");
                 modeTimeBtn.classList.remove("active");
 
@@ -5730,6 +5750,239 @@ function setMode(mode, shouldReload = true) {
             isSeededTest = false;
         });
 
+        /* ---- Saved workshop texts ---------------------------------------------------
+           Kept on the account, not in this browser: a chapter pasted in on one machine is
+           meant to be typable on another, and localStorage cannot do that.
+
+           Saving under a name already in the list writes over that one — the name is the
+           text's identity, which is why there is no separate "update" button. */
+        const libraryTitleInput = document.getElementById("library-title");
+        const librarySaveBtn = document.getElementById("library-save-btn");
+        const libraryStatus = document.getElementById("library-status");
+        const libraryList = document.getElementById("library-list");
+
+        let savedTexts = [];
+        // Which row is one press away from being deleted, and the timer that forgets it
+        let libraryPendingDelete = null;
+        let libraryPendingTimer = null;
+
+        function setLibraryStatus(message, isError = false) {
+            libraryStatus.textContent = message || "";
+            libraryStatus.classList.toggle("is-error", !!message && isError);
+        }
+
+        function libraryRequest(path, options = {}) {
+            return fetch(`${API_BASE}/api/texts${path}`, {
+                ...options,
+                headers: {
+                    "Authorization": `Bearer ${currentUserToken}`,
+                    ...(options.body ? { "Content-Type": "application/json" } : {}),
+                    ...(options.headers || {})
+                }
+            });
+        }
+
+        // The server's word on what went wrong, or something honest when it didn't answer
+        async function libraryError(res, fallback) {
+            try {
+                const data = await res.json();
+                if (data && data.error) return data.error;
+            } catch { /* not JSON — the message below covers it */ }
+            return fallback;
+        }
+
+        function clearPendingDelete() {
+            libraryPendingDelete = null;
+            clearTimeout(libraryPendingTimer);
+        }
+
+        function renderLibrary() {
+            libraryList.innerHTML = "";
+
+            if (!currentUserToken) {
+                libraryList.innerHTML =
+                    `<div class="library-empty">Log in from the PROFILE tab to keep texts with your account — they follow you to any machine you sign in on.</div>`;
+                return;
+            }
+
+            if (savedTexts.length === 0) {
+                libraryList.innerHTML =
+                    `<div class="library-empty">Nothing saved yet. Name the text above and press SAVE.</div>`;
+                return;
+            }
+
+            savedTexts.forEach(text => {
+                const row = document.createElement("div");
+                row.className = "library-row";
+
+                const open = document.createElement("button");
+                open.type = "button";
+                open.className = "library-open";
+                open.title = "Load this into the workshop";
+
+                const name = document.createElement("span");
+                name.className = "library-name";
+                name.textContent = text.title;
+
+                const meta = document.createElement("span");
+                meta.className = "library-meta";
+                const when = new Date((text.updated_at || 0) * 1000);
+                meta.textContent = `${(text.chars || 0).toLocaleString()} chars · ${when.toLocaleDateString()}`;
+
+                open.append(name, meta);
+                open.addEventListener("click", () => loadSavedText(text.id));
+
+                const del = document.createElement("button");
+                del.type = "button";
+                del.className = "library-delete";
+                const armed = libraryPendingDelete === text.id;
+                del.classList.toggle("is-armed", armed);
+                del.textContent = armed ? "SURE?" : "×";
+                del.title = armed ? "Press again to delete" : `Delete "${text.title}"`;
+                del.addEventListener("click", () => deleteSavedText(text));
+
+                row.append(open, del);
+                libraryList.appendChild(row);
+            });
+        }
+
+        function syncLibraryControls() {
+            const signedIn = !!currentUserToken;
+            libraryTitleInput.disabled = !signedIn;
+            librarySaveBtn.disabled = !signedIn;
+        }
+
+        async function refreshLibrary() {
+            syncLibraryControls();
+
+            if (!currentUserToken) {
+                savedTexts = [];
+                renderLibrary();
+                return;
+            }
+
+            try {
+                const res = await libraryRequest("");
+                if (res.status === 401 || res.status === 403) {
+                    // The session outlived its token; the profile tab is where that is fixed
+                    savedTexts = [];
+                    renderLibrary();
+                    setLibraryStatus("Your session has expired — log in again to see your texts.", true);
+                    return;
+                }
+                if (!res.ok) throw new Error(await libraryError(res, `HTTP ${res.status}`));
+
+                const data = await res.json();
+                savedTexts = Array.isArray(data.texts) ? data.texts : [];
+                renderLibrary();
+            } catch (err) {
+                savedTexts = [];
+                renderLibrary();
+                setLibraryStatus(`Couldn't reach your saved texts: ${err.message}`, true);
+            }
+        }
+
+        async function loadSavedText(id) {
+            clearPendingDelete();
+            setLibraryStatus("Opening...");
+
+            try {
+                const res = await libraryRequest(`/${id}`);
+                if (!res.ok) throw new Error(await libraryError(res, `HTTP ${res.status}`));
+
+                const text = await res.json();
+                /* Through commitWorkshopText so it lands on the undo stack and the counters
+                   recount — opening a saved text over work in progress is undoable like any
+                   other change the workshop makes. */
+                commitWorkshopText(text.body || "", `open "${text.title}"`);
+                libraryTitleInput.value = text.title;
+                setLibraryStatus(`Opened "${text.title}". Saving now writes back to it.`);
+            } catch (err) {
+                setLibraryStatus(`Couldn't open that text: ${err.message}`, true);
+            }
+        }
+
+        async function deleteSavedText(text) {
+            /* Two presses, not a dialog: the first arms the button and says so, and it
+               disarms itself if you walk away from it. */
+            if (libraryPendingDelete !== text.id) {
+                clearPendingDelete();
+                libraryPendingDelete = text.id;
+                libraryPendingTimer = setTimeout(() => { clearPendingDelete(); renderLibrary(); }, 4000);
+                renderLibrary();
+                setLibraryStatus(`Press again to delete "${text.title}".`);
+                return;
+            }
+
+            clearPendingDelete();
+            try {
+                const res = await libraryRequest(`/${text.id}`, { method: "DELETE" });
+                if (!res.ok) throw new Error(await libraryError(res, `HTTP ${res.status}`));
+                setLibraryStatus(`Deleted "${text.title}".`);
+                await refreshLibrary();
+            } catch (err) {
+                setLibraryStatus(`Couldn't delete that text: ${err.message}`, true);
+                renderLibrary();
+            }
+        }
+
+        // A name for a text that wasn't given one: its own first line, which is what you
+        // would have typed in anyway
+        function nameFromText(body) {
+            const firstLine = body.split(/\r?\n/).find(line => line.trim());
+            return (firstLine || "").trim().slice(0, 40) || "Untitled";
+        }
+
+        async function saveCurrentText() {
+            if (!currentUserToken) return;
+
+            const textarea = document.getElementById("jptext");
+            const body = textarea ? textarea.value : "";
+            if (!body.trim()) {
+                setLibraryStatus("Nothing to save — paste or drop some Japanese in first.", true);
+                return;
+            }
+
+            const title = libraryTitleInput.value.trim() || nameFromText(body);
+            clearPendingDelete();
+            librarySaveBtn.disabled = true;
+            setLibraryStatus("Saving...");
+
+            try {
+                const res = await libraryRequest("", {
+                    method: "POST",
+                    body: JSON.stringify({ title, body })
+                });
+                if (!res.ok) throw new Error(await libraryError(res, `HTTP ${res.status}`));
+
+                const data = await res.json();
+                libraryTitleInput.value = data.text?.title || title;
+                setLibraryStatus(data.replaced ? `Saved over "${title}".` : `Saved as "${title}".`);
+                await refreshLibrary();
+            } catch (err) {
+                setLibraryStatus(`Couldn't save: ${err.message}`, true);
+            } finally {
+                librarySaveBtn.disabled = !currentUserToken;
+            }
+        }
+
+        librarySaveBtn.addEventListener("click", saveCurrentText);
+
+        libraryTitleInput.addEventListener("keydown", e => {
+            // The workshop's own shortcuts have no business in a name field
+            e.stopPropagation();
+            if (e.key === "Enter") {
+                e.preventDefault();
+                saveCurrentText();
+            }
+        });
+
+        /* Nothing is drawn here on purpose. currentUserToken is declared further down the
+           script, so touching it at this point is a temporal dead zone away — and the throw
+           takes the whole remainder of the script's initialisation with it, which is how
+           this was found. The panel is only ever on screen inside the workshop, and opening
+           the workshop refreshes it, so there is nothing to draw before then anyway. */
+
         mainFontSlider.addEventListener("input", (e) => {
             mainFontSize = e.target.value;
             localStorage.setItem("anki_type_main_font_size", mainFontSize);
@@ -6701,6 +6954,9 @@ function setMode(mode, shouldReload = true) {
                             localStorage.setItem('anki_jwt', data.token);
                             currentUserToken = data.token;
                             loadProfileUI();
+                            // Whoever just signed in has their own texts, not the last
+                            // person's and not none
+                            refreshLibrary();
                         }
                     } catch (err) {
                         errEl.textContent = "Server error. Please try again.";
@@ -7061,6 +7317,8 @@ function setMode(mode, shouldReload = true) {
                         lastProfileSignature = null;
                         history.pushState({}, '', '/');
                         loadProfileUI();
+                        // Someone else's texts must not be left on screen behind them
+                        refreshLibrary();
                     };
 
                 } catch (err) {
