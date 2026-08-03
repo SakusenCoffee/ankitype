@@ -168,6 +168,16 @@
                 </div>
 
                 <div class="selector-divider"></div>
+
+                <!-- What the word looks like, not what is typed: both of these change the
+                     writing on screen and leave the letters underneath it alone. -->
+                <div class="count-selector-group hidden" id="kanji-display-group">
+                    <button class="count-btn" data-kanji-display="okurigana"
+                            title="Hide the kana that follow a kanji — you have to remember how the word ends">okurigana</button>
+                    <button class="count-btn" data-kanji-display="kana"
+                            title="Show every word in kana instead of its kanji">kana only</button>
+                </div>
+                <div class="selector-divider"></div>
                 <div class="count-selector-group hidden" id="tango-level-group">
                     <button class="tango-level-btn active" data-tango-level="anki" id="tango-level-anki-btn" disabled title="Connect Anki to use your own decks — see the ANKI tab">Anki</button>
                     <button class="tango-level-btn" data-tango-level="n5">N5</button>
@@ -1527,6 +1537,12 @@ let romajiAlt = "";
         let activeTangoLevel = localStorage.getItem("anki_type_tango_level") || "anki";
         // Which saved text the "saved text" source is pointing at, remembered like the rest
         let activeSavedTextId = localStorage.getItem("anki_type_saved_text") || "";
+
+        /* How the word is written on screen: as it comes, with the kana after its kanji
+           taken away, or in kana throughout. One at a time or none at all — they are two
+           ways of making the same word harder to read, and asking for both at once is
+           asking for nothing. What is typed never changes. */
+        let kanjiDisplay = localStorage.getItem("anki_type_kanji_display") || "normal";
         let wordCountSetting = localStorage.getItem("anki_type_word_count") || "max";
         /* Until the chip selectors were scoped, every chip in the document carried the
            word-count handler, so choosing an Anki ordering or a word spacing stored the
@@ -1648,6 +1664,53 @@ let romajiAlt = "";
         /* Whether the word is spelled out in kana, and so says for itself which kana it
            holds. Anything with a kanji in it is only known by its romaji, which is a
            lossier thing — several kana share a spelling. */
+        /* ---- How a word is written on screen ------------------------------------------
+           Both of these are about the reading being given away too easily. 続く shows you
+           that it ends in く; つづく shows you the whole thing. Taking either away leaves
+           the same word to type and less of it to lean on.
+
+           Okurigana is the kana that follow a kanji — the く of 続く, the べ of 食べ物 —
+           and dropping them leaves 続 and 食物. Kana that come before any kanji are not
+           okurigana and stay: お茶 is お茶 either way. */
+        function stripOkurigana(text) {
+            let seenKanji = false;
+            let out = "";
+
+            for (const ch of String(text)) {
+                if (isKanji(ch)) {
+                    seenKanji = true;
+                    out += ch;
+                    continue;
+                }
+                // A kana only counts as okurigana once there is a kanji for it to follow
+                if (seenKanji && (isHiragana(ch) || isKatakana(ch))) continue;
+                out += ch;
+            }
+
+            // A word that is nothing but kanji-and-okurigana must not come out empty
+            return out || String(text);
+        }
+
+        /* The word in kana. The stored reading where there is one — it is the only thing
+           that knows づ from ず — and the romaji turned back into kana where there isn't,
+           which is right far more often than not. */
+        function kanaSpelling(word) {
+            if (word.reading) return toHiraganaKey(word.reading);
+            try {
+                return wanakana.toKana(word.romaji || "");
+            } catch {
+                return word.kanji;
+            }
+        }
+
+        // What goes on screen for a word, which is not always what is typed for it
+        function displayTextFor(word) {
+            if (!word || !word.kanji) return "";
+            if (kanjiDisplay === "kana") return kanaSpelling(word) || word.kanji;
+            if (kanjiDisplay === "okurigana") return stripOkurigana(word.kanji);
+            return word.kanji;
+        }
+
         function isWrittenInKana(word) {
             const glyphs = [...(word.kanji || "")];
             return glyphs.length > 0 && glyphs.every(g => isHiragana(g) || isKatakana(g));
@@ -1827,6 +1890,7 @@ let romajiAlt = "";
         const kanaSokuonBtn = document.getElementById("kana-sokuon-btn");
         const kanaYouonBtn = document.getElementById("kana-youon-btn");
         const tangoLevelGroup = document.getElementById("tango-level-group");
+        const kanjiDisplayGroup = document.getElementById("kanji-display-group");
 
         /* Scoped to the group it belongs to. .count-btn is the shared chip look, worn by
            the ANKI ordering chips and the CONFIG word-spacing pair as well as the word
@@ -3246,6 +3310,10 @@ async function fetchTangoJson(level) {
 
         const parsed = data.map(item => ({
             kanji: item.kanji || item.expression || "N/A",
+            /* The reading, kept rather than spent on the romaji and thrown away. It is the
+               only thing that can say つづく where the romaji can only say tsuzuku, which
+               is what the kana-only display needs. */
+            reading: item.reading || "",
             romaji: normalizeRomaji(item.romaji || wanakana.toRomaji(item.reading || item.kanji || "")),
             meaning: item.meaning || item.definition || "N/A"
         })).filter(word => word.romaji !== "");
@@ -3308,6 +3376,9 @@ function applyOptionGroupVisibility() {
     kanaFilterGroup.classList.toggle("hidden", !isKanaSource);
     // The JLPT levels belong to the tango decks; a saved text has a list of its own
     tangoLevelGroup.classList.toggle("hidden", isKanaSource || activeSource === "saved");
+    /* Nothing to hide or convert in a kana test — the words there are single kana, with no
+       kanji to take the okurigana off and nothing to turn into kana that isn't already. */
+    kanjiDisplayGroup.classList.toggle("hidden", isKanaSource);
 }
 
 // A test with no natural end, so the only way to stop it is Ctrl+Enter:
@@ -3883,6 +3954,8 @@ function setMode(mode, shouldReload = true) {
                     freq: readFrequency(fields, frequencyField),
                     word: {
                         kanji: cleanHtmlText(rawKanji || "N/A"),
+                        // Kept for the kana-only display, from the field the romaji came from
+                        reading: cleanedRomajiText,
                         romaji,
                         meaning: shortenMeaning(cleanHtmlText(rawMeaning || "N/A"))
                     }
@@ -4276,7 +4349,7 @@ function setMode(mode, shouldReload = true) {
 
             const kanjiNode = document.createElement("div");
             kanjiNode.className = `kanji-text ${currentFontClass}`;
-            kanjiNode.textContent = wordObj.kanji;
+            kanjiNode.textContent = displayTextFor(wordObj);
             kanjiWrapperNode.appendChild(kanjiNode);
 
             const romajiNode = document.createElement("div");
@@ -5799,6 +5872,28 @@ function setMode(mode, shouldReload = true) {
 
         tangoLevelBtns.forEach(btn => {
             btn.addEventListener("click", () => setTangoLevel(btn.dataset.tangoLevel, true));
+        });
+
+        /* Each is a switch rather than a choice between two: pressing the lit one puts the
+           word back the way it is written. Pressing the other swaps to it, since having
+           both on would mean showing kana with their okurigana taken off, which is a word
+           with a hole in it rather than a word. */
+        document.querySelectorAll("#kanji-display-group [data-kanji-display]").forEach(btn => {
+            const mode = btn.dataset.kanjiDisplay;
+            btn.classList.toggle("active", mode === kanjiDisplay);
+
+            btn.addEventListener("click", () => {
+                kanjiDisplay = (kanjiDisplay === mode) ? "normal" : mode;
+                localStorage.setItem("anki_type_kanji_display", kanjiDisplay);
+                document.querySelectorAll("#kanji-display-group [data-kanji-display]")
+                    .forEach(b => b.classList.toggle("active", b.dataset.kanjiDisplay === kanjiDisplay));
+
+                /* Only the writing changes, so the run carries on: the words are redrawn
+                   and the cursor put back where it was, rather than the test restarting. */
+                renderWordBlock();
+                updateVisibility();
+                updateDisplay();
+            });
         });
 
         // The "custom" chip doubles as its own input: clicking it swaps the chip for a
