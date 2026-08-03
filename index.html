@@ -149,11 +149,17 @@
                     <button class="mode-btn" id="mode-zen-btn">workshop</button>
                 </div>
                 <div class="selector-divider"></div>
-                <div class="count-selector-group">
+                <div class="count-selector-group" id="source-group">
                     <button class="source-btn active" id="source-hiragana-btn">hiragana</button>
                     <button class="source-btn" id="source-katakana-btn">katakana</button>
                     <button class="source-btn" id="source-tango-btn">tango</button>
+                    <button class="source-btn" id="source-saved-btn">saved text</button>
                 </div>
+
+                <!-- Four chips can't also list a collection, so on the saved-text source the
+                     row above hands its place to this: the other three sources stay in it as
+                     the way back out, and the texts sit underneath them. -->
+                <select id="source-select" class="hidden source-select" aria-label="Test source and saved texts"></select>
                 <div class="selector-divider"></div>
                 <div class="count-selector-group hidden" id="tango-level-group">
                     <button class="tango-level-btn active" data-tango-level="anki" id="tango-level-anki-btn" disabled title="Connect Anki to use your own decks — see the ANKI tab">Anki</button>
@@ -676,9 +682,13 @@
                 <!-- Both buttons live in one row so the card ends the same way whether you
                      have just finished a run or are looking at an old one. -->
                 <div class="result-actions">
-                    <button class="close-modal-btn replay-btn" id="res-replay-btn">TYPE THESE AGAIN</button>
-                    <button class="close-modal-btn" id="close-result-modal">NEXT TEST</button>
+                    <!-- Keeps what was just typed, so a run worth repeating can be found
+                         again from TYPE or the workshop rather than rebuilt -->
+                    <button class="close-modal-btn replay-btn" id="res-save-text-btn">SAVE AS TEXT</button>
+                    <button class="close-modal-btn replay-btn" id="res-replay-btn"><span id="res-replay-label">TYPE THESE AGAIN</span><span class="btn-key">TAB</span></button>
+                    <button class="close-modal-btn" id="close-result-modal">NEXT TEST <span class="btn-key">ENTER</span></button>
                 </div>
+                <div class="result-save-status" id="res-save-status" aria-live="polite"></div>
             </div>
         </div>
     </div>
@@ -1510,6 +1520,8 @@ let romajiAlt = "";
         let activeSource = localStorage.getItem("anki_type_source") || "hiragana";
         if (activeSource === "anki") activeSource = "tango"; // legacy alias
         let activeTangoLevel = localStorage.getItem("anki_type_tango_level") || "anki";
+        // Which saved text the "saved text" source is pointing at, remembered like the rest
+        let activeSavedTextId = localStorage.getItem("anki_type_saved_text") || "";
         let wordCountSetting = localStorage.getItem("anki_type_word_count") || "max";
         /* Until the chip selectors were scoped, every chip in the document carried the
            word-count handler, so choosing an Anki ordering or a word spacing stored the
@@ -1784,6 +1796,9 @@ let romajiAlt = "";
         const sourceHiraganaBtn = document.getElementById("source-hiragana-btn");
         const sourceKatakanaBtn = document.getElementById("source-katakana-btn");
         const sourceTangoBtn = document.getElementById("source-tango-btn");
+        const sourceSavedBtn = document.getElementById("source-saved-btn");
+        const sourceGroup = document.getElementById("source-group");
+        const sourceSelect = document.getElementById("source-select");
 
         const wordOptionsGroup = document.getElementById("word-options-group");
         const timeOptionsGroup = document.getElementById("time-options-group");
@@ -2970,10 +2985,13 @@ let romajiAlt = "";
 
     activeSource = source;
     localStorage.setItem("anki_type_source", activeSource);
+    // Whatever is in the test area is about to be replaced, whichever source it came from
+    savedTextLoadedId = null;
 
     sourceHiraganaBtn.classList.remove("active");
     sourceKatakanaBtn.classList.remove("active");
     sourceTangoBtn.classList.remove("active");
+    sourceSavedBtn.classList.remove("active");
 
     if (source === "hiragana" || source === "katakana") {
         if (source === "hiragana") sourceHiraganaBtn.classList.add("active");
@@ -2982,6 +3000,12 @@ let romajiAlt = "";
         scoreLabel.textContent = "CHARS TYPED";
         modeWordsBtn.disabled = true;
         setMode("time", false);
+    } else if (source === "saved") {
+        // A text is words, and it is read in its own order — the same terms as a deck
+        sourceSavedBtn.classList.add("active");
+        scoreLabel.textContent = "WORDS TYPED";
+        modeWordsBtn.disabled = false;
+        setMode(activeMode, false);
     } else {
         sourceTangoBtn.classList.add("active");
         scoreLabel.textContent = "WORDS TYPED";
@@ -2989,13 +3013,159 @@ let romajiAlt = "";
         updateTangoLevelUI();
         setMode(activeMode, false);
     }
+
+    /* The chips give up their place to the list of texts, and take it back the moment
+       another source is picked out of that list. */
+    sourceGroup.classList.toggle("hidden", source === "saved");
+    sourceSelect.classList.toggle("hidden", source !== "saved");
+    if (source === "saved") {
+        renderSourceSelect();
+        /* On a first visit to this source nothing has read the collection yet — the
+           workshop is where that usually happens. Asking for it fills the list in, and
+           re-renders this when it arrives. */
+        if (currentUserToken && !savedTexts.length) refreshLibrary();
+    }
+
     applyOptionGroupVisibility();
     if (shouldReload) {
         if (source === "tango") {
             loadTangoSource(activeTangoLevel);
+        } else if (source === "saved") {
+            /* Signed in with nothing known yet, the collection is still on its way and the
+               load rides in behind it — asking now would only report an empty hand. */
+            if (activeSavedTextId || savedTexts.length || !currentUserToken) {
+                loadSavedTextAsTest(activeSavedTextId);
+            }
         } else {
             applyWordCountFilter();
         }
+    }
+}
+
+/* ---- Saved texts as a test source ------------------------------------------------
+   The workshop's texts, typed straight from TYPE without going back through the
+   workshop to send them. The words come out the same way they do there — the text is
+   read by the tokenizer — so what you type is what SEND TO TEST AREA would have given
+   you, in the text's own order.
+
+   The dropdown carries the other sources as well as the texts, because it is standing
+   in for the chips while it is up and there has to be a way back to them. */
+const SOURCE_OPTION_PREFIX = "source:";
+const TEXT_OPTION_PREFIX = "text:";
+
+/* Which text's words are the ones currently in the test area. Not the same question as
+   which text is selected: the collection arrives after the source is switched to, so
+   there is a moment where the list says one thing and the words on screen are still the
+   last source's. This is what tells those apart. */
+let savedTextLoadedId = null;
+
+function renderSourceSelect() {
+    sourceSelect.innerHTML = "";
+
+    const sources = document.createElement("optgroup");
+    sources.label = "Test source";
+    [["hiragana", "hiragana"], ["katakana", "katakana"], ["tango", "tango"]].forEach(([value, label]) => {
+        const opt = document.createElement("option");
+        opt.value = SOURCE_OPTION_PREFIX + value;
+        opt.textContent = label;
+        sources.appendChild(opt);
+    });
+    sourceSelect.appendChild(sources);
+
+    const texts = document.createElement("optgroup");
+    texts.label = "Saved texts";
+
+    if (!currentUserToken) {
+        const opt = document.createElement("option");
+        opt.value = "";
+        opt.disabled = true;
+        opt.textContent = "Log in from PROFILE to keep texts";
+        texts.appendChild(opt);
+    } else if (!savedTexts.length) {
+        const opt = document.createElement("option");
+        opt.value = "";
+        opt.disabled = true;
+        opt.textContent = "Nothing saved — save one in the workshop";
+        texts.appendChild(opt);
+    } else {
+        savedTexts.forEach(text => {
+            const opt = document.createElement("option");
+            opt.value = TEXT_OPTION_PREFIX + text.id;
+            opt.textContent = `${text.title} · ${(text.chars || 0).toLocaleString()} chars`;
+            texts.appendChild(opt);
+        });
+    }
+
+    sourceSelect.appendChild(texts);
+
+    /* The remembered text may have been deleted since, or there may never have been one.
+       Either way the newest is the one to fall to, and it becomes the remembered one so
+       the list and what is loaded can't disagree. */
+    const wanted = TEXT_OPTION_PREFIX + activeSavedTextId;
+    const known = [...sourceSelect.options].some(o => o.value === wanted);
+    if (!known && savedTexts.length) {
+        activeSavedTextId = String(savedTexts[0].id);
+        localStorage.setItem("anki_type_saved_text", activeSavedTextId);
+    }
+    sourceSelect.value = savedTexts.length ? TEXT_OPTION_PREFIX + activeSavedTextId : "";
+}
+
+sourceSelect.addEventListener("change", (e) => {
+    const value = e.target.value;
+    if (value.startsWith(SOURCE_OPTION_PREFIX)) {
+        setSource(value.slice(SOURCE_OPTION_PREFIX.length));
+        return;
+    }
+    if (value.startsWith(TEXT_OPTION_PREFIX)) {
+        const id = value.slice(TEXT_OPTION_PREFIX.length);
+        activeSavedTextId = id;
+        localStorage.setItem("anki_type_saved_text", id);
+        loadSavedTextAsTest(id);
+    }
+});
+
+/* Reads the text, turns it into words and makes them the test. The tokenizer is on the
+   server, so this is a round trip and says so while it is in the air. */
+async function loadSavedTextAsTest(id) {
+    if (activeSource !== "saved") return;
+
+    if (!currentUserToken || !id) {
+        masterDeckList = [];
+        activeWordList = [];
+        currentSessionDeck = [];
+        statusEl.className = "status-badge status-offline";
+        statusEl.textContent = currentUserToken ? "NO TEXT PICKED" : "LOG IN TO USE TEXTS";
+        renderWordBlock();
+        return;
+    }
+
+    statusEl.className = "status-badge status-loading";
+    statusEl.textContent = "READING TEXT";
+
+    try {
+        const res = await libraryRequest(`/${id}`);
+        if (!res.ok) throw new Error(await libraryError(res, `HTTP ${res.status}`));
+        const text = await res.json();
+
+        const { entries } = await tokenizeWorkshopText(text.body || "");
+        if (!entries.length) throw new Error("no typable words in it");
+
+        masterDeckList = entries.map(([kanji, romaji, meaning]) => ({ kanji, romaji, meaning }));
+        // A text is read in the order it was written, so the list is taken as it comes
+        currentSessionDeck = [...masterDeckList];
+        applyWordCountFilter(false);
+
+        savedTextLoadedId = String(id);
+        statusEl.className = "status-badge status-online";
+        statusEl.textContent = `${activeWordList.length} WORDS READY`;
+    } catch (err) {
+        console.error("Could not load that saved text:", err);
+        masterDeckList = [];
+        activeWordList = [];
+        currentSessionDeck = [];
+        renderWordBlock();
+        statusEl.className = "status-badge status-offline";
+        statusEl.textContent = "TEXT UNAVAILABLE";
     }
 }
 
@@ -3110,7 +3280,8 @@ function applyOptionGroupVisibility() {
     kanaCountGroup.classList.toggle("hidden", !isKanaSource);
     // The kana switches narrow the kana pool, so they belong wherever its count does
     kanaFilterGroup.classList.toggle("hidden", !isKanaSource);
-    tangoLevelGroup.classList.toggle("hidden", isKanaSource);
+    // The JLPT levels belong to the tango decks; a saved text has a list of its own
+    tangoLevelGroup.classList.toggle("hidden", isKanaSource || activeSource === "saved");
 }
 
 // A test with no natural end, so the only way to stop it is Ctrl+Enter:
@@ -4018,9 +4189,10 @@ function setMode(mode, shouldReload = true) {
                    threw all of that away, so "deck order" never actually played in deck
                    order. Only the shuffle setting wants a fresh order per test. The
                    JLPT lists have no meaningful order of their own and still shuffle. */
-                const keepDeckOrder = activeSource === "tango"
-                    && activeTangoLevel === "anki"
-                    && ankiOrder !== "random";
+                const keepDeckOrder = activeSource === "saved"
+                    || (activeSource === "tango"
+                        && activeTangoLevel === "anki"
+                        && ankiOrder !== "random");
 
                 if (reshuffle || currentSessionDeck.length === 0) {
                     currentSessionDeck = [...masterDeckList];
@@ -4039,6 +4211,14 @@ function setMode(mode, shouldReload = true) {
                 }
             }
 
+            resetTestForNewRun();
+        }
+
+        /* Everything a fresh run starts from zero: the cursor, the counters, the clock and
+           the marks a finished run left behind. Split out of applyWordCountFilter because
+           typing the same list again needs every part of this and none of the drawing of a
+           new list — the list is the one thing it wants kept. */
+        function resetTestForNewRun() {
             currentIndex = 0;
             typedInput = [];
             kanaPartial = "";
@@ -4282,13 +4462,20 @@ function setMode(mode, shouldReload = true) {
             // Only TYPE takes typing; elsewhere the test isn't on screen to type into
             if (!testAreaIsLive()) return;
 
-            // While the results are up, Enter and Tab dismiss them. Handled before
-            // anything else so Tab doesn't also toggle readings on the way out, and so
-            // the keystroke can't leak into the fresh test underneath.
+            /* While the results are up the two keys are the two buttons: Enter is NEXT
+               TEST, Tab is TYPE THESE AGAIN. Handled before anything else so Tab doesn't
+               also toggle readings on the way out, and so neither keystroke can leak into
+               whichever test ends up underneath. */
             if (!resultModal.classList.contains("hidden")) {
-                if (e.key === "Enter" || e.key === "Tab") {
+                if (e.key === "Enter") {
                     e.preventDefault();
                     closeResultsIfOpen();
+                } else if (e.key === "Tab") {
+                    e.preventDefault();
+                    const replay = document.getElementById("res-replay-btn");
+                    // Hidden when the run has no words to replay, and then Tab has nothing
+                    // to press either
+                    if (!replay.classList.contains("hidden")) replay.click();
                 }
                 return;
             }
@@ -5567,6 +5754,7 @@ function setMode(mode, shouldReload = true) {
         sourceHiraganaBtn.addEventListener("click", () => setSource("hiragana", true));
         sourceKatakanaBtn.addEventListener("click", () => setSource("katakana", true));
         sourceTangoBtn.addEventListener("click", () => setSource("tango", true));
+        sourceSavedBtn.addEventListener("click", () => setSource("saved", true));
 
         tangoLevelBtns.forEach(btn => {
             btn.addEventListener("click", () => setTangoLevel(btn.dataset.tangoLevel, true));
@@ -5916,6 +6104,12 @@ function setMode(mode, shouldReload = true) {
                 const data = await res.json();
                 savedTexts = Array.isArray(data.texts) ? data.texts : [];
                 renderLibrary();
+                // The TYPE tab lists the same texts, so it hears about a save or a delete
+                if (activeSource === "saved") {
+                    renderSourceSelect();
+                    // The collection arriving is what the first load was waiting for
+                    if (savedTextLoadedId !== activeSavedTextId) loadSavedTextAsTest(activeSavedTextId);
+                }
             } catch (err) {
                 savedTexts = [];
                 renderLibrary();
@@ -6072,6 +6266,9 @@ function setMode(mode, shouldReload = true) {
 
             if (show) {
                 document.body.classList.remove("typing-focus");
+                // Last run's saving is not this run's news
+                const saveStatus = document.getElementById("res-save-status");
+                if (saveStatus) saveStatus.textContent = "";
                 Promise.all(testParts.map(fadeOut)).then(() => { fadeIn(resultModal); syncStart(); });
             } else {
                 fadeOut(resultModal).then(() => { testParts.forEach(fadeIn); syncStart(); });
@@ -6149,7 +6346,9 @@ function setMode(mode, shouldReload = true) {
 
             const replay = document.getElementById("res-replay-btn");
             replay.classList.toggle("hidden", !words.length);
-            replay.textContent = isMine ? "TYPE THESE AGAIN" : `TYPE ${(record.username || "THEIR").toUpperCase()}'S WORDS`;
+            // The label only: the button also carries the key that presses it
+            document.getElementById("res-replay-label").textContent =
+                isMine ? "TYPE THESE AGAIN" : `TYPE ${(record.username || "THEIR").toUpperCase()}'S WORDS`;
 
             showResultPanel(true);
         }
@@ -6190,7 +6389,7 @@ function setMode(mode, shouldReload = true) {
             document.getElementById("res-items-title").textContent = "COMPLETED ITEMS";
             resTypedLabel.textContent = "ITEMS TYPED";
             document.getElementById("res-replay-btn").classList.remove("hidden");
-            document.getElementById("res-replay-btn").textContent = "TYPE THESE AGAIN";
+            document.getElementById("res-replay-label").textContent = "TYPE THESE AGAIN";
         }
 
         function closeResultModalAndContinue() {
@@ -6281,10 +6480,63 @@ function setMode(mode, shouldReload = true) {
                 return;
             }
 
-            /* A live result: the same words again rather than a new draw. reshuffle is left
-               off so the list is the one just typed, in the order it was typed in. */
+            /* A live result: the same words again rather than a new draw — so the list is
+               left exactly as it is and only the run around it is reset.
+
+               It used to go through applyWordCountFilter, which rebuilds the list from the
+               deck the chips are set to. Anything that arrived as a seed rather than from
+               those chips — a workshop text, a shared seed, a race — was never in that
+               deck, so "type these again" quietly handed you whatever TYPE was pointing at
+               instead of the words you had just typed. */
             showResultPanel(false);
-            applyWordCountFilter(false);
+            resetTestForNewRun();
+        });
+
+        /* Keeps the run's words as a saved text. The words are what the test was made of,
+           so they are what is written — joined as they were read, which for a workshop text
+           is the text back again and for a word list is that list.
+
+           Named from its own opening and the time, because the result screen is no place to
+           make somebody think of a name; the workshop is where they are managed, and saving
+           there under the same name writes over this one. */
+        const resSaveTextBtn = document.getElementById("res-save-text-btn");
+        const resSaveStatus = document.getElementById("res-save-status");
+
+        resSaveTextBtn.addEventListener("click", async (e) => {
+            e.stopPropagation();
+
+            const words = storedResultView
+                ? (storedResultView.words || []).map(([kanji]) => kanji)
+                : activeWordList.map(w => w.kanji);
+
+            if (!words.length) {
+                resSaveStatus.textContent = "There are no words here to save.";
+                return;
+            }
+            if (!currentUserToken) {
+                resSaveStatus.textContent = "Log in from the PROFILE tab to save texts.";
+                return;
+            }
+
+            const body = words.join("");
+            const when = new Date();
+            const title = `${body.slice(0, 24)}… · ${when.toLocaleDateString()} ${when.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`;
+
+            resSaveTextBtn.disabled = true;
+            resSaveStatus.textContent = "Saving...";
+            try {
+                const res = await libraryRequest("", {
+                    method: "POST",
+                    body: JSON.stringify({ title, body })
+                });
+                if (!res.ok) throw new Error(await libraryError(res, `HTTP ${res.status}`));
+                resSaveStatus.textContent = `Saved — it is in the workshop and in TYPE under "saved text".`;
+                await refreshLibrary();
+            } catch (err) {
+                resSaveStatus.textContent = `Couldn't save: ${err.message}`;
+            } finally {
+                resSaveTextBtn.disabled = false;
+            }
         });
 
         /* KEYSTROKE SOUND

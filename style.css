@@ -3285,6 +3285,38 @@ body.tight-spacing .word-item {
     max-height: 420px;
 }
 
+/* The list of texts standing in for the source chips. Sized to sit on the chip
+   row without changing its height, and given a ceiling so a long name can't
+   stretch the row it is in. */
+.source-select {
+    width: auto;
+    max-width: min(340px, 70vw);
+    padding: 6px 10px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    border-radius: 8px;
+}
+
+/* The key that presses the button, on the button. Quiet enough to read as a
+   note rather than as part of the label. */
+.btn-key {
+    margin-left: 8px;
+    padding: 1px 6px;
+    border-radius: 5px;
+    font-size: 0.62rem;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    background-color: rgba(0, 0, 0, 0.18);
+    opacity: 0.75;
+}
+
+.result-save-status {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    text-align: center;
+    min-height: 16px;
+}
+
 /* SAVED WORKSHOP TEXTS
    A panel under the editor rather than beside it: the list is a list, and the
    text it belongs to is the whole width of the page above it. */
