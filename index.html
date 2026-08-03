@@ -167,10 +167,6 @@
                     <button class="source-btn" id="source-saved-btn">saved text</button>
                 </div>
 
-                <!-- Four chips can't also list a collection, so on the saved-text source the
-                     row above hands its place to this: the other three sources stay in it as
-                     the way back out, and the texts sit underneath them. -->
-                <select id="source-select" class="hidden source-select" aria-label="Test source and saved texts"></select>
                 <div class="selector-divider"></div>
                 <div class="count-selector-group hidden" id="tango-level-group">
                     <button class="tango-level-btn active" data-tango-level="anki" id="tango-level-anki-btn" disabled title="Connect Anki to use your own decks — see the ANKI tab">Anki</button>
@@ -1805,7 +1801,6 @@ let romajiAlt = "";
         const sourceTangoBtn = document.getElementById("source-tango-btn");
         const sourceSavedBtn = document.getElementById("source-saved-btn");
         const sourceGroup = document.getElementById("source-group");
-        const sourceSelect = document.getElementById("source-select");
 
         const wordOptionsGroup = document.getElementById("word-options-group");
         const timeOptionsGroup = document.getElementById("time-options-group");
@@ -2199,8 +2194,11 @@ let romajiAlt = "";
             + "<button type=\"button\" class=\"hint-action\" data-hint-action=\"meanings\">MEANINGS</button>";
         const PREVIEW_HINT_TOUCH = "<span>[TAP THE WORDS] GO TO TYPE AND START TYPING</span>";
 
+        const PICKER_HINT = "<span>PICK ONE OF YOUR SAVED TEXTS TO TYPE IT</span>";
+
         const typingHintFor = (live, preview) => {
             if (live) return usingTouchInput() ? TYPING_HINT_TOUCH : TYPING_HINT_DEFAULT;
+            if (preview === "texts") return PICKER_HINT;
             if (preview === "room") return LOBBY_HINT;
             return usingTouchInput() ? PREVIEW_HINT_TOUCH : PREVIEW_HINT;
         };
@@ -2233,6 +2231,9 @@ let romajiAlt = "";
 
         function testAreaIsLive() {
             if (typeof isZenMode !== "undefined" && isZenMode) return false;
+            // The saved-text picker is standing where the words go, so there is nothing
+            // underneath it to type into
+            if (typeof textPickerOpen !== "undefined" && textPickerOpen) return false;
             // A race decides when typing starts, so nothing under the room's own panel
             // takes keystrokes; closing it for the race is what makes the test live.
             return !anyDrawerOpen() || openDrawerName() === "test-options";
@@ -2242,6 +2243,9 @@ let romajiAlt = "";
         // the multiplayer panel is a lobby form, not a room, so its words are the same
         // ordinary preview every other settings tab shows.
         function testAreaPreviewKind(live) {
+            /* Asked before the drawers get a say: the picker belongs to TYPE itself, which
+               is the tab whose preview is normally nothing at all. */
+            if (typeof textPickerOpen !== "undefined" && textPickerOpen) return "texts";
             if (live) return null;
             const drawer = openDrawerName();
             if (drawer === "anki") return "anki";
@@ -2283,7 +2287,8 @@ let romajiAlt = "";
 
             if (liveInput) liveInput.classList.toggle("hidden", !live);
             // The lobby's words aren't a way back to typing, so they don't offer to be one
-            wordsWrapper.classList.toggle("is-preview", !live && preview !== "room");
+            wordsWrapper.classList.toggle("is-preview",
+                !live && preview !== "room" && preview !== "texts");
 
             if (typingControlsHint) {
                 typingControlsHint.classList.remove("hidden");
@@ -2302,6 +2307,8 @@ let romajiAlt = "";
            it goes to a word run over the lot. */
         function enterPlayFromPreview() {
             if (testAreaIsLive()) return false;
+            // The picker is a question waiting for an answer, not a preview to leave
+            if (textPickerOpen) return false;
 
             /* Guarded on the level chip rather than done unconditionally: with Anki
                unreachable there is no deck to switch to, and forcing the source over
@@ -2987,10 +2994,13 @@ let romajiAlt = "";
     // Legacy alias: old seeds/localStorage may still reference "anki" as a source
     if (source === "anki") source = "tango";
 
+    /* A real change of source replaces whatever is in the test area, so the text that was
+       loaded there is no longer loaded. Pressing "saved text" while already on it is not
+       that — it is asking to choose again, and the text in hand stays the one in hand
+       until another is picked. */
+    if (activeSource !== source) savedTextLoadedId = null;
     activeSource = source;
     localStorage.setItem("anki_type_source", activeSource);
-    // Whatever is in the test area is about to be replaced, whichever source it came from
-    savedTextLoadedId = null;
 
     sourceHiraganaBtn.classList.remove("active");
     sourceKatakanaBtn.classList.remove("active");
@@ -3018,11 +3028,8 @@ let romajiAlt = "";
         setMode(activeMode, false);
     }
 
-    /* The list of texts is a thing you open, pick from and are done with — it is not the
-       state of anything, so it never survives a source being set. The chips say which
-       source is in force; the list only ever stands in front of them for the moment it
-       takes to choose. */
-    closeSourceTextList();
+    // Setting any source answers the question the picker was asking
+    closeTextPicker();
 
     applyOptionGroupVisibility();
     if (shouldReload) {
@@ -3048,97 +3055,83 @@ let romajiAlt = "";
 
    The dropdown carries the other sources as well as the texts, because it is standing
    in for the chips while it is up and there has to be a way back to them. */
-const SOURCE_OPTION_PREFIX = "source:";
-const TEXT_OPTION_PREFIX = "text:";
-
 /* Which text's words are the ones currently in the test area. Not the same question as
    which text is selected: the collection arrives after the source is switched to, so
-   there is a moment where the list says one thing and the words on screen are still the
-   last source's. This is what tells those apart. */
+   there is a moment where the picker says one thing and the words on screen are still
+   the last source's. This is what tells those apart. */
 let savedTextLoadedId = null;
 
-function renderSourceSelect() {
-    sourceSelect.innerHTML = "";
+/* The picker takes the words' place rather than the chips': a collection is a list of
+   things to read, and the place on this page for a list of things to read is the area
+   the words are in. It is open until a text is chosen, and choosing one is what loads
+   it — there is nothing else to press. */
+let textPickerOpen = false;
 
-    const sources = document.createElement("optgroup");
-    sources.label = "Test source";
-    [["hiragana", "hiragana"], ["katakana", "katakana"], ["tango", "tango"]].forEach(([value, label]) => {
-        const opt = document.createElement("option");
-        opt.value = SOURCE_OPTION_PREFIX + value;
-        opt.textContent = label;
-        sources.appendChild(opt);
-    });
-    sourceSelect.appendChild(sources);
-
-    const texts = document.createElement("optgroup");
-    texts.label = "Saved texts";
-
-    if (!currentUserToken) {
-        const opt = document.createElement("option");
-        opt.value = "";
-        opt.disabled = true;
-        opt.textContent = "Log in from PROFILE to keep texts";
-        texts.appendChild(opt);
-    } else if (!savedTexts.length) {
-        const opt = document.createElement("option");
-        opt.value = "";
-        opt.disabled = true;
-        opt.textContent = "Nothing saved — save one in the workshop";
-        texts.appendChild(opt);
-    } else {
-        savedTexts.forEach(text => {
-            const opt = document.createElement("option");
-            opt.value = TEXT_OPTION_PREFIX + text.id;
-            opt.textContent = `${text.title} · ${(text.chars || 0).toLocaleString()} chars`;
-            texts.appendChild(opt);
-        });
-    }
-
-    sourceSelect.appendChild(texts);
-
-    /* The remembered text may have been deleted since, or there may never have been one.
-       Either way the newest is the one to fall to, and it becomes the remembered one so
-       the list and what is loaded can't disagree. */
-    const wanted = TEXT_OPTION_PREFIX + activeSavedTextId;
-    const known = [...sourceSelect.options].some(o => o.value === wanted);
-    if (!known && savedTexts.length) {
-        activeSavedTextId = String(savedTexts[0].id);
-        localStorage.setItem("anki_type_saved_text", activeSavedTextId);
-    }
-    sourceSelect.value = savedTexts.length ? TEXT_OPTION_PREFIX + activeSavedTextId : "";
-}
-
-/* Opened by pressing "saved text", and gone again the moment something is chosen out of
-   it — including another source, which is the way back out without choosing a text. */
-function openSourceTextList() {
-    renderSourceSelect();
-    sourceGroup.classList.add("hidden");
-    sourceSelect.classList.remove("hidden");
+function openTextPicker() {
+    textPickerOpen = true;
+    updateTestVisibility();
 
     /* On a first visit nothing has read the collection yet — the sandbox is where that
-       usually happens. Asking for it fills the list in behind this. */
+       usually happens. Asking for it fills the picker in behind itself. */
     if (currentUserToken && !savedTexts.length) refreshLibrary();
 }
 
-function closeSourceTextList() {
-    sourceGroup.classList.remove("hidden");
-    sourceSelect.classList.add("hidden");
+function closeTextPicker() {
+    if (!textPickerOpen) return;
+    textPickerOpen = false;
+    updateTestVisibility();
 }
 
-sourceSelect.addEventListener("change", (e) => {
-    const value = e.target.value;
-    if (value.startsWith(SOURCE_OPTION_PREFIX)) {
-        setSource(value.slice(SOURCE_OPTION_PREFIX.length));
+function renderTextPicker() {
+    wordsContainer.innerHTML = "";
+    wordsContainer.style.transform = "translateY(0px)";
+
+    if (!currentUserToken) {
+        wordsContainer.innerHTML =
+            `<div class="empty-state">Log in from the PROFILE tab to keep texts — they follow you to any machine you sign in on.</div>`;
         return;
     }
-    if (value.startsWith(TEXT_OPTION_PREFIX)) {
-        const id = value.slice(TEXT_OPTION_PREFIX.length);
-        activeSavedTextId = id;
-        localStorage.setItem("anki_type_saved_text", id);
-        closeSourceTextList();
-        loadSavedTextAsTest(id);
+    if (!savedTexts.length) {
+        wordsContainer.innerHTML =
+            `<div class="empty-state">Nothing saved yet. Write or paste something in SANDBOX and save it there.</div>`;
+        return;
     }
-});
+
+    const list = document.createElement("div");
+    list.className = "text-picker";
+
+    savedTexts.forEach(text => {
+        const row = document.createElement("button");
+        row.type = "button";
+        row.className = "text-picker-row";
+        if (String(text.id) === String(savedTextLoadedId)) row.classList.add("is-current");
+        row.title = `Type "${text.title}"`;
+
+        const name = document.createElement("span");
+        name.className = "text-picker-name";
+        name.textContent = text.title;
+
+        const meta = document.createElement("span");
+        meta.className = "text-picker-meta";
+        const when = new Date((text.updated_at || 0) * 1000);
+        meta.textContent = `${(text.chars || 0).toLocaleString()} chars · ${when.toLocaleDateString()}`;
+
+        row.append(name, meta);
+        row.addEventListener("click", (e) => {
+            // The words area is one big button back to TYPE while a preview is up; a row
+            // in here is a choice, not that
+            e.stopPropagation();
+            activeSavedTextId = String(text.id);
+            localStorage.setItem("anki_type_saved_text", activeSavedTextId);
+            closeTextPicker();
+            loadSavedTextAsTest(activeSavedTextId);
+        });
+
+        list.appendChild(row);
+    });
+
+    wordsContainer.appendChild(list);
+}
 
 /* Reads the text, turns it into words and makes them the test. The tokenizer is on the
    server, so this is a round trip and says so while it is in the air. */
@@ -4388,7 +4381,8 @@ function setMode(mode, shouldReload = true) {
         }
 
         function renderTestAreaPreview() {
-            if (testAreaPreview === "room") renderRoomPreview();
+            if (testAreaPreview === "texts") renderTextPicker();
+            else if (testAreaPreview === "room") renderRoomPreview();
             else renderDeckPreview();
         }
 
@@ -5770,11 +5764,12 @@ function setMode(mode, shouldReload = true) {
         sourceHiraganaBtn.addEventListener("click", () => setSource("hiragana", true));
         sourceKatakanaBtn.addEventListener("click", () => setSource("katakana", true));
         sourceTangoBtn.addEventListener("click", () => setSource("tango", true));
-        /* Pressing it while it is already the source is asking for the list again — to pick
-           a different text — rather than asking to reload the one already in hand. */
+        /* Pressing it while it is already the source is asking to choose again rather than
+           to reload the text already in hand, so the picker is what the press opens either
+           way. Nothing is loaded until a text in it is pressed. */
         sourceSavedBtn.addEventListener("click", () => {
-            setSource("saved", activeSource !== "saved");
-            openSourceTextList();
+            setSource("saved", false);
+            openTextPicker();
         });
 
         tangoLevelBtns.forEach(btn => {
@@ -6126,11 +6121,8 @@ function setMode(mode, shouldReload = true) {
                 savedTexts = Array.isArray(data.texts) ? data.texts : [];
                 renderLibrary();
                 // The TYPE tab lists the same texts, so it hears about a save or a delete
-                if (activeSource === "saved") {
-                    renderSourceSelect();
-                    // The collection arriving is what the first load was waiting for
-                    if (savedTextLoadedId !== activeSavedTextId) loadSavedTextAsTest(activeSavedTextId);
-                }
+                // The picker is drawn from this list, so it redraws when the list changes
+                if (textPickerOpen) renderTextPicker();
             } catch (err) {
                 savedTexts = [];
                 renderLibrary();

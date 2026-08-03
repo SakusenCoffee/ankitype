@@ -3293,16 +3293,59 @@ body.tight-spacing .word-item {
     max-height: 420px;
 }
 
-/* The list of texts standing in for the source chips. Sized to sit on the chip
-   row without changing its height, and given a ceiling so a long name can't
-   stretch the row it is in. */
-.source-select {
-    width: auto;
-    max-width: min(340px, 70vw);
-    padding: 6px 10px;
-    font-size: 0.75rem;
+/* The saved texts, in the words' own place. A column down the middle of the test
+   area rather than a grid: these are titles to read, and a title is a line. */
+.text-picker {
+    width: 100%;
+    max-width: 620px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    overflow-y: auto;
+    max-height: 100%;
+}
+
+.text-picker-row {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 16px;
+    width: 100%;
+    padding: 12px 16px;
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    color: var(--text-primary);
+    font-family: inherit;
+    text-align: left;
+    cursor: pointer;
+    transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.text-picker-row:hover {
+    border-color: var(--accent-main);
+}
+
+/* The one already loaded, so pressing it again reads as returning to it rather
+   than as picking something new */
+.text-picker-row.is-current {
+    border-color: var(--accent-main);
+}
+
+.text-picker-name {
+    font-size: 1rem;
     font-weight: 700;
-    border-radius: 8px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.text-picker-meta {
+    flex-shrink: 0;
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: var(--text-muted);
 }
 
 /* The key that presses the button, on the button. Quiet enough to read as a
