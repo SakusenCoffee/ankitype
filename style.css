@@ -3285,6 +3285,60 @@ body.tight-spacing .word-item {
     max-height: 420px;
 }
 
+/* KEYSTROKE SOUND — a switch and a list, on one line, because they are one
+   setting: whether, and which. The list takes the slack so the two of them
+   line up with the plain dropdowns above. */
+.sound-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.sound-row select {
+    flex: 1;
+    min-width: 0;
+}
+
+/* Square, and the height of the field beside it. Muted while it is off — the
+   crossed-out speaker is the state, and colour would be saying it twice. */
+.sound-toggle {
+    flex-shrink: 0;
+    width: 38px;
+    height: 38px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    background-color: var(--nav-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: color 0.15s ease, border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.sound-toggle svg {
+    width: 17px;
+    height: 17px;
+}
+
+.sound-toggle:hover {
+    color: var(--text-primary);
+    border-color: var(--text-muted);
+}
+
+.sound-toggle.is-on {
+    color: var(--bg-color);
+    background-color: var(--accent-main);
+    border-color: var(--accent-main);
+}
+
+.sound-toggle.is-on:hover {
+    background-color: var(--accent-hover);
+    border-color: var(--accent-hover);
+    color: var(--bg-color);
+}
+
 /* ==========================================================================
    NARROW SCREENS
 

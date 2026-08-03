@@ -395,6 +395,52 @@
                         </optgroup>
                     </select>
                 </div>
+                <!-- The switch sits with the sound rather than in a list of its own: it is
+                     the same setting asked twice — whether, and which. Picking a sound
+                     while it is off turns it on, since choosing one is asking to hear it. -->
+                <div class="selector-container full-width">
+                    <label for="sound-select">KEYSTROKE SOUND</label>
+                    <div class="sound-row">
+                        <button type="button" class="sound-toggle" id="sound-toggle-btn"
+                                aria-pressed="false" title="Turn keystroke sound on">
+                            <svg class="sound-icon-on hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                 stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M11 5 6 9H2v6h4l5 4V5z"></path>
+                                <path d="M15.5 8.5a5 5 0 0 1 0 7"></path>
+                                <path d="M18.5 5.5a9 9 0 0 1 0 13"></path>
+                            </svg>
+                            <svg class="sound-icon-off" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                 stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M11 5 6 9H2v6h4l5 4V5z"></path>
+                                <line x1="22" y1="9" x2="16" y2="15"></line>
+                                <line x1="16" y1="9" x2="22" y2="15"></line>
+                            </svg>
+                        </button>
+                        <select id="sound-select">
+                            <optgroup label="Keyboards">
+                                <option value="click">Click</option>
+                                <option value="thock">Thock (Creams)</option>
+                                <option value="typewriter">Typewriter</option>
+                                <option value="pop">Pop</option>
+                            </optgroup>
+                            <optgroup label="Game">
+                                <option value="beep">Beep</option>
+                                <option value="osu">Osu</option>
+                                <option value="hitmarker">Hitmarker</option>
+                            </optgroup>
+                            <optgroup label="Tones">
+                                <option value="sine">Sine</option>
+                                <option value="triangle">Triangle</option>
+                                <option value="square">Square</option>
+                                <option value="sawtooth">Sawtooth</option>
+                            </optgroup>
+                            <optgroup label="Melodic">
+                                <option value="pentatonic">Pentatonic</option>
+                                <option value="wholetone">Whole Tone</option>
+                            </optgroup>
+                        </select>
+                    </div>
+                </div>
                 <div class="selector-container full-width">
                     <div class="slider-label-row">
                         <label for="main-font-slider">MAIN EXPRESSION FONT SIZE</label>
@@ -4216,6 +4262,11 @@ function setMode(mode, shouldReload = true) {
            characters they inserted. Everything either way in is the same test. */
         function handleTypedKey(key) {
             if (activeWordList.length === 0) return;
+
+            /* Every keystroke the test takes, right or wrong, backspaces included — it is
+               the key being pressed that makes the sound, not the letter being correct. */
+            playKeySound();
+
             const currentWord = activeWordList[currentIndex];
 
             if (key === "Backspace") {
@@ -5941,6 +5992,208 @@ function setMode(mode, shouldReload = true) {
             showResultPanel(false);
             applyWordCountFilter(false);
         });
+
+        /* KEYSTROKE SOUND
+           Built out of oscillators and noise rather than played from files. The sounds
+           this is modelled on are Monkeytype's, but their recordings are theirs — several
+           are third-party samples on top of that — so what is here are equivalents in the
+           same families, made from scratch. Nothing to ship, nothing to license, and no
+           request going out on the first keypress.
+
+           An AudioContext is made on the first sound rather than at load: browsers refuse
+           to start one outside a gesture, and a keystroke is a gesture. Everything below
+           schedules a handful of nodes per keypress, each of which stops itself. */
+        const soundDropdown = document.getElementById("sound-select");
+        const soundToggleBtn = document.getElementById("sound-toggle-btn");
+
+        let soundName = localStorage.getItem("anki_type_sound") || "click";
+        let soundOn = localStorage.getItem("anki_type_sound_on") === "true";
+
+        let audioCtx = null;
+        let soundBus = null;
+        let noiseBuffer = null;
+
+        function ensureAudio() {
+            if (audioCtx) {
+                // A tab left in the background has its context suspended out from under it
+                if (audioCtx.state === "suspended") audioCtx.resume();
+                return audioCtx;
+            }
+
+            const Ctx = window.AudioContext || window.webkitAudioContext;
+            if (!Ctx) return null;
+
+            audioCtx = new Ctx();
+            soundBus = audioCtx.createGain();
+            soundBus.gain.value = 0.55;
+            soundBus.connect(audioCtx.destination);
+
+            /* A third of a second of noise, made once and played from a different offset
+               each time. Every click that has any grit in it reads from this, so no
+               keystroke has to fill a buffer of its own. */
+            const frames = Math.floor(audioCtx.sampleRate * 0.3);
+            noiseBuffer = audioCtx.createBuffer(1, frames, audioCtx.sampleRate);
+            const channel = noiseBuffer.getChannelData(0);
+            for (let i = 0; i < frames; i++) channel[i] = Math.random() * 2 - 1;
+
+            return audioCtx;
+        }
+
+        /* One voice: a wave, an envelope, and an end. The envelope is struck rather than
+           faded in — a key is a hit — and decays exponentially, which is what stops a
+           click sounding like a note. */
+        function playTone({ type = "sine", freq = 440, glideTo = null, peak = 0.2,
+                            attack = 0.001, decay = 0.05, delay = 0 } = {}) {
+            const at = audioCtx.currentTime + delay;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+
+            osc.type = type;
+            osc.frequency.setValueAtTime(freq, at);
+            if (glideTo) osc.frequency.exponentialRampToValueAtTime(glideTo, at + decay);
+
+            gain.gain.setValueAtTime(0.0001, at);
+            gain.gain.exponentialRampToValueAtTime(peak, at + attack);
+            gain.gain.exponentialRampToValueAtTime(0.0001, at + attack + decay);
+
+            osc.connect(gain).connect(soundBus);
+            osc.start(at);
+            osc.stop(at + attack + decay + 0.02);
+        }
+
+        // The same shape, from noise through a filter: the body of a key rather than a pitch
+        function playNoise({ type = "bandpass", freq = 2000, q = 1, peak = 0.2,
+                             decay = 0.03, delay = 0 } = {}) {
+            const at = audioCtx.currentTime + delay;
+            const src = audioCtx.createBufferSource();
+            const filter = audioCtx.createBiquadFilter();
+            const gain = audioCtx.createGain();
+
+            src.buffer = noiseBuffer;
+            // Somewhere else in the noise each time, so repeated keys aren't identical
+            const offset = Math.random() * (noiseBuffer.duration - decay - 0.01);
+
+            filter.type = type;
+            filter.frequency.value = freq;
+            filter.Q.value = q;
+
+            gain.gain.setValueAtTime(peak, at);
+            gain.gain.exponentialRampToValueAtTime(0.0001, at + decay);
+
+            src.connect(filter).connect(gain).connect(soundBus);
+            src.start(at, Math.max(0, offset));
+            src.stop(at + decay + 0.02);
+        }
+
+        /* Where the melodic sounds have got to. Typing walks up the scale and drops back
+           to the bottom at the top of it, so a burst of typing is a run of notes rather
+           than one note repeated. */
+        let scaleStep = 0;
+
+        function playScaleNote(steps, type, decay) {
+            const note = steps[scaleStep % steps.length];
+            const octave = Math.floor(scaleStep / steps.length) % 2;
+            scaleStep = (scaleStep + 1) % (steps.length * 2);
+            playTone({
+                type,
+                freq: 261.63 * Math.pow(2, (note + octave * 12) / 12),
+                peak: 0.16,
+                decay
+            });
+        }
+
+        const KEY_SOUNDS = {
+            // A switch bottoming out: the tick of the strike over the knock of the case
+            click: () => {
+                playNoise({ freq: 2600, q: 0.7, peak: 0.3, decay: 0.016 });
+                playTone({ type: "triangle", freq: 340, glideTo: 170, peak: 0.1, decay: 0.03 });
+            },
+            // Deeper and softer — the muted, rounded sound the cream switches are bought for
+            thock: () => {
+                playNoise({ type: "lowpass", freq: 900, q: 0.9, peak: 0.34, decay: 0.05 });
+                playTone({ type: "sine", freq: 165, glideTo: 90, peak: 0.22, decay: 0.07 });
+            },
+            // Two events, because a typebar is two: the strike, then the mechanism returning
+            typewriter: () => {
+                playNoise({ freq: 3200, q: 0.9, peak: 0.26, decay: 0.014 });
+                playTone({ type: "square", freq: 220, glideTo: 120, peak: 0.09, decay: 0.04 });
+                playNoise({ type: "lowpass", freq: 700, peak: 0.14, decay: 0.03, delay: 0.055 });
+            },
+            pop: () => {
+                playTone({ type: "sine", freq: 720, glideTo: 190, peak: 0.26, decay: 0.07 });
+            },
+            beep: () => {
+                playTone({ type: "square", freq: 920, peak: 0.1, decay: 0.045 });
+            },
+            osu: () => {
+                playTone({ type: "sine", freq: 540, glideTo: 430, peak: 0.24, decay: 0.06 });
+                playTone({ type: "sine", freq: 1080, peak: 0.07, decay: 0.035 });
+            },
+            // Two ticks in quick succession, the second the quieter of the pair
+            hitmarker: () => {
+                playNoise({ type: "highpass", freq: 3400, peak: 0.24, decay: 0.012 });
+                playNoise({ type: "highpass", freq: 4200, peak: 0.14, decay: 0.01, delay: 0.045 });
+            },
+            sine: () => playTone({ type: "sine", freq: 520, peak: 0.22, decay: 0.045 }),
+            triangle: () => playTone({ type: "triangle", freq: 520, peak: 0.18, decay: 0.045 }),
+            // The two harsh waves carry far more energy at the same amplitude, so they
+            // are set lower to sit level with the rest of the list
+            square: () => playTone({ type: "square", freq: 520, peak: 0.09, decay: 0.04 }),
+            sawtooth: () => playTone({ type: "sawtooth", freq: 520, peak: 0.09, decay: 0.04 }),
+            pentatonic: () => playScaleNote([0, 2, 4, 7, 9], "sine", 0.16),
+            wholetone: () => playScaleNote([0, 2, 4, 6, 8, 10], "triangle", 0.14)
+        };
+
+        function playKeySound() {
+            if (!soundOn) return;
+            const voice = KEY_SOUNDS[soundName] || KEY_SOUNDS.click;
+            try {
+                if (!ensureAudio()) return;
+                voice();
+            } catch (err) {
+                /* A browser that won't give us audio shouldn't cost anyone their typing.
+                   Said once and then left alone — this runs on every keystroke. */
+                if (soundOn) console.warn("Keystroke sound unavailable:", err);
+                soundOn = false;
+                syncSoundControls();
+            }
+        }
+
+        function syncSoundControls() {
+            // A name from an older build, or one hand-edited in storage, would leave the
+            // list showing nothing at all
+            if (!KEY_SOUNDS[soundName]) soundName = "click";
+            soundDropdown.value = soundName;
+            soundToggleBtn.classList.toggle("is-on", soundOn);
+            soundToggleBtn.setAttribute("aria-pressed", String(soundOn));
+            soundToggleBtn.title = soundOn ? "Turn keystroke sound off" : "Turn keystroke sound on";
+            soundToggleBtn.querySelector(".sound-icon-on").classList.toggle("hidden", !soundOn);
+            soundToggleBtn.querySelector(".sound-icon-off").classList.toggle("hidden", soundOn);
+        }
+
+        soundToggleBtn.addEventListener("click", () => {
+            soundOn = !soundOn;
+            localStorage.setItem("anki_type_sound_on", String(soundOn));
+            syncSoundControls();
+            // Turning it on says what you have turned on
+            if (soundOn) playKeySound();
+        });
+
+        soundDropdown.addEventListener("change", (e) => {
+            soundName = e.target.value;
+            localStorage.setItem("anki_type_sound", soundName);
+
+            /* Picking a sound is asking to hear it, so it plays — and if the switch was
+               off, choosing from the list is answer enough to the question it asks. */
+            if (!soundOn) {
+                soundOn = true;
+                localStorage.setItem("anki_type_sound_on", "true");
+                syncSoundControls();
+            }
+            playKeySound();
+        });
+
+        syncSoundControls();
 
         themeDropdown.addEventListener("change", (e) => {
             currentTheme = e.target.value;
