@@ -1645,6 +1645,14 @@ let romajiAlt = "";
            Better than guessing and rejecting correct keystrokes. */
         const kanaUnitCache = new WeakMap();
 
+        /* Whether the word is spelled out in kana, and so says for itself which kana it
+           holds. Anything with a kanji in it is only known by its romaji, which is a
+           lossier thing — several kana share a spelling. */
+        function isWrittenInKana(word) {
+            const glyphs = [...(word.kanji || "")];
+            return glyphs.length > 0 && glyphs.every(g => isHiragana(g) || isKatakana(g));
+        }
+
         function kanaUnitsFor(word) {
             if (kanaUnitCache.has(word)) return kanaUnitCache.get(word);
 
@@ -1687,9 +1695,14 @@ let romajiAlt = "";
 
            `onlyKana` is for the spellings that the romaji alone can't tell apart. づ and ず
            are both written "zu", and only one of them is ever typed "du" — so that entry
-           asks which kana is actually sitting at this point in the word, and an alternate
-           with no way of checking is not offered at all. Without it, "du" would quietly
-           pass for ず, which is the very distinction a kana test exists to drill. */
+           asks which kana is sitting at this point in the word.
+
+           It can only ask where there is something to ask. A word written in kana carries
+           its own answer: ず is ず and refuses "du", which is the distinction a kana test
+           exists to drill. A word written in kanji carries nothing but its romaji — 続く is
+           stored as "tsuzuku", and "zu" turns back into ず whether it started there or not —
+           so for those the question is unanswerable and the alternate is allowed. The cost
+           is that "du" also passes for 水; the alternative was that it failed for 続く. */
         const ROMAJI_ALTERNATES = {
             tsu: { spellings: ["tu"] },
             zu: { spellings: ["du"], onlyKana: /[づヅ]/ }
@@ -1749,8 +1762,10 @@ let romajiAlt = "";
                 for (const [canonical, entry] of Object.entries(ROMAJI_ALTERNATES)) {
                     if (!romaji.startsWith(canonical, start)) continue;
 
-                    // The wrong kana for this spelling, or a word that can't say which it is
-                    if (entry.onlyKana) {
+                    /* The wrong kana for this spelling — asked only of words that are
+                       written in kana, since those are the only ones whose kana is known
+                       rather than guessed back from the romaji. */
+                    if (entry.onlyKana && isWrittenInKana(word)) {
                         const kana = kanaAt(start);
                         if (!kana || !entry.onlyKana.test(kana)) continue;
                     }
