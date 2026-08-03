@@ -193,10 +193,10 @@
                      those sort by what a syllabus teaches when, this by what Japanese
                      actually says most. -->
                 <div class="count-selector-group hidden" id="freq-group">
-                    <button class="tango-level-btn" data-tango-level="freq100"
-                            title="The 100 commonest words in Japanese, commonest first">top 100</button>
-                    <button class="tango-level-btn" data-tango-level="freq200"
-                            title="The 200 commonest words in Japanese, commonest first">top 200</button>
+                    <button class="tango-level-btn" data-tango-level="jp100"
+                            title="The 100 commonest words in Japanese, commonest first">jp100</button>
+                    <button class="tango-level-btn" data-tango-level="jp200"
+                            title="The 200 commonest words in Japanese, commonest first">jp200</button>
                     <button class="tango-level-btn" data-tango-level="jp1k"
                             title="The 1,000 commonest words in Japanese">jp1k</button>
                     <button class="tango-level-btn" data-tango-level="jp5k"
@@ -1530,6 +1530,37 @@ let ankiDeckCache = [];
 let tangoJsonCache = {};
 let currentSessionDeck = []; // Add this to store the unshuffled test session
 let activeWordList = [];
+
+/* ---- The words a long list is holding back ------------------------------------------
+   A test of thirty thousand words drew thirty thousand tiles before it would take a
+   keystroke — a third of a million elements, and seconds of waiting for a run nobody
+   finishes. So a long list arrives a window at a time: the first WORD_WINDOW are laid
+   out, the rest wait here, and each time the cursor comes within WORD_WINDOW_KEEP of the
+   end another WORD_WINDOW_STEP are added on.
+
+   The reserve is part of the test, not a separate thing: it counts towards the number of
+   words loaded, it goes into a seed, and the run only ends when it too is empty. */
+let wordReserve = [];
+const WORD_WINDOW = 250;
+const WORD_WINDOW_STEP = 100;
+const WORD_WINDOW_KEEP = 150;
+
+// The whole test, window and reserve together — what anything asking "how many words is
+// this" means
+function allTestWords() {
+    return wordReserve.length ? activeWordList.concat(wordReserve) : activeWordList;
+}
+
+/* Splits a list into what is drawn now and what waits. Short lists are left alone: the
+   windowing is only worth its complication on the ones that would hurt. */
+function takeWordWindow(list) {
+    if (list.length <= WORD_WINDOW) {
+        wordReserve = [];
+        return list;
+    }
+    wordReserve = list.slice(WORD_WINDOW);
+    return list.slice(0, WORD_WINDOW);
+}
 let currentIndex = 0;
 
 /* Kana typed toward the syllable in progress but not yet spelling a whole one — き while
@@ -2288,7 +2319,7 @@ let romajiAlt = "";
                 }
             } else {
                 if (!activeWordList || activeWordList.length === 0) return null;
-                seedPayload.data = activeWordList.map(w => [w.kanji, w.romaji, w.meaning]);
+                seedPayload.data = allTestWords().map(w => [w.kanji, w.romaji, w.meaning]);
             }
 
             return btoa(encodeURIComponent(JSON.stringify(seedPayload)));
@@ -2635,6 +2666,7 @@ let romajiAlt = "";
 
         // 2. NOW assign the seed data to activeWordList
         // This ensures the seed data overwrites any default words loaded by setSource
+        wordReserve = [];
         activeWordList = seedData.map(([kanji, romaji, meaning]) => ({
             kanji,
             romaji: normalizeRomaji(romaji || wanakana.toRomaji(kanji)),
@@ -3315,6 +3347,7 @@ async function loadSavedTextAsTest(id) {
     if (!currentUserToken || !id) {
         masterDeckList = [];
         activeWordList = [];
+        wordReserve = [];
         currentSessionDeck = [];
         statusEl.className = "status-badge status-offline";
         statusEl.textContent = currentUserToken ? "NO TEXT PICKED" : "LOG IN TO USE TEXTS";
@@ -3345,6 +3378,7 @@ async function loadSavedTextAsTest(id) {
         console.error("Could not load that saved text:", err);
         masterDeckList = [];
         activeWordList = [];
+        wordReserve = [];
         currentSessionDeck = [];
         renderWordBlock();
         statusEl.className = "status-badge status-offline";
@@ -3400,8 +3434,8 @@ function loadTangoSource(level) {
    thousand is 18KB over the wire, against 800KB for all thirty. Nobody typing the top
    hundred should be made to fetch the other 29,900. */
 const FREQ_LEVELS = {
-    freq100: { file: "freq", take: 100 },
-    freq200: { file: "freq", take: 200 },
+    jp100: { file: "freq", take: 100 },
+    jp200: { file: "freq", take: 200 },
     jp1k: { file: "freq", take: 1000 },
     jp5k: { file: "freq30k", take: 5000 },
     jp10k: { file: "freq30k", take: 10000 },
@@ -4396,7 +4430,7 @@ function setMode(mode, shouldReload = true) {
                     // Generate a large pool of kana once per session so it can be resized safely
                     currentSessionDeck = generateKanaList(charSet, Math.max(qty, 500));
                 }
-                activeWordList = currentSessionDeck.slice(0, qty);
+                activeWordList = takeWordWindow(currentSessionDeck.slice(0, qty));
             } else {
                 if (masterDeckList.length === 0) return;
 
@@ -4416,13 +4450,14 @@ function setMode(mode, shouldReload = true) {
                 }
 
                 if (activeMode === "time") {
-                    activeWordList = currentSessionDeck;
+                    activeWordList = takeWordWindow(currentSessionDeck);
                 } else {
                     if (wordCountSetting === "max") {
-                        activeWordList = currentSessionDeck;
+                        activeWordList = takeWordWindow(currentSessionDeck);
                     } else {
                         let qty = parseInt(wordCountSetting, 10);
-                        activeWordList = isNaN(qty) ? currentSessionDeck : currentSessionDeck.slice(0, qty);
+                        activeWordList = takeWordWindow(
+                            isNaN(qty) ? currentSessionDeck : currentSessionDeck.slice(0, qty));
                     }
                 }
             }
@@ -4454,6 +4489,22 @@ function setMode(mode, shouldReload = true) {
             timeLeftVal.textContent = (testTimeSetting === "infinite") ? "∞" : `${timeRemaining}s`;
 
             renderWordBlock();
+        }
+
+        /* Another batch onto the end. The tiles already on screen are left alone — the one
+           under the cursor especially — so this adds nodes rather than redrawing the
+           block, and the run does not so much as blink. */
+        function extendWordWindow() {
+            if (!wordReserve.length) return;
+
+            const next = wordReserve.splice(0, WORD_WINDOW_STEP);
+            activeWordList = activeWordList.concat(next);
+
+            // A preview is not the test, and must not have the test's words appended to it
+            if (testAreaPreview) return;
+
+            next.forEach(wordObj => wordsContainer.appendChild(buildWordNode(wordObj, false)));
+            applyWordsPerRow();
         }
 
         function buildWordNode(wordObj, isActive) {
@@ -4513,7 +4564,8 @@ function setMode(mode, shouldReload = true) {
             const el = document.getElementById("loaded-count-val");
             if (!el) return;
             const countsCharacters = activeSource === "hiragana" || activeSource === "katakana";
-            el.textContent = `${activeWordList.length}${countsCharacters ? "c" : "w"}`;
+            // The reserve is part of the run, so it is part of the count
+            el.textContent = `${allTestWords().length}${countsCharacters ? "c" : "w"}`;
         }
 
         function renderWordBlock() {
@@ -4777,6 +4829,13 @@ function setMode(mode, shouldReload = true) {
                     romajiAlt = "";
                     // forced past the throttle, so a completed word always lands
                     if (isMultiplayerRace) mpReportProgress(true);
+
+                    /* Coming within sight of the end of the window: the next batch is
+                       laid out now, while there are still words to type, so it never has
+                       to be waited for. */
+                    if (wordReserve.length && activeWordList.length - currentIndex <= WORD_WINDOW_KEEP) {
+                        extendWordWindow();
+                    }
 
                     if (currentIndex < activeWordList.length) {
                         wordsContainer.children[currentIndex].classList.add("active");
