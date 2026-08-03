@@ -96,6 +96,18 @@
                     <span>ANKI</span>
                 </button>
 
+                <!-- The workshop, which is a place rather than a kind of test — it was a
+                     third chip beside "words" and "time", which said it was one. A flask: it
+                     is where text is poured in and taken apart before it is typed. -->
+                <button class="nav-btn" id="sandbox-tab-btn" title="Sandbox — paste text, clean it up, type it">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M9 3h6"></path>
+                        <path d="M10 3v6.4L4.7 17.9A2 2 0 0 0 6.4 21h11.2a2 2 0 0 0 1.7-3.1L14 9.4V3"></path>
+                        <path d="M7.6 14.5h8.8"></path>
+                    </svg>
+                    <span>SANDBOX</span>
+                </button>
+
                 <button class="nav-btn" id="seed-tab-btn" title="Seed Options">
                     <span class="kanji-seed-icon">種</span>
                     <span>SEED</span>
@@ -146,7 +158,6 @@
                 <div class="count-selector-group">
                     <button class="mode-btn" id="mode-words-btn">words</button>
                     <button class="mode-btn active" id="mode-time-btn">time</button>
-                    <button class="mode-btn" id="mode-zen-btn">workshop</button>
                 </div>
                 <div class="selector-divider"></div>
                 <div class="count-selector-group" id="source-group">
@@ -830,8 +841,7 @@
         let isZenMode = false;
         let mistakesSession = 0;
 
-        const zenTabBtn = document.getElementById("zen-tab-btn");
-        const modeZenBtn = document.getElementById("mode-zen-btn");
+        const sandboxTabBtn = document.getElementById("sandbox-tab-btn");
         const typingAppLayout = document.getElementById("typing-app-layout");
         const zenLayout = document.getElementById("zen-layout");
 
@@ -841,31 +851,29 @@
 
             if (isZenMode) {
                 zenLayout.classList.remove("hidden");
-                modeZenBtn.classList.add("active");
-                // The list is only on screen in here, so it is read when the workshop opens
+                sandboxTabBtn.classList.add("active");
+                // The list is only on screen in here, so it is read when the sandbox opens
                 // rather than kept in step with the account at all times
                 refreshLibrary();
-                modeWordsBtn.classList.remove("active");
-                modeTimeBtn.classList.remove("active");
 
-                /* Solo, the workshop is the page: the test area goes away and so does
+                /* Solo, the sandbox is the page: the test area goes away and so does
                    whatever tab was open, because the editor wants the room.
 
                    In a session it is one panel among several. The room's board, the words it
-                   is about to race and the drawer all stay — and the drawer especially,
-                   because in a session the mode chips have physically moved into it, so
-                   closing it took the workshop chip with it and left no way to switch back
-                   off short of leaving the room. */
+                   is about to race and the drawer all stay — the drawer especially, since in
+                   a session the mode chips have physically moved into it. */
                 if (!inRoom) {
                     typingAppLayout.classList.add("hidden");
 
                     profileDrawer.classList.add("hidden");
+                    testOptionsDrawer.classList.add("hidden");
                     ankiDrawer.classList.add("hidden");
                     appearanceDrawer.classList.add("hidden");
                     seedDrawer.classList.add("hidden");
                     multiplayerDrawer.classList.add("hidden");
 
                     profileTabBtn.classList.remove("active");
+                    testOptionsTabBtn.classList.remove("active");
                     ankiTabBtn.classList.remove("active");
                     appearanceTabBtn.classList.remove("active");
                     seedTabBtn.classList.remove("active");
@@ -874,12 +882,7 @@
             } else {
                 zenLayout.classList.add("hidden");
                 typingAppLayout.classList.remove("hidden");
-                modeZenBtn.classList.remove("active");
-                if (activeMode === "words") {
-                    modeWordsBtn.classList.add("active");
-                } else {
-                    modeTimeBtn.classList.add("active");
-                }
+                sandboxTabBtn.classList.remove("active");
             }
 
             applyOptionGroupVisibility();
@@ -890,8 +893,12 @@
             if (typeof mpBroadcastSettings === "function") mpBroadcastSettings();
         }
 
-        modeZenBtn.addEventListener("click", toggleZenMode);
-        if (zenTabBtn) zenTabBtn.addEventListener("click", toggleZenMode);
+        /* A tab now, so pressing it a second time has to land somewhere rather than
+           dropping you on a page with no tab open. openTab does the leaving itself. */
+        sandboxTabBtn.addEventListener("click", () => {
+            if (isZenMode) openTab("test-options");
+            else toggleZenMode();
+        });
 
         /* ---- Workshop file import -------------------------------------------------
            Dropped files land in the textarea verbatim, so nothing is thrown away before
@@ -2351,18 +2358,15 @@ let romajiAlt = "";
             const next = drawers[target] || null;
             const open = Object.values(drawers).find(d => !d.classList.contains("hidden"));
 
-            /* Leaving the panel the workshop is driven from closes the workshop. It used to
-               stay open underneath whatever you opened next, which left the site in two
-               states at once — PROFILE on screen with the workshop's editor behind it, and
-               no way back to the test but to find the "workshop" chip and click it off.
-               Exiting restores the mode and source you had before, exactly as clicking
-               another mode chip does. The text is untouched: the editor is only hidden, so
-               it is still there when you come back.
+            /* Opening a tab closes the sandbox. It used to stay open underneath whatever
+               you opened next, which left the site in two states at once — PROFILE on
+               screen with the editor behind it. The text is untouched: the editor is only
+               hidden, so it is all still there when you come back.
 
-               Asked of the DOM rather than by naming the tab, because in a room the mode
-               chips are physically moved into the multiplayer panel — so the tab that owns
-               the workshop is whichever one currently holds the chip that opens it. */
-            if (isZenMode && !(next && next.contains(modeZenBtn))) toggleZenMode();
+               Opening a tab is leaving the sandbox — except in a room, where the sandbox is
+               one panel among several and the drawer beside it is where the room is run
+               from. There, SANDBOX itself is the way back out. */
+            if (isZenMode && !(typeof mpInSession === "function" && mpInSession())) toggleZenMode();
 
             // The highlight moves at once; only the panels are eased
             if (open && open !== next) {
@@ -3014,17 +3018,11 @@ let romajiAlt = "";
         setMode(activeMode, false);
     }
 
-    /* The chips give up their place to the list of texts, and take it back the moment
-       another source is picked out of that list. */
-    sourceGroup.classList.toggle("hidden", source === "saved");
-    sourceSelect.classList.toggle("hidden", source !== "saved");
-    if (source === "saved") {
-        renderSourceSelect();
-        /* On a first visit to this source nothing has read the collection yet — the
-           workshop is where that usually happens. Asking for it fills the list in, and
-           re-renders this when it arrives. */
-        if (currentUserToken && !savedTexts.length) refreshLibrary();
-    }
+    /* The list of texts is a thing you open, pick from and are done with — it is not the
+       state of anything, so it never survives a source being set. The chips say which
+       source is in force; the list only ever stands in front of them for the moment it
+       takes to choose. */
+    closeSourceTextList();
 
     applyOptionGroupVisibility();
     if (shouldReload) {
@@ -3110,6 +3108,23 @@ function renderSourceSelect() {
     sourceSelect.value = savedTexts.length ? TEXT_OPTION_PREFIX + activeSavedTextId : "";
 }
 
+/* Opened by pressing "saved text", and gone again the moment something is chosen out of
+   it — including another source, which is the way back out without choosing a text. */
+function openSourceTextList() {
+    renderSourceSelect();
+    sourceGroup.classList.add("hidden");
+    sourceSelect.classList.remove("hidden");
+
+    /* On a first visit nothing has read the collection yet — the sandbox is where that
+       usually happens. Asking for it fills the list in behind this. */
+    if (currentUserToken && !savedTexts.length) refreshLibrary();
+}
+
+function closeSourceTextList() {
+    sourceGroup.classList.remove("hidden");
+    sourceSelect.classList.add("hidden");
+}
+
 sourceSelect.addEventListener("change", (e) => {
     const value = e.target.value;
     if (value.startsWith(SOURCE_OPTION_PREFIX)) {
@@ -3120,6 +3135,7 @@ sourceSelect.addEventListener("change", (e) => {
         const id = value.slice(TEXT_OPTION_PREFIX.length);
         activeSavedTextId = id;
         localStorage.setItem("anki_type_saved_text", id);
+        closeSourceTextList();
         loadSavedTextAsTest(id);
     }
 });
@@ -5754,7 +5770,12 @@ function setMode(mode, shouldReload = true) {
         sourceHiraganaBtn.addEventListener("click", () => setSource("hiragana", true));
         sourceKatakanaBtn.addEventListener("click", () => setSource("katakana", true));
         sourceTangoBtn.addEventListener("click", () => setSource("tango", true));
-        sourceSavedBtn.addEventListener("click", () => setSource("saved", true));
+        /* Pressing it while it is already the source is asking for the list again — to pick
+           a different text — rather than asking to reload the one already in hand. */
+        sourceSavedBtn.addEventListener("click", () => {
+            setSource("saved", activeSource !== "saved");
+            openSourceTextList();
+        });
 
         tangoLevelBtns.forEach(btn => {
             btn.addEventListener("click", () => setTangoLevel(btn.dataset.tangoLevel, true));

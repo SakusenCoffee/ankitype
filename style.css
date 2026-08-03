@@ -276,7 +276,11 @@ body {
 .top-navbar {
     margin-top: 20px;
     width: 90%;
-    max-width: 950px;
+    /* Wide enough for the seven tabs and the brand beside them. At 950 the row of
+       labelled tabs came to within a couple of pixels of the whole measure, and what
+       gave way was the brand — 単語タイプ breaks between any two characters, so it
+       folded into three lines rather than the row admitting it was full. */
+    max-width: 1040px;
     background-color: var(--nav-bg);
     border: 1px solid var(--border-color);
     border-radius: 16px;
@@ -305,6 +309,10 @@ body {
     letter-spacing: 1px;
     display: flex;
     align-items: center;
+    /* A name, not a paragraph: it keeps its line at every width, and the row wraps or
+       the tabs shed their labels instead */
+    white-space: nowrap;
+    flex-shrink: 0;
     gap: 8px;
     color: var(--text-primary);
 }
