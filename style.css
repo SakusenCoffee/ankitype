@@ -3368,6 +3368,28 @@ body.tight-spacing .word-item {
     min-height: 16px;
 }
 
+/* Whose material the words are. A full-width line under the rest of the footer:
+   it is a credit rather than a navigation item, so it reads as a footnote to the
+   footer instead of competing with the links above it. */
+.footer-credits {
+    flex-basis: 100%;
+    text-align: center;
+    font-size: 0.68rem;
+    line-height: 1.6;
+    color: var(--text-muted);
+    opacity: 0.75;
+}
+
+.footer-credits a {
+    color: inherit;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+}
+
+.footer-credits a:hover {
+    color: var(--accent-main);
+}
+
 /* SAVED WORKSHOP TEXTS
    A panel under the editor rather than beside it: the list is a list, and the
    text it belongs to is the whole width of the page above it. */
