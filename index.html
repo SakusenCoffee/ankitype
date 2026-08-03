@@ -881,6 +881,8 @@
                 sandboxTabBtn.classList.remove("active");
             }
 
+            // The filters belong to the text, so they follow the editor in and out
+            placeFilterBar();
             applyOptionGroupVisibility();
             updateEndlessHint();
             // The test area is no longer switched off wholesale in a session, so whether the
@@ -5164,14 +5166,29 @@ function setMode(mode, shouldReload = true) {
         const playOptionsRow = document.querySelector("#test-options-drawer .word-count-nav");
         const playOptionsHome = playOptionsRow && playOptionsRow.parentElement;
 
-        /* The text filters travel too, but not to the same place. The chips belong with the
-           room's controls in the drawer; the filters act on the workshop text, so they
-           follow it out to the centre column and sit directly above the textarea. Left in
-           the drawer they were invisible in a session — the drawer they live in is the TYPE
-           drawer, and in a room that never opens. */
+        /* The text filters travel too, but not to the same place as the chips. They act on
+           the sandbox's text, so they follow it out to the centre column and sit directly
+           above the textarea.
+
+           They are declared in the TYPE drawer and that is where they sit at rest, but it
+           is not a drawer they can be used from any more: opening SANDBOX closes it, and in
+           a room it never opens at all. Wherever the editor is, they go with it. */
         const mpFilterSlot = document.getElementById("mp-filter-slot");
         const filterBarHome = filterBar && filterBar.parentElement;
         const filterBarHomeNext = filterBar && filterBar.nextElementSibling;
+
+        function placeFilterBar() {
+            if (!filterBar) return;
+
+            const withTheEditor = isZenMode || (typeof mpInSession === "function" && mpInSession());
+
+            if (withTheEditor && filterBar.parentElement !== mpFilterSlot) {
+                mpFilterSlot.appendChild(filterBar);
+            } else if (!withTheEditor && filterBarHome && filterBar.parentElement !== filterBarHome) {
+                // Back to the exact spot it came from, so the drawer's order is kept
+                filterBarHome.insertBefore(filterBar, filterBarHomeNext);
+            }
+        }
 
         function mpUpdateChrome() {
             const inRoom = mpInSession();
@@ -5190,14 +5207,7 @@ function setMode(mode, shouldReload = true) {
                 }
             }
 
-            if (filterBar) {
-                if (inRoom && filterBar.parentElement !== mpFilterSlot) {
-                    mpFilterSlot.appendChild(filterBar);
-                } else if (!inRoom && filterBarHome && filterBar.parentElement !== filterBarHome) {
-                    // Back to the exact spot it came from, so the drawer's order is kept
-                    filterBarHome.insertBefore(filterBar, filterBarHomeNext);
-                }
-            }
+            placeFilterBar();
 
             // The board is the room, not just the race: it stays up between races so the
             // avatars are on screen while everyone waits.
