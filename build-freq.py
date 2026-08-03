@@ -30,8 +30,14 @@ import re
 HERE = os.path.dirname(os.path.abspath(__file__))
 BANK = os.path.join(HERE, "[Freq] JPDB ", "term_meta_bank_1.json")
 JMDICT = os.path.join(HERE, "[Bilingual] JMdict (Recommended)")
-OUT = os.path.join(HERE, "freq.json")
-WANTED = 500
+# Two files rather than one, because the tiers are nested and most visits want the
+# small end of them: the first thousand, which top 100 and top 200 are cuts of, and the
+# whole thirty thousand for the tiers that need it. Only one of the two is ever fetched,
+# and the small one is a fraction of the big one.
+OUT_SMALL = os.path.join(HERE, "freq.json")
+OUT_LARGE = os.path.join(HERE, "freq30k.json")
+SMALL = 1000
+WANTED = 30000
 
 KANJI = re.compile(r"[一-龯㐀-䶿]")
 
@@ -199,13 +205,15 @@ def main():
             missing.append(term)
         words.append({"kanji": term, "reading": reading, "meaning": meaning or ""})
 
-    with open(OUT, "w", encoding="utf-8") as fh:
-        json.dump(words, fh, ensure_ascii=False, separators=(",", ":"))
+    for path, cut in ((OUT_SMALL, SMALL), (OUT_LARGE, len(words))):
+        with open(path, "w", encoding="utf-8") as fh:
+            json.dump(words[:cut], fh, ensure_ascii=False, separators=(",", ":"))
+        glossed = sum(1 for w in words[:cut] if w["meaning"])
+        size = os.path.getsize(path) / 1024
+        print(f"{min(cut, len(words))} words -> {path} ({glossed} glossed, {size:.0f}KB)")
 
-    glossed = sum(1 for w in words if w["meaning"])
-    print(f"{len(words)} words -> {OUT} ({glossed} with a meaning)")
     if missing:
-        print("no gloss found for:", " ".join(missing))
+        print(f"{len(missing)} without a gloss, e.g.: " + " ".join(missing[:20]))
 
 
 if __name__ == "__main__":

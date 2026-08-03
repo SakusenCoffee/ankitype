@@ -197,8 +197,16 @@
                             title="The 100 commonest words in Japanese, commonest first">top 100</button>
                     <button class="tango-level-btn" data-tango-level="freq200"
                             title="The 200 commonest words in Japanese, commonest first">top 200</button>
-                    <button class="tango-level-btn" data-tango-level="freq500"
-                            title="The 500 commonest words in Japanese, commonest first">top 500</button>
+                    <button class="tango-level-btn" data-tango-level="jp1k"
+                            title="The 1,000 commonest words in Japanese">jp1k</button>
+                    <button class="tango-level-btn" data-tango-level="jp5k"
+                            title="The 5,000 commonest words in Japanese">jp5k</button>
+                    <button class="tango-level-btn" data-tango-level="jp10k"
+                            title="The 10,000 commonest words in Japanese">jp10k</button>
+                    <button class="tango-level-btn" data-tango-level="jp20k"
+                            title="The 20,000 commonest words in Japanese">jp20k</button>
+                    <button class="tango-level-btn" data-tango-level="jp30k"
+                            title="The 30,000 commonest words in Japanese">jp30k</button>
                     <button class="tango-level-btn" data-tango-level="joyo"
                             title="All 2,136 jōyō kanji — each takes any of its readings">jōyō</button>
                 </div>
@@ -3384,23 +3392,34 @@ function loadTangoSource(level) {
     fetchTangoJson(level);
 }
 
-/* How many of the frequency list each chip takes. The order is the point of that list,
-   so these are cuts of it rather than sets of their own. */
-const FREQ_LEVELS = { freq100: 100, freq200: 200, freq500: 500 };
+/* How much of the frequency list each chip takes, and which file it comes out of. The
+   order is the point of that list, so these are all cuts of the same thing rather than
+   sets of their own.
+
+   Two files because the tiers are nested and most visits want the small end: the first
+   thousand is 18KB over the wire, against 800KB for all thirty. Nobody typing the top
+   hundred should be made to fetch the other 29,900. */
+const FREQ_LEVELS = {
+    freq100: { file: "freq", take: 100 },
+    freq200: { file: "freq", take: 200 },
+    jp1k: { file: "freq", take: 1000 },
+    jp5k: { file: "freq30k", take: 5000 },
+    jp10k: { file: "freq30k", take: 10000 },
+    jp20k: { file: "freq30k", take: 20000 },
+    jp30k: { file: "freq30k", take: 30000 }
+};
 
 async function fetchTangoJson(level) {
     statusEl.className = "status-badge status-loading";
     statusEl.textContent = "LOADING QUEUE";
 
     try {
-        /* The frequency levels are all cut from the same list: one file of the commonest
-           words in order, and "top 100" is the first hundred of it. Fetching it once and
-           slicing beats shipping the same words three times over. */
-        const freqCut = FREQ_LEVELS[level];
-        const response = await fetch(`/${freqCut ? "freq" : level}.json`);
+        // A frequency tier is a slice of one of the two lists; everything else is its own file
+        const tier = FREQ_LEVELS[level];
+        const response = await fetch(`/${tier ? tier.file : level}.json`);
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         const raw = await response.json();
-        const data = freqCut ? raw.slice(0, freqCut) : raw;
+        const data = tier ? raw.slice(0, tier.take) : raw;
 
         const parsed = data.map(item => ({
             kanji: item.kanji || item.expression || "N/A",
@@ -7968,6 +7987,14 @@ function setMode(mode, shouldReload = true) {
            waits on it: until it lands a standalone kanji simply takes its stored reading,
            which is what it did before. */
         loadKanjiYomi();
+
+        /* A level remembered from a build that had it and this one doesn't — top 500 became
+           the jp tiers — would send the page after a file that is no longer there. The
+           chips are the list of what exists, so they are what it is checked against. */
+        if (!document.querySelector(`[data-tango-level="${activeTangoLevel}"]`)) {
+            activeTangoLevel = "n5";
+            localStorage.setItem("anki_type_tango_level", activeTangoLevel);
+        }
 
         setSource(activeSource);
         populateDecks();
