@@ -1666,13 +1666,36 @@ let romajiAlt = "";
            its own, いつ, みつ — and in either script, since ツ is spelled "tsu" too.
 
            The canonical spelling stays the one the word displays and the one that lands in
-           the typed line; an alternate is only another road to the same syllable. */
+           the typed line; an alternate is only another road to the same syllable.
+
+           `onlyKana` is for the spellings that the romaji alone can't tell apart. づ and ず
+           are both written "zu", and only one of them is ever typed "du" — so that entry
+           asks which kana is actually sitting at this point in the word, and an alternate
+           with no way of checking is not offered at all. Without it, "du" would quietly
+           pass for ず, which is the very distinction a kana test exists to drill. */
         const ROMAJI_ALTERNATES = {
-            tsu: ["tu"]
+            tsu: { spellings: ["tu"] },
+            zu: { spellings: ["du"], onlyKana: /[づヅ]/ }
         };
 
         const LONGEST_ALTERNATE_KEY = Math.max(
             ...Object.keys(ROMAJI_ALTERNATES).map(key => key.length));
+
+        /* Which typing unit begins at each offset into the word's romaji, so an entry that
+           is only right for one kana can find out what is there. Null when the word has no
+           kana spelling that reproduces it — see kanaUnitsFor. */
+        function kanaUnitsByRomajiStart(word) {
+            const units = kanaUnitsFor(word);
+            if (!units) return null;
+
+            const byStart = new Map();
+            let at = 0;
+            units.forEach(unit => {
+                byStart.set(at, unit);
+                at += unit.romaji.length;
+            });
+            return byStart;
+        }
 
         /* The syllable an alternate spelling would be finishing, given the letters typed
            toward it.
@@ -1685,7 +1708,18 @@ let romajiAlt = "";
 
            Returns where the syllable starts in the word, its canonical spelling, and
            whether the attempt finishes an alternate or is still on the way to one. */
-        function findRomajiAlternate(romaji, cursor, pending, keyTyped) {
+        function findRomajiAlternate(word, cursor, pending, keyTyped) {
+            const romaji = word.romaji;
+
+            /* Worked out at most once per keystroke, and only if an entry actually asks —
+               the common case is a table entry that any kana can wear. */
+            let unitsByStart;
+            const kanaAt = (start) => {
+                if (unitsByStart === undefined) unitsByStart = kanaUnitsByRomajiStart(word);
+                const unit = unitsByStart && unitsByStart.get(start);
+                return unit ? unit.kana : null;
+            };
+
             const tries = pending !== null
                 ? [{ start: cursor, attempt: pending + keyTyped }]
                 : Array.from({ length: LONGEST_ALTERNATE_KEY }, (_, back) => ({
@@ -1695,9 +1729,16 @@ let romajiAlt = "";
 
             let partial = null;
             for (const { start, attempt } of tries) {
-                for (const [canonical, alternates] of Object.entries(ROMAJI_ALTERNATES)) {
+                for (const [canonical, entry] of Object.entries(ROMAJI_ALTERNATES)) {
                     if (!romaji.startsWith(canonical, start)) continue;
-                    for (const alternate of alternates) {
+
+                    // The wrong kana for this spelling, or a word that can't say which it is
+                    if (entry.onlyKana) {
+                        const kana = kanaAt(start);
+                        if (!kana || !entry.onlyKana.test(kana)) continue;
+                    }
+
+                    for (const alternate of entry.spellings) {
                         if (alternate === attempt) return { start, canonical, attempt, complete: true };
                         // A finished alternate elsewhere in the table beats a half-typed one
                         if (!partial && alternate.startsWith(attempt)) {
@@ -4421,7 +4462,7 @@ function setMode(mode, shouldReload = true) {
                    syllable the cursor is inside: the "u" of tu against つ's tsu, where the
                    "t" before it was taken for the canonical spelling's own "t". */
                 const alt = findRomajiAlternate(
-                    currentWord.romaji, typedInput.length, romajiAlt || null, keyTyped);
+                    currentWord, typedInput.length, romajiAlt || null, keyTyped);
 
                 if (!alt) {
                     registerMistake();
