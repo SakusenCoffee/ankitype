@@ -199,6 +199,8 @@
                             title="The 200 commonest words in Japanese, commonest first">top 200</button>
                     <button class="tango-level-btn" data-tango-level="freq500"
                             title="The 500 commonest words in Japanese, commonest first">top 500</button>
+                    <button class="tango-level-btn" data-tango-level="joyo"
+                            title="All 2,136 jōyō kanji — each takes any of its readings">jōyō</button>
                 </div>
                 <div class="selector-divider"></div>
                 <div class="count-selector-group hidden" id="word-options-group">
@@ -1818,8 +1820,73 @@ let romajiAlt = "";
 
            Returns where the syllable starts in the word, its canonical spelling, and
            whether the attempt finishes an alternate or is still on the way to one. */
+        /* ---- A kanji standing on its own ------------------------------------------------
+           人 is ひと and にん and じん, and a deck picks one of them to store. Where the word
+           is a single kanji there is nothing else in it to say which was meant, so all of
+           them are accepted — the reading you know is not wrong because the list happens to
+           hold another.
+
+           This applies to what is on screen rather than to what is stored, so it covers a
+           word whose okurigana have been switched off: 続く shown as 続 is a bare kanji and
+           takes つづ and ぞく, since with the ending hidden there is no way to tell which
+           word it is. What is typed is still counted against the word's own spelling.
+
+           The readings come from the 2010 jōyō list, kept as kana so the letters are made
+           by the same converter that made the word's own. */
+        let kanjiYomi = null;
+        let kanjiYomiPending = null;
+
+        function loadKanjiYomi() {
+            if (kanjiYomi || kanjiYomiPending) return kanjiYomiPending;
+            kanjiYomiPending = fetch("/kanji-yomi.json")
+                .then(res => res.ok ? res.json() : {})
+                .then(data => { kanjiYomi = data || {}; return kanjiYomi; })
+                .catch(() => { kanjiYomi = {}; return kanjiYomi; });
+            return kanjiYomiPending;
+        }
+
+        /* The whole word's spellings, when the whole word is one kanji on screen. Empty
+           for anything else, which is nearly everything, so the cost is a length check. */
+        function standaloneKanjiSpellings(word) {
+            if (!kanjiYomi) return [];
+
+            const shown = displayTextFor(word);
+            if ([...shown].length !== 1 || !isKanji(shown)) return [];
+
+            const readings = kanjiYomi[shown];
+            if (!readings) return [];
+
+            const spellings = new Set();
+            readings.forEach(kana => {
+                const letters = normalizeRomaji(wanakana.toRomaji(kana));
+                // The stored spelling is not an alternate to itself
+                if (letters && letters !== word.romaji) spellings.add(letters);
+            });
+            return [...spellings];
+        }
+
         function findRomajiAlternate(word, cursor, pending, keyTyped) {
             const romaji = word.romaji;
+
+            /* A reading of a bare kanji spells the whole word, so it is only ever offered
+               from the start of it — half a word plus another reading of it is neither. */
+            const wholeWord = (cursor === 0 || pending !== null)
+                ? standaloneKanjiSpellings(word)
+                : [];
+
+            if (wholeWord.length) {
+                const attempt = (pending !== null ? pending : "") + keyTyped;
+                let partialHere = null;
+                for (const spelling of wholeWord) {
+                    if (spelling === attempt) {
+                        return { start: 0, canonical: romaji, attempt, complete: true };
+                    }
+                    if (!partialHere && spelling.startsWith(attempt)) {
+                        partialHere = { start: 0, canonical: romaji, attempt, complete: false };
+                    }
+                }
+                if (partialHere) return partialHere;
+            }
 
             /* Worked out at most once per keystroke, and only if an entry actually asks —
                the common case is a table entry that any kana can wear. */
@@ -3342,7 +3409,9 @@ async function fetchTangoJson(level) {
                is what the kana-only display needs. */
             reading: item.reading || "",
             romaji: normalizeRomaji(item.romaji || wanakana.toRomaji(item.reading || item.kanji || "")),
-            meaning: item.meaning || item.definition || "N/A"
+            /* Nothing rather than "N/A": a jōyō kanji that is not a word in its own right
+               has no gloss to give, and a column of N/A says less than an empty line. */
+            meaning: item.meaning || item.definition || ""
         })).filter(word => word.romaji !== "");
 
         tangoJsonCache[level] = parsed;
@@ -7893,6 +7962,12 @@ function setMode(mode, shouldReload = true) {
         // whichever ordering was restored from last time
         document.querySelector('#anki-order-group [data-anki-order="frequency"]').textContent = frequencyLabel();
         setAnkiOrderNote();
+
+        /* The kanji readings are wanted by any list with a bare kanji in it, so they are
+           fetched once here rather than on the first one to turn up. 50KB, and nothing
+           waits on it: until it lands a standalone kanji simply takes its stored reading,
+           which is what it did before. */
+        loadKanjiYomi();
 
         setSource(activeSource);
         populateDecks();

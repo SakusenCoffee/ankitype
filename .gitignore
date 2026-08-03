@@ -9,3 +9,8 @@ ankitype.db
 # commits only what it distils. The brackets are escaped because git otherwise reads
 # [Freq] as "one of F, r, e or q".
 \[*\]*/
+
+# The raw jōyō list is source data like the dictionaries: build-joyo.py turns it into
+# joyo.json and kanji-yomi.json, and those two are what the site actually loads.
+joyo2010.json
+__pycache__/
